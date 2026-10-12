@@ -63,9 +63,11 @@ The service is a macOS LaunchAgent (`com.lifetracker.server`). It builds the app
 ```sh
 npm run service:install     # build, write the plist, start the service
 npm run service:status      # running or not, plus a health check
-npm run service:restart     # restart after changing code or settings
+npm run service:restart     # restart the running service (does not rebuild)
 npm run service:uninstall   # stop the service and remove the plist
 ```
+
+After changing code, run `npm run build && npm run service:restart`. To change options (port, data folder, public origin), run `npm run service:install` again with the new options.
 
 Options go after `--`:
 

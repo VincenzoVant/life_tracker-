@@ -25,6 +25,6 @@ You cannot connect Google Calendar from the phone. Do that on the Mac (see [setu
 
 **The app shows the offline screen.** The phone cannot reach the server. Check that the Mac is awake, that Tailscale is connected on the Mac and on the phone, and run `npm run service:status` on the Mac. The app recovers on its own when you come back to it.
 
-**"Forbidden origin" (a 403 on every action).** The server does not know the URL you are using. Run `npm run service:install -- --public-origin <exact URL>` again with the URL from `tailscale serve status`, then reload.
+**"Origin not allowed" (a 403 on every action).** The server does not know the URL you are using. Run `npm run service:install -- --public-origin <exact URL>` again with the URL from `tailscale serve status`, then reload.
 
 **PIN lockout.** Five wrong PINs within 15 minutes lock login for 15 minutes. Wait, or run `npm run service:restart` on the Mac. The lockout is kept in memory, so a restart clears it.

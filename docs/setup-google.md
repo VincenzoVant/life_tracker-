@@ -34,13 +34,13 @@ Connecting only works from the Mac, on `127.0.0.1`, `localhost` or `[::1]`. The 
 
 ## Troubleshooting
 
-**`invalid_grant`, or a "reconnect Google" banner.** Google no longer accepts the saved refresh token. This happens if you revoked access, changed your Google password, or left the app in Testing mode for more than 7 days. Open Settings and click Connect Google Calendar again. Queued changes are sent after you reconnect. If it keeps happening, check that the app is published ("In production").
+**`invalid_grant`, or a "reconnect Google" banner.** Google no longer accepts the saved refresh token. This happens if you revoked access, changed your Google password, or left the app in Testing mode for more than 7 days. On the Mac, click **Reconnect** in the banner (or in Settings, Google Calendar). Queued changes are sent after you reconnect. If it keeps happening, check that the app is published ("In production").
 
 **"Google didn't grant offline access".** A permission was unticked. Connect again and allow every requested permission.
 
 **The Life Tracker calendar was deleted.** A banner tells you the calendar is gone. Use its recreate button. The app creates a new calendar and sends your committed blocks again.
 
-**"Connect Google from the Mac" (connecting from the phone is not allowed).** Connecting is limited to loopback addresses on purpose. Open `http://127.0.0.1:4280/settings` on the Mac itself, not through Tailscale or the phone.
+**"Connect Google from the Mac" (connecting from the phone is not allowed).** Connecting is limited to loopback addresses on purpose. On the phone the app shows "Connect on your Mac (http://127.0.0.1:4280)" as text instead of a link. Open `http://127.0.0.1:4280/settings` on the Mac itself, not through Tailscale or the phone.
 
 **"Google client file not found".** The file is missing, is not at `<data dir>/secrets/google-client.json`, or is not a Desktop app client. Check the path and restart the server.
 
