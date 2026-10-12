@@ -180,3 +180,34 @@ test('draft blocks do not count in progress planned unless includeProposed', asy
   expect(withProposed.status).toBe(200);
   expect(withProposed.body.study[0].planned).toBe(plannedStudy);
 });
+
+const gym = (c: TestClient, date: string, time: string, endTime: string, status: 'committed' | 'done') =>
+  createBlock(
+    c.ctx,
+    { title: 'Gym', category: 'workout', workoutType: 'gym', start: iso(date, time), end: iso(date, endTime) },
+    { status, ...(status === 'done' ? { actualMinutes: 60 } : {}) },
+  );
+
+test('gym spacing is respected across the start of the planned week', async () => {
+  const c = await createTestClient();
+  seed(c);
+  gym(c, '2026-10-18', '18:00', '19:00', 'committed'); // previous Sunday evening
+  const res = await c.post('/api/plans', { weekStart: '2026-10-19' });
+  expect(res.status).toBe(201);
+  const gyms = (res.body.blocks as Block[]).filter((b) => b.workoutType === 'gym');
+  expect(gyms.length).toBeGreaterThan(0);
+  const earliest = new Date(iso('2026-10-18', '18:00')).getTime() + 40 * 3_600_000; // Tue 10:00
+  for (const g of gyms) expect(new Date(g.start).getTime()).toBeGreaterThanOrEqual(earliest);
+});
+
+test('planning the current week respects a done gym from earlier this week', async () => {
+  const c = await createTestClient();
+  seed(c);
+  gym(c, '2026-10-13', '18:00', '19:00', 'done'); // Tue; now is Wed 12:00
+  const res = await c.post('/api/plans', { weekStart: '2026-10-12' });
+  expect(res.status).toBe(201);
+  const gyms = (res.body.blocks as Block[]).filter((b) => b.workoutType === 'gym');
+  expect(gyms.length).toBeGreaterThan(0);
+  const earliest = new Date(iso('2026-10-13', '18:00')).getTime() + 40 * 3_600_000; // Thu 10:00
+  for (const g of gyms) expect(new Date(g.start).getTime()).toBeGreaterThanOrEqual(earliest);
+});
