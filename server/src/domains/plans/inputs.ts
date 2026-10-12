@@ -1,5 +1,6 @@
 import {
   WORKOUT_TYPES,
+  type WorkoutType,
   blockMinutes,
   eveningWindowUtc,
   weekDates,
@@ -17,6 +18,7 @@ import { getPreferences } from '../preferences/service.js';
 import { getTimezone } from '../settings/service.js';
 import { listOpenTasks } from '../startup/service.js';
 import { listCourses } from '../studies/service.js';
+import { listSessions } from '../workouts/service.js';
 
 const EXISTING_STATUSES = new Set(['committed', 'done', 'partial', 'skipped']);
 
@@ -110,16 +112,25 @@ export function buildPlannerInput(ctx: Ctx, weekStart: string): PlannerInput {
     if (minutes > 0) goals.push({ kind: 'startup', minutes });
   }
 
-  const workoutBlocks = weekBlocks.filter((b) => b.category === 'workout');
+  const counted = (b: Block) => b.status === 'done' || b.status === 'partial' || b.status === 'committed';
+  const workoutBlocks = weekBlocks.filter((b) => b.category === 'workout' && counted(b));
+  const dates = weekDates(weekStart);
+  // Standalone sessions (no block) count towards the goals, like they do in progress.
+  const standalone = listSessions(ctx, { from: dates[0]!, to: dates[6]! }).filter((s) => s.blockId === null);
+  const remaining: Record<WorkoutType, number> = { gym: 0, cardio: 0, sport: 0 };
+  let perTypeRemaining = 0;
   for (const t of WORKOUT_TYPES) {
     const goal = goalSet.workoutsByType[t];
     if (goal === null || goal === undefined) continue;
-    const have = workoutBlocks.filter(
-      (b) => b.workoutType === t && (b.status === 'done' || b.status === 'partial' || b.status === 'committed'),
-    ).length;
-    const count = Math.max(0, goal - have);
-    if (count > 0) goals.push({ kind: 'workout', workoutType: t, count });
+    const have = workoutBlocks.filter((b) => b.workoutType === t).length + standalone.filter((s) => s.type === t).length;
+    remaining[t] = Math.max(0, goal - have);
+    perTypeRemaining += remaining[t];
   }
+  if (goalSet.workoutsTotal !== null) {
+    const totalRemaining = Math.max(0, goalSet.workoutsTotal - workoutBlocks.length - standalone.length);
+    if (totalRemaining > perTypeRemaining) remaining.gym += totalRemaining - perTypeRemaining;
+  }
+  for (const t of WORKOUT_TYPES) if (remaining[t] > 0) goals.push({ kind: 'workout', workoutType: t, count: remaining[t] });
 
   if (goalSet.freeEvenings !== null) {
     const past = isCurrent ? freePastEvenings(weekDates(weekStart), weekBlocks, prefs, tz, now) : 0;

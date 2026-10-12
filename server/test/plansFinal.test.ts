@@ -4,6 +4,8 @@ import { createBlock, listBlocks } from '../src/domains/blocks/service.js';
 import { saveGoals } from '../src/domains/goals/service.js';
 import { createCourse } from '../src/domains/studies/service.js';
 import { createTask } from '../src/domains/startup/service.js';
+import { buildPlannerInput } from '../src/domains/plans/inputs.js';
+import { createSession } from '../src/domains/workouts/service.js';
 import { createTestClient, type TestClient } from './helpers.js';
 
 const TZ = 'America/Los_Angeles';
@@ -98,4 +100,36 @@ test('A2: commit skips proposed blocks that start in the past', async () => {
   expect(res.status).toBe(200);
   expect(res.body.skipped).toBeGreaterThanOrEqual(1);
   expect(all(c).some((b) => b.id === first.id)).toBe(false);
+});
+
+const workoutGoals = (c: TestClient, weekStart: string) =>
+  buildPlannerInput(c.ctx, weekStart).goals.filter((g) => g.kind === 'workout');
+
+test('A5: workoutsTotal alone plans that many workouts (extra assigned to gym)', async () => {
+  const c = await createTestClient();
+  saveGoals(c.ctx, { ...GOALS, workoutsTotal: 4, workoutsByType: { gym: null, cardio: null, sport: null } });
+  expect(workoutGoals(c, '2026-10-19')).toEqual([{ kind: 'workout', workoutType: 'gym', count: 4 }]);
+});
+
+test('A5: total above the per-type goals adds the difference to gym', async () => {
+  const c = await createTestClient();
+  saveGoals(c.ctx, { ...GOALS, workoutsTotal: 4, workoutsByType: { gym: 1, cardio: 1, sport: null } });
+  const goals = workoutGoals(c, '2026-10-19');
+  const count = (t: string) => goals.filter((g) => g.kind === 'workout' && g.workoutType === t).reduce((n, g) => n + (g.kind === 'workout' ? g.count : 0), 0);
+  expect(count('gym')).toBe(3);
+  expect(count('cardio')).toBe(1);
+});
+
+test('A5: standalone sessions in the week reduce the remaining workouts', async () => {
+  const c = await createTestClient();
+  saveGoals(c.ctx, { ...GOALS, workoutsTotal: 4, workoutsByType: { gym: null, cardio: null, sport: null } });
+  createSession(c.ctx, { type: 'cardio', date: '2026-10-20', durationMinutes: 30 });
+  expect(workoutGoals(c, '2026-10-19')).toEqual([{ kind: 'workout', workoutType: 'gym', count: 3 }]);
+});
+
+test('A5: a workoutsTotal-only goal produces workout blocks in the draft', async () => {
+  const c = await createTestClient();
+  saveGoals(c.ctx, { ...GOALS, workoutsTotal: 3, workoutsByType: { gym: null, cardio: null, sport: null } });
+  const res = await c.post('/api/plans', { weekStart: '2026-10-19' });
+  expect((res.body.blocks as Block[]).filter((b) => b.category === 'workout')).toHaveLength(3);
 });
