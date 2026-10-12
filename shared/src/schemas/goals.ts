@@ -64,3 +64,26 @@ export interface WeekProgress {
   freeEvenings: Metric & { freeDates: string[] };
   nutrition: NutritionDay[];
 }
+
+export const TREND_WEEKS = [4, 12, 26] as const;
+export const TrendsQuery = z.object({
+  weeks: z.coerce.number().refine((n) => (TREND_WEEKS as readonly number[]).includes(n), 'Must be 4, 12 or 26'),
+});
+
+export interface WeekTrend {
+  weekStart: string;
+  studyMinutes: { goal: number | null; actual: number };
+  startupMinutes: { goal: number | null; actual: number };
+  workMinutes: { actual: number };
+  workouts: { goal: number | null; actual: number };
+  freeEvenings: { goal: number | null; actual: number };
+  avgKcal: number | null;
+  avgProteinG: number | null;
+  daysKcalOk: number;
+  daysProteinOk: number;
+}
+
+export interface Streaks {
+  reviewDays: number;
+  workoutWeeks: number;
+}

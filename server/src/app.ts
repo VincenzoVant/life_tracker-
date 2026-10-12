@@ -13,7 +13,7 @@ import { courseRoutes } from './domains/studies/routes.js';
 import { startupRoutes } from './domains/startup/routes.js';
 import { liftRoutes, workoutRoutes } from './domains/workouts/routes.js';
 import { mealLogRoutes, mealRoutes } from './domains/food/routes.js';
-import { goalRoutes, progressRoutes } from './domains/goals/routes.js';
+import { goalRoutes, progressRoutes, streakRoutes } from './domains/goals/routes.js';
 import { reviewRoutes } from './domains/review/routes.js';
 import { backupRoutes } from './domains/backups/routes.js';
 import { preferencesRoutes } from './domains/preferences/routes.js';
@@ -42,6 +42,7 @@ export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
   app.route('/api/meal-logs', mealLogRoutes(ctx));
   app.route('/api/goals', goalRoutes(ctx));
   app.route('/api/progress', progressRoutes(ctx));
+  app.route('/api/streaks', streakRoutes(ctx));
   app.route('/api/review', reviewRoutes(ctx));
 
   app.notFound((c) => {
