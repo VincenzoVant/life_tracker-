@@ -18,6 +18,9 @@ test('empty object parses to defaults', () => {
   expect(DEFAULT_PREFERENCES.studyBlock).toEqual({ min: 45, max: 120 });
   expect(DEFAULT_PREFERENCES.preferredStartupWindows).toHaveLength(2);
   expect(DEFAULT_PREFERENCES.classesCountTowardStudy).toBe(false);
+  expect(DEFAULT_PREFERENCES.weightUnit).toBe('kg');
+  expect(PreferencesSchema.parse({ weightUnit: 'lbs' }).weightUnit).toBe('lbs');
+  expect(fieldsOf({ weightUnit: 'stone' })).toHaveProperty('weightUnit');
 });
 test('earliestBlock >= latestBlockEnd rejected at earliestBlock', () => {
   expect(Object.keys(fieldsOf({ earliestBlock: '22:30', latestBlockEnd: '22:30' }))).toContain('earliestBlock');

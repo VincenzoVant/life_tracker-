@@ -1,5 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { DEFAULT_PREFERENCES } from '@life-tracker/shared';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { TopLiftsPage } from '../src/features/areas/workouts/TopLiftsPage';
 import { mockApi } from './mockApi';
@@ -19,6 +20,7 @@ const summaries = [
 const handlers = () => ({
   'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
   'GET /api/lifts': () => summaries,
+  'GET /api/preferences': () => DEFAULT_PREFERENCES,
 });
 
 test('lift card shows heaviest and e1RM; add top set posts weightKg and reps', async () => {
@@ -26,12 +28,12 @@ test('lift card shows heaviest and e1RM; add top set posts weightKg and reps', a
   renderWithProviders(<TopLiftsPage />);
   const card = await screen.findByRole('article', { name: 'Squat' });
   expect(within(card).getByText('100 kg × 3')).toBeInTheDocument();
-  expect(within(card).getByText('e1RM 110.0 kg')).toBeInTheDocument();
+  expect(within(card).getByText('e1RM 110 kg')).toBeInTheDocument();
   expect(within(card).getByText(/2026-10-10/)).toBeInTheDocument();
 
   await userEvent.click(within(card).getByRole('button', { name: 'Add top set' }));
   expect(screen.getByLabelText('Date')).toHaveValue('2026-10-14');
-  await userEvent.type(screen.getByLabelText('Weight (kg)'), '102.5');
+  await userEvent.type(screen.getByLabelText('Weight'), '102.5');
   await userEvent.type(screen.getByLabelText('Reps'), '2');
   await userEvent.click(screen.getByRole('button', { name: 'Save' }));
   await vi.waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
@@ -91,4 +93,68 @@ test('deleting a set asks for confirmation and toasts on failure', async () => {
   await userEvent.click(del);
   expect(await screen.findByText('Server exploded')).toBeInTheDocument();
   confirm.mockRestore();
+});
+
+const openAdd = async () => {
+  const card = await screen.findByRole('article', { name: 'Squat' });
+  await userEvent.click(within(card).getByRole('button', { name: 'Add top set' }));
+};
+
+test('switching the page unit to lbs converts the cards and saves the preference', async () => {
+  let stored: unknown = DEFAULT_PREFERENCES;
+  const { calls } = mockApi({
+    ...handlers(),
+    'GET /api/preferences': () => stored,
+    'PUT /api/preferences': (b) => (stored = b),
+  });
+  renderWithProviders(<TopLiftsPage />);
+  const card = await screen.findByRole('article', { name: 'Squat' });
+  expect(within(card).getByText('100 kg × 3')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'lbs' }));
+  expect(await within(card).findByText('220.5 lbs × 3')).toBeInTheDocument();
+  expect(within(card).getByText('e1RM 242.5 lbs')).toBeInTheDocument();
+  await vi.waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true));
+  expect(calls.find((c) => c.method === 'PUT')!.body).toEqual({ ...DEFAULT_PREFERENCES, weightUnit: 'lbs' });
+});
+
+test('history list and chart use the saved unit', async () => {
+  mockApi({
+    ...handlers(),
+    'GET /api/preferences': () => ({ ...DEFAULT_PREFERENCES, weightUnit: 'lbs' }),
+    'GET /api/lifts/l1/sets': () => [set],
+  });
+  renderWithProviders(<TopLiftsPage />);
+  const card = await screen.findByRole('article', { name: 'Squat' });
+  expect(await within(card).findByText('220.5 lbs × 3')).toBeInTheDocument();
+  await userEvent.click(within(card).getByRole('button', { name: 'History' }));
+  expect(await screen.findByRole('img', { name: /lbs/ })).toBeInTheDocument();
+  expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('220.5 lbs × 3');
+});
+
+test('the input unit button converts the typed value and toggles back without drift', async () => {
+  mockApi(handlers());
+  renderWithProviders(<TopLiftsPage />);
+  await openAdd();
+  const input = screen.getByLabelText('Weight');
+  await userEvent.type(input, '100');
+  const unit = screen.getByRole('button', { name: /^Weight unit/ });
+  expect(unit).toHaveTextContent('kg');
+  await userEvent.click(unit);
+  expect(input).toHaveValue(220.5);
+  expect(unit).toHaveTextContent('lbs');
+  await userEvent.click(unit);
+  expect(input).toHaveValue(100);
+  expect(unit).toHaveTextContent('kg');
+});
+
+test('submitting 225 in lbs posts 102.06 kg', async () => {
+  const { calls } = mockApi({ ...handlers(), 'POST /api/lifts/l1/sets': (b) => ({ id: 'n', liftId: 'l1', notes: null, ...b }) });
+  renderWithProviders(<TopLiftsPage />);
+  await openAdd();
+  await userEvent.click(screen.getByRole('button', { name: /^Weight unit/ }));
+  await userEvent.type(screen.getByLabelText('Weight'), '225');
+  await userEvent.type(screen.getByLabelText('Reps'), '1');
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await vi.waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
+  expect(calls.find((c) => c.method === 'POST')!.body).toMatchObject({ weightKg: 102.06, reps: 1 });
 });

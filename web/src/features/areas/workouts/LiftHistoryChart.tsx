@@ -1,4 +1,4 @@
-import { epley1rm, type TopSet } from '@life-tracker/shared';
+import { epley1rm, formatWeight, fromKg, type TopSet, type WeightUnit } from '@life-tracker/shared';
 import './workouts.css';
 
 const W = 320;
@@ -6,7 +6,7 @@ const H = 160;
 const PAD = { l: 36, r: 12, t: 12, b: 24 };
 
 /** Inline SVG line of e1RM over time (oldest to newest, evenly spaced). */
-export function LiftHistoryChart({ sets, name }: { sets: TopSet[]; name: string }) {
+export function LiftHistoryChart({ sets, name, unit = 'kg' }: { sets: TopSet[]; name: string; unit?: WeightUnit }) {
   const pts = [...sets].sort((a, b) => a.date.localeCompare(b.date)).map((s) => ({ date: s.date, v: epley1rm(s.weightKg, s.reps) }));
   if (pts.length === 0) return null;
   const first = pts[0]!;
@@ -18,14 +18,15 @@ export function LiftHistoryChart({ sets, name }: { sets: TopSet[]; name: string 
   const inner = W - PAD.l - PAD.r;
   const x = (i: number) => PAD.l + (pts.length === 1 ? inner / 2 : (i / (pts.length - 1)) * inner);
   const y = (v: number) => PAD.t + (1 - (v - min) / span) * (H - PAD.t - PAD.b);
+  const fmtAxis = (v: number) => `${Math.round(fromKg(v, unit))}`;
   const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(' ');
-  const label = `${name} estimated 1RM over time: ${pts.length} sets from ${first.date} to ${last.date}, from ${min.toFixed(1)} kg to ${max.toFixed(1)} kg`;
+  const label = `${name} estimated 1RM over time: ${pts.length} sets from ${first.date} to ${last.date}, from ${formatWeight(min, unit)} to ${formatWeight(max, unit)}`;
   return (
     <svg className="wk-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
       <line className="axis" x1={PAD.l} x2={PAD.l} y1={PAD.t} y2={H - PAD.b} />
       <line className="axis" x1={PAD.l} x2={W - PAD.r} y1={H - PAD.b} y2={H - PAD.b} />
-      <text x={PAD.l - 4} y={y(max) + 4} textAnchor="end">{max.toFixed(0)}</text>
-      <text x={PAD.l - 4} y={y(min) + 4} textAnchor="end">{min.toFixed(0)}</text>
+      <text x={PAD.l - 4} y={y(max) + 4} textAnchor="end">{fmtAxis(max)}</text>
+      <text x={PAD.l - 4} y={y(min) + 4} textAnchor="end">{fmtAxis(min)}</text>
       <text x={PAD.l} y={H - 6}>{first.date}</text>
       <text x={W - PAD.r} y={H - 6} textAnchor="end">{last.date}</text>
       {pts.length > 1 && <path className="line" d={path} />}

@@ -47,6 +47,7 @@ export const DEFAULT_PREFERENCES = {
   reviewPromptTime: '20:00',
   protectedEvenings: [] as Weekday[],
   classesCountTowardStudy: false,
+  weightUnit: 'kg' as 'kg' | 'lbs',
 };
 
 const D = DEFAULT_PREFERENCES;
@@ -85,6 +86,7 @@ export const PreferencesSchema = z
     reviewPromptTime: HHmm.default(D.reviewPromptTime),
     protectedEvenings: z.array(Weekday).default([]),
     classesCountTowardStudy: z.boolean().default(D.classesCountTowardStudy),
+    weightUnit: z.enum(['kg', 'lbs']).default(D.weightUnit),
   })
   .superRefine((p, ctx) => {
     const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
