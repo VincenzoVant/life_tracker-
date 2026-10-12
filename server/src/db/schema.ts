@@ -141,6 +141,21 @@ export const goals = sqliteTable('goals', {
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
 });
 
+export const fixedEvents = sqliteTable('fixed_events', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  kind: text('kind').notNull(), // class | work
+  courseId: text('course_id').references(() => courses.id, { onDelete: 'set null' }),
+  weekday: integer('weekday').notNull(), // ISO 1..7
+  startTime: text('start_time').notNull(),
+  endTime: text('end_time').notNull(),
+  validFrom: text('valid_from').notNull(),
+  validTo: text('valid_to').notNull(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
 export const mealLogs =sqliteTable(
   'meal_logs',
   {

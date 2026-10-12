@@ -6,6 +6,7 @@ import { authRoutes } from './auth/routes.js';
 import { createLockout } from './auth/lockout.js';
 import { requireOrigin, requireSession } from './auth/middleware.js';
 import { blockRoutes } from './domains/blocks/routes.js';
+import { scheduleRoutes } from './domains/schedule/routes.js';
 import { courseRoutes } from './domains/studies/routes.js';
 import { startupRoutes } from './domains/startup/routes.js';
 import { liftRoutes, workoutRoutes } from './domains/workouts/routes.js';
@@ -24,6 +25,7 @@ export function createApp(ctx: Ctx): Hono {
   app.route('/api/settings', settingsRoutes(ctx));
   app.route('/api/blocks', blockRoutes(ctx));
   app.route('/api/courses', courseRoutes(ctx));
+  app.route('/api/schedule', scheduleRoutes(ctx));
   app.route('/api/startup', startupRoutes(ctx));
   app.route('/api/workouts', workoutRoutes(ctx));
   app.route('/api/lifts', liftRoutes(ctx));

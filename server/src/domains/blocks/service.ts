@@ -161,6 +161,31 @@ export function setBlockStatus(ctx: Ctx, id: string, to: BlockStatus, actualMinu
   return getBlock(ctx, id);
 }
 
+/** For schedule materialization only: moves/renames a `source = 'fixed'` block, bypassing the fixed-time guard. */
+export function updateFixedBlockInternal(
+  ctx: Ctx,
+  id: string,
+  patch: { start?: string; end?: string; title?: string; courseId?: string | null },
+): Block {
+  const cur = getBlock(ctx, id);
+  if (cur.source !== 'fixed') throw new AppError('CONFLICT', 'Only fixed blocks can be updated this way');
+  if (cur.status === 'removed') throw new AppError('INVALID_TRANSITION', 'A removed block cannot be edited');
+  const next = {
+    title: patch.title ?? cur.title,
+    start: patch.start !== undefined ? normIso(patch.start) : cur.start,
+    end: patch.end !== undefined ? normIso(patch.end) : cur.end,
+    courseId: patch.courseId !== undefined ? patch.courseId : cur.courseId,
+  };
+  assertLinksExist(ctx, { courseId: next.courseId !== cur.courseId ? next.courseId : null });
+  ctx.db
+    .update(blocks)
+    .set({ ...next, updatedAt: ctx.clock.now().toISOString() })
+    .where(eq(blocks.id, id))
+    .run();
+  ctx.events.emit({ blockId: id, kind: 'updated' });
+  return getBlock(ctx, id);
+}
+
 /** Hard delete; proposed blocks never reach Google, so nothing is emitted. */
 export function deleteProposedBlocks(ctx: Ctx, ids: string[]): void {
   if (ids.length === 0) return;
