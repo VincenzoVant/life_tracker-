@@ -61,6 +61,7 @@ export interface CreateBlockOpts {
   locked?: boolean;
   planId?: string | null;
   fixedEventId?: string | null;
+  occurrenceDate?: string | null;
   actualMinutes?: number | null;
 }
 
@@ -83,6 +84,8 @@ export function createBlock(ctx: Ctx, input: BlockCreateInput, opts: CreateBlock
     workoutType: v.workoutType ?? null,
     mealSlot: v.mealSlot ?? null,
     fixedEventId: opts.fixedEventId ?? null,
+    occurrenceDate: opts.occurrenceDate ?? null,
+    removedBy: null,
     planId: opts.planId ?? null,
     gcalEventId: null,
     gcalEtag: null,
@@ -143,7 +146,13 @@ export function updateBlock(ctx: Ctx, id: string, patch: BlockUpdateInput): Bloc
   return getBlock(ctx, id);
 }
 
-export function setBlockStatus(ctx: Ctx, id: string, to: BlockStatus, actualMinutes?: number | null): Block {
+export function setBlockStatus(
+  ctx: Ctx,
+  id: string,
+  to: BlockStatus,
+  actualMinutes?: number | null,
+  removedBy: 'user' | 'schedule' = 'user',
+): Block {
   const cur = getBlock(ctx, id);
   if (!canTransition(cur.status, to)) {
     throw new AppError('INVALID_TRANSITION', `Cannot change a ${cur.status} block to ${to}`);
@@ -154,10 +163,43 @@ export function setBlockStatus(ctx: Ctx, id: string, to: BlockStatus, actualMinu
   else if (to === 'skipped') minutes = 0;
   ctx.db
     .update(blocks)
-    .set({ status: to, actualMinutes: minutes, updatedAt: ctx.clock.now().toISOString() })
+    .set({
+      status: to,
+      actualMinutes: minutes,
+      removedBy: to === 'removed' ? removedBy : null,
+      updatedAt: ctx.clock.now().toISOString(),
+    })
     .where(eq(blocks.id, id))
     .run();
   ctx.events.emit({ blockId: id, kind: to === 'removed' ? 'removed' : 'updated' });
+  return getBlock(ctx, id);
+}
+
+/** Schedule materialization only: brings a schedule-removed fixed block back to committed with the given times. */
+export function reviveFixedBlockInternal(
+  ctx: Ctx,
+  id: string,
+  v: { start: string; end: string; title: string; courseId: string | null },
+): Block {
+  const cur = getBlock(ctx, id);
+  if (cur.source !== 'fixed' || cur.status !== 'removed' || cur.removedBy !== 'schedule') {
+    throw new AppError('CONFLICT', 'Only schedule-removed fixed blocks can be revived');
+  }
+  ctx.db
+    .update(blocks)
+    .set({
+      status: 'committed',
+      removedBy: null,
+      actualMinutes: null,
+      start: normIso(v.start),
+      end: normIso(v.end),
+      title: v.title,
+      courseId: v.courseId,
+      updatedAt: ctx.clock.now().toISOString(),
+    })
+    .where(eq(blocks.id, id))
+    .run();
+  ctx.events.emit({ blockId: id, kind: 'updated' });
   return getBlock(ctx, id);
 }
 

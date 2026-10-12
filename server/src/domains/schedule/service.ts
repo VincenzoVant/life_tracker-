@@ -111,7 +111,7 @@ export function deleteFixedEvent(ctx: Ctx, id: string): void {
         ),
       )
       .all();
-    for (const b of future) setBlockStatus(ctx, b.id, 'removed');
+    for (const b of future) setBlockStatus(ctx, b.id, 'removed', undefined, 'schedule');
     ctx.db.delete(fixedEvents).where(eq(fixedEvents.id, id)).run();
   });
 }

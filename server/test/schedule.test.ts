@@ -184,11 +184,46 @@ test('lists events ordered by weekday then start time', async () => {
   expect(list.body.map((e: any) => e.title)).toEqual(['A1', 'A2', 'B']);
 });
 
-test('inactive event materializes nothing and deactivating removes future occurrences', async () => {
+test('PATCH without active keeps an inactive event inactive', async () => {
   const { c, courseId } = await setup();
   const ev = await c.post('/api/schedule', classBody(courseId));
   await c.patch(`/api/schedule/${ev.body.id}`, { active: false });
+  const res = await c.patch(`/api/schedule/${ev.body.id}`, { title: 'Renamed' });
+  expect(res.body).toMatchObject({ title: 'Renamed', active: false });
+  expect(eventBlocks(c, ev.body.id)).toHaveLength(0);
+});
+
+test('deactivate then reactivate restores the same occurrences; user-cancelled ones stay gone', async () => {
+  const { c, courseId } = await setup();
+  const ev = await c.post('/api/schedule', classBody(courseId));
+  const before = eventBlocks(c, ev.body.id);
+  const cancelled = before[1]!;
+  await c.del(`/api/blocks/${cancelled.id}`);
+  await c.patch(`/api/schedule/${ev.body.id}`, { active: false });
   expect(eventBlocks(c, ev.body.id)).toHaveLength(0);
   await c.patch(`/api/schedule/${ev.body.id}`, { active: true });
-  expect(eventBlocks(c, ev.body.id)).toHaveLength(0 + 0); // removed ones are never recreated
+  const after = eventBlocks(c, ev.body.id);
+  expect(after.map((b) => b.id)).toEqual(before.filter((b) => b.id !== cancelled.id).map((b) => b.id));
+  expect(after.every((b) => b.status === 'committed' && b.removedBy === null)).toBe(true);
+});
+
+test('extending validTo after shrinking brings occurrences back', async () => {
+  const { c, courseId } = await setup();
+  const ev = await c.post('/api/schedule', classBody(courseId));
+  await c.patch(`/api/schedule/${ev.body.id}`, { validTo: '2026-11-02' });
+  await c.patch(`/api/schedule/${ev.body.id}`, { validTo: '2026-11-30' });
+  expect(eventBlocks(c, ev.body.id)).toHaveLength(7);
+  expect(eventBlocks(c, ev.body.id, true)).toHaveLength(7);
+});
+
+test('an occurrence moved to another day is not duplicated by the daily run', async () => {
+  const { c, courseId } = await setup();
+  const ev = await c.post('/api/schedule', classBody(courseId));
+  const [first] = eventBlocks(c, ev.body.id);
+  updateFixedBlockInternal(c.ctx, first!.id, {
+    start: '2026-10-21T17:00:00.000Z',
+    end: '2026-10-21T18:20:00.000Z',
+  });
+  expect(materializeFixedEvents(c.ctx)).toEqual({ created: 0, updated: 0, removed: 0 });
+  expect(eventBlocks(c, ev.body.id)).toHaveLength(7);
 });

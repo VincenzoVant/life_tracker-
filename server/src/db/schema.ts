@@ -65,6 +65,8 @@ export const blocks = sqliteTable(
     workoutType: text('workout_type'),
     mealSlot: text('meal_slot'),
     fixedEventId: text('fixed_event_id'),
+    occurrenceDate: text('occurrence_date'), // fixed blocks: the local date this occurrence was generated for
+    removedBy: text('removed_by'), // user | schedule (set when status = removed)
     planId: text('plan_id'),
     gcalEventId: text('gcal_event_id'),
     gcalEtag: text('gcal_etag'),

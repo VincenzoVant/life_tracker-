@@ -26,6 +26,8 @@ export interface Block {
   workoutType: WorkoutType | null;
   mealSlot: MealSlot | null;
   fixedEventId: string | null;
+  occurrenceDate?: string | null;
+  removedBy?: 'user' | 'schedule' | null;
   planId: string | null;
   gcalEventId: string | null;
   gcalEtag: string | null;

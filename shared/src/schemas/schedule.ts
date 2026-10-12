@@ -25,7 +25,7 @@ const fixedEventFields = {
   endTime: time,
   validFrom: date,
   validTo: date,
-  active: z.boolean().default(true),
+  active: z.boolean(),
 };
 
 interface Refinable {
@@ -50,7 +50,7 @@ function refineFixedEvent(v: Refinable, ctx: z.RefinementCtx): void {
   if (v.kind === 'work' && v.courseId) add('courseId', 'Course is not allowed for work');
 }
 
-export const FixedEventInput = z.object(fixedEventFields).superRefine(refineFixedEvent);
+export const FixedEventInput = z.object({ ...fixedEventFields, active: z.boolean().default(true) }).superRefine(refineFixedEvent);
 export type FixedEventInput = z.infer<typeof FixedEventInput>;
 
 /** Partial patch; the server re-validates the merged result with FixedEventInput. */

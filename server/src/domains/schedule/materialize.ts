@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { addDays, isoWeekday, localDateOf, zonedToUtc, type FixedEvent } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
 import { blocks, fixedEvents } from '../../db/schema.js';
-import { createBlock, setBlockStatus, updateFixedBlockInternal } from '../blocks/service.js';
+import { createBlock, reviveFixedBlockInternal, setBlockStatus, updateFixedBlockInternal } from '../blocks/service.js';
 import { getTimezone } from '../settings/service.js';
 
 export const HORIZON_DAYS = 56;
@@ -54,12 +54,14 @@ export function materializeFixedEvents(ctx: Ctx, opts: { fixedEventId?: string }
       const desired = desiredOccurrences(ev, today, tz);
       const existing = ctx.db.select().from(blocks).where(eq(blocks.fixedEventId, ev.id)).all();
 
+      const dateOf = (b: (typeof existing)[number]): string => b.occurrenceDate ?? localDateOf(new Date(b.start), tz);
+
       if (opts.fixedEventId) {
         for (const b of existing) {
           if (b.start <= nowIso || b.status !== 'committed') continue;
-          const want = desired.get(localDateOf(new Date(b.start), tz));
+          const want = desired.get(dateOf(b));
           if (!want) {
-            setBlockStatus(ctx, b.id, 'removed');
+            setBlockStatus(ctx, b.id, 'removed', undefined, 'schedule');
             result.removed++;
           } else if (
             want.start !== b.start ||
@@ -78,19 +80,28 @@ export function materializeFixedEvents(ctx: Ctx, opts: { fixedEventId?: string }
         }
       }
 
-      const taken = new Set(existing.map((b) => localDateOf(new Date(b.start), tz)));
+      // Re-read: the edit pass may have removed rows, which then count as revivable below.
+      const byDate = new Map<string, typeof existing>();
+      for (const b of ctx.db.select().from(blocks).where(eq(blocks.fixedEventId, ev.id)).all()) {
+        const list = byDate.get(dateOf(b)) ?? [];
+        list.push(b);
+        byDate.set(dateOf(b), list);
+      }
       for (const [date, want] of desired) {
-        if (taken.has(date)) continue;
+        const rows = byDate.get(date) ?? [];
+        const isRevivable = (b: (typeof existing)[number]) => b.status === 'removed' && b.removedBy === 'schedule';
+        if (rows.some((b) => !isRevivable(b))) continue; // present, reviewed or user-cancelled
+        const values = { start: want.start, end: want.end, title: ev.title, courseId: ev.courseId ?? null };
+        const revivable = rows.find(isRevivable);
+        if (revivable) {
+          reviveFixedBlockInternal(ctx, revivable.id, values);
+          result.created++;
+          continue;
+        }
         createBlock(
           ctx,
-          {
-            category: ev.kind === 'class' ? 'study' : 'work',
-            title: ev.title,
-            start: want.start,
-            end: want.end,
-            courseId: ev.courseId ?? null,
-          },
-          { source: 'fixed', status: 'committed', locked: true, fixedEventId: ev.id },
+          { category: ev.kind === 'class' ? 'study' : 'work', ...values },
+          { source: 'fixed', status: 'committed', locked: true, fixedEventId: ev.id, occurrenceDate: date },
         );
         result.created++;
       }
