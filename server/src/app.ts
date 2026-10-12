@@ -2,12 +2,19 @@ import { Hono } from 'hono';
 import type { ErrorBody } from '@life-tracker/shared';
 import type { Ctx } from './ctx.js';
 import { AppError } from './lib/errors.js';
+import { authRoutes } from './auth/routes.js';
+import { createLockout } from './auth/lockout.js';
+import { requireOrigin, requireSession } from './auth/middleware.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
 export function createApp(ctx: Ctx): Hono {
   const app = new Hono();
 
+  app.use('/api/*', requireOrigin(ctx.config));
+  app.use('/api/*', requireSession(ctx));
+
   app.get('/api/health', (c) => c.json({ ok: true, time: ctx.clock.now().toISOString() }));
+  app.route('/api/auth', authRoutes(ctx, createLockout(ctx.clock)));
   app.route('/api/settings', settingsRoutes(ctx));
 
   app.notFound((c) => {

@@ -8,6 +8,13 @@
       "when": 1791832800739,
       "tag": "0000_last_songbird",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791833114972,
+      "tag": "0001_hot_the_renegades",
+      "breakpoints": true
     }
   ]
 }

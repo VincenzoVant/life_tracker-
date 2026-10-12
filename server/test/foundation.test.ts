@@ -6,7 +6,7 @@ import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { openDb } from '../src/db/client.js';
 import { runMigrations } from '../src/db/migrate.js';
-import { createTestCtx, request } from './helpers.js';
+import { createTestClient, createTestCtx, request } from './helpers.js';
 
 test('health returns ok', async () => {
   const ctx = createTestCtx();
@@ -16,16 +16,16 @@ test('health returns ok', async () => {
 });
 
 test('unknown api route returns NOT_FOUND error shape', async () => {
-  const res = await request(createApp(createTestCtx()), 'GET', '/api/nope');
+  const res = await (await createTestClient()).get('/api/nope');
   expect(res.status).toBe(404);
   expect(res.body).toEqual({ error: { code: 'NOT_FOUND', message: expect.any(String) } });
 });
 
 test('settings timezone round-trips and rejects invalid zones', async () => {
-  const app = createApp(createTestCtx());
-  expect((await request(app, 'PUT', '/api/settings', { timezone: 'Europe/Brussels' })).status).toBe(200);
-  expect((await request(app, 'GET', '/api/settings')).body).toEqual({ timezone: 'Europe/Brussels' });
-  const bad = await request(app, 'PUT', '/api/settings', { timezone: 'Mars/Base' });
+  const client = await createTestClient();
+  expect((await client.put('/api/settings', { timezone: 'Europe/Brussels' })).status).toBe(200);
+  expect((await client.get('/api/settings')).body).toEqual({ timezone: 'Europe/Brussels' });
+  const bad = await client.put('/api/settings', { timezone: 'Mars/Base' });
   expect(bad.status).toBe(400);
   expect(bad.body.error.fields.timezone).toBeDefined();
 });
@@ -46,7 +46,7 @@ test('runMigrations backs up an existing file db before applying pending migrati
   expect(backups()).toHaveLength(0); // nothing pending
 
   // Simulate a pending migration: forget the last one and drop what it created.
-  second.sqlite.exec('DROP TABLE settings');
+  second.sqlite.exec('DROP TABLE sessions');
   second.sqlite.exec('DELETE FROM __drizzle_migrations WHERE created_at = (SELECT MAX(created_at) FROM __drizzle_migrations)');
   expect(runMigrations(second, { backupDir }).applied).toBe(1);
   expect(backups()).toHaveLength(1);
