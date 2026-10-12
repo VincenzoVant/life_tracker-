@@ -83,3 +83,20 @@ test('library search filters by name; archive calls DELETE', async () => {
   await userEvent.click(within(row).getByRole('button', { name: 'Archive Chicken rice' }));
   await waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === '/api/meals/m2')).toBe(true));
 });
+
+test('saved-meal log rows show the meal name (including archived) and failed delete toasts', async () => {
+  const archived = meal({ id: 'm9', name: 'Old stew', kcal: 500, proteinG: 30, archived: true });
+  mockApi(
+    base({
+      'GET /api/meals': () => [oats, archived],
+      'GET /api/meal-logs': () => [
+        { id: 'l1', date: '2026-10-14', slot: 'lunch', mealId: 'm9', servings: 1, freeText: null, kcal: 500, proteinG: 30 },
+      ],
+      'DELETE /api/meal-logs/l1': () => ({ status: 500, body: { error: { code: 'INTERNAL', message: 'Delete failed' } } }),
+    }),
+  );
+  renderWithProviders(<FoodPage />);
+  expect(await screen.findByText('Old stew')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Delete log l1' }));
+  expect(await screen.findByText('Delete failed')).toBeInTheDocument();
+});
