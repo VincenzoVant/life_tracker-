@@ -19,9 +19,11 @@ import { reviewRoutes } from './domains/review/routes.js';
 import { backupRoutes } from './domains/backups/routes.js';
 import { preferencesRoutes } from './domains/preferences/routes.js';
 import { planRoutes } from './domains/plans/routes.js';
+import { replanRoutes } from './domains/replan/routes.js';
+import type { ConflictsPort } from './domains/replan/conflictsPort.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
-export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
+export function createApp(ctx: Ctx, opts: { log?: Logger; conflicts?: ConflictsPort } = {}): Hono {
   const app = new Hono();
 
   if (opts.log) app.use('/api/*', requestLogger(opts.log));
@@ -48,6 +50,7 @@ export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
   app.route('/api/streaks', streakRoutes(ctx));
   app.route('/api/review', reviewRoutes(ctx));
   app.route('/api/plans', planRoutes(ctx));
+  app.route('/api', replanRoutes(ctx, opts.conflicts));
 
   app.notFound((c) => {
     if (c.req.path.startsWith('/api/')) {

@@ -45,7 +45,7 @@ function toRef(b: Block): PlannerBlockRef {
 }
 
 /** Evenings that already ended with no study/startup/work in them. */
-function freePastEvenings(dates: string[], weekBlocks: Block[], prefs: Preferences, tz: string, now: number): number {
+export function freePastEvenings(dates: string[], weekBlocks: Block[], prefs: Preferences, tz: string, now: number): number {
   const busy = weekBlocks.filter(
     (b) =>
       ['study', 'startup', 'work'].includes(b.category) &&
