@@ -1,5 +1,5 @@
 import {
-  weekDates, weekRangeUtc, weekStartOf, type Block, type BlockStatus,
+  type Category, weekDates, weekRangeUtc, weekStartOf, type Block, type BlockStatus,
 } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
 import { ceilTo15 } from '../../planner/intervals.js';
@@ -21,6 +21,8 @@ export interface Trigger {
 export type Basis = Record<string, { updatedAt: string; status: BlockStatus }>;
 
 const FROZEN_STATUSES = new Set<BlockStatus>(['committed', 'done', 'partial', 'skipped']);
+/** Manually entered life events: replan works around them and never touches them. */
+const FROZEN_MANUAL_CATEGORIES = new Set<Category>(['appointment', 'social', 'errand', 'work', 'other']);
 const ms = (iso: string): number => new Date(iso).getTime();
 
 const toRef = (b: Block): PlannerBlockRef => ({
@@ -67,7 +69,8 @@ export function buildReplanInput(
   const movable: Block[] = [];
   for (const b of inRange) {
     if (!FROZEN_STATUSES.has(b.status)) continue; // proposed blocks of a full-week draft are neither
-    const isMovable = b.status === 'committed' && !b.locked && b.source !== 'fixed' && ms(b.start) >= range.start;
+    const isMovable = b.status === 'committed' && !b.locked && b.source !== 'fixed' &&
+      !(b.source === 'manual' && FROZEN_MANUAL_CATEGORIES.has(b.category)) && ms(b.start) >= range.start;
     (isMovable ? movable : frozen).push(b);
   }
 

@@ -192,3 +192,16 @@ test('replanFromConflict uses conflict interval; apply marks conflict replanned;
   keepAsIs(ctx, second.plan.id, port);
   expect(calls).toEqual(['replanned:c1', 'dismiss:c1']);
 });
+
+test('manual appointment/social/errand/work/other blocks are frozen: replan never moves or removes them', () => {
+  const { ctx, course } = setup();
+  const cats = ['appointment', 'social', 'errand', 'work', 'other'] as const;
+  const frozen = cats.map((category, i) =>
+    createBlock(ctx, { category, title: category, start: iso('2026-10-15', `18:${i}0`), end: iso('2026-10-15', `19:${i}0`) }),
+  );
+  const s = study(ctx, course.id, '2026-10-15', '18:30', '20:00');
+  const r = quickAdd(ctx, evening());
+  const touched = (r.draft?.changes ?? []).map((c) => c.blockId);
+  for (const f of frozen) expect(touched).not.toContain(f.id);
+  expect(touched).toContain(s.id);
+});
