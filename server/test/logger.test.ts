@@ -37,14 +37,25 @@ test('request log line has method/path/status/ms but no query, body or cookie', 
 let fileLogs: pino.Logger[] = [];
 let tmpDirs: string[] = [];
 
+type Transport = { end?: () => void; on?: (ev: string, fn: (...a: any[]) => void) => unknown; once?: (ev: string, fn: () => void) => unknown };
+const transportOf = (log: pino.Logger) => (log as any)[pino.symbols.streamSym] as Transport | undefined;
+
 afterEach(async () => {
   const logs = fileLogs;
   fileLogs = [];
   for (const log of logs) {
     await new Promise<void>((r) => log.flush(() => r()));
-    // Close the pino-roll worker transport so it releases the tmp dir.
-    const stream = (log as any)[pino.symbols.streamSym] as { end?: () => void } | undefined;
-    stream?.end?.();
+    // Close the pino-roll worker transport and wait for it, so it releases the tmp dir before we delete it.
+    const stream = transportOf(log);
+    await new Promise<void>((r) => {
+      const t = setTimeout(r, 2_000);
+      stream?.once?.('close', () => {
+        clearTimeout(t);
+        r();
+      });
+      stream?.end?.();
+      if (!stream?.once) r();
+    });
   }
   await new Promise((r) => setTimeout(r, 100));
   for (const d of tmpDirs) rmSync(d, { recursive: true, force: true });
@@ -57,6 +68,8 @@ async function startFileLogger(budgetMs: number): Promise<boolean> {
   tmpDirs.push(dataDir);
   const log = createLogger({ dataDir, toFile: true });
   fileLogs.push(log);
+  // pino-roll can still be starting up when the dir is removed on teardown and then fails with ENOENT; that is expected noise here.
+  transportOf(log)?.on?.('error', () => {});
   log.info('hello');
   const logs = join(dataDir, 'logs');
   const current = join(logs, LOG_CURRENT_PATH_NAME);
@@ -72,16 +85,10 @@ async function startFileLogger(budgetMs: number): Promise<boolean> {
   return ready();
 }
 
-test('file transport writes server.*.log and a current.log symlink', { timeout: 60_000 }, async () => {
-  // The pino-roll worker occasionally fails to come up for many seconds when the whole monorepo suite runs in parallel;
-  // a fresh logger/worker recovers quickly, so retry rather than wait on a stuck one.
-  let attempts = 0;
-  let ok = false;
-  while (!ok && attempts < 8) {
-    attempts++;
-    ok = await startFileLogger(3_000);
-  }
-  expect(ok).toBe(true);
+// The pino-roll worker occasionally fails to come up when the whole monorepo suite runs in parallel;
+// a fresh logger/worker recovers quickly, so retry the test rather than wait on a stuck one.
+test('file transport writes server.*.log and a current.log symlink', { retry: 2, timeout: 60_000 }, async () => {
+  expect(await startFileLogger(15_000)).toBe(true);
 });
 
 test('createLogger without file returns a usable logger', () => {
