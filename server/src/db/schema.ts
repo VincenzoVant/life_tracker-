@@ -131,7 +131,17 @@ export const meals = sqliteTable('meals', {
   createdAt: text('created_at').notNull(),
 });
 
-export const mealLogs = sqliteTable(
+export const goals = sqliteTable('goals', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull(), // study_minutes | startup_minutes | workouts_total | workouts_by_type | free_evenings | daily_kcal | daily_protein_g
+  target: real('target').notNull(),
+  courseId: text('course_id').references(() => courses.id, { onDelete: 'cascade' }),
+  workoutType: text('workout_type'),
+  tolerancePct: real('tolerance_pct'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+});
+
+export const mealLogs =sqliteTable(
   'meal_logs',
   {
     id: text('id').primaryKey(),
