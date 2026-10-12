@@ -140,3 +140,12 @@ test('event bus unsubscribes and is synchronous', () => {
   bus.emit({ blockId: 'b', kind: 'created' });
   expect(seen).toEqual(['a']);
 });
+
+test('GET /api/blocks/:id returns the block; unknown id is 404', async () => {
+  const c = await createTestClient();
+  const made = await c.post('/api/blocks', rest('2026-10-14T22:00:00.000Z', '2026-10-14T23:00:00.000Z'));
+  const res = await c.get(`/api/blocks/${made.body.id}`);
+  expect(res.status).toBe(200);
+  expect(res.body).toMatchObject({ id: made.body.id, title: 'Walk' });
+  expect((await c.get('/api/blocks/nope')).status).toBe(404);
+});

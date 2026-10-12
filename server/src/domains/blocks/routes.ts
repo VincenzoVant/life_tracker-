@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { BlockCreateInput, BlockListQuery, BlockUpdateInput } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
 import { parse } from '../../lib/validate.js';
-import { createBlock, listBlocks, setBlockStatus, updateBlock } from './service.js';
+import { createBlock, getBlock, listBlocks, setBlockStatus, updateBlock } from './service.js';
 
 export function blockRoutes(ctx: Ctx): Hono {
   const app = new Hono();
@@ -12,6 +12,7 @@ export function blockRoutes(ctx: Ctx): Hono {
       listBlocks(ctx, { from: new Date(q.from), to: new Date(q.to), includeRemoved: q.includeRemoved === 'true' }),
     );
   });
+  app.get('/:id', (c) => c.json(getBlock(ctx, c.req.param('id'))));
   app.post('/', async (c) => {
     const input = parse(BlockCreateInput, await c.req.json().catch(() => undefined));
     return c.json(createBlock(ctx, input), 201);

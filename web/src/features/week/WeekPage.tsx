@@ -9,7 +9,10 @@ import {
   type Block,
 } from '@life-tracker/shared';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router';
 import { useBlocks } from '../../api/hooks/blocks';
+import { useBlockById } from '../../api/hooks/google';
+import { useToast } from '../../components/Toast';
 import { usePreferences } from '../../api/hooks/preferences';
 import { useSettings, useTimezone } from '../../api/hooks/settings';
 import { useDraft } from '../../api/hooks/plans';
@@ -60,6 +63,30 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
   const thisWeek = weekStartOf(new Date(), tz);
   // Past weeks cannot be planned, so they have no draft to look up.
   const draft = useDraft(weekStart, { enabled: weekStart >= thisWeek }).data ?? undefined;
+
+  // Deep link from Google events: /week?block=<id> jumps to that block's week and opens its details.
+  const [params, setParams] = useSearchParams();
+  const linkedId = params.get('block');
+  const linked = useBlockById(linkedId);
+  const toast = useToast();
+  useEffect(() => {
+    if (!linkedId || linked.isPending) return;
+    if (linked.data) {
+      const date = localDateOf(new Date(linked.data.start), tz);
+      setWeekStart(weekStartOf(new Date(linked.data.start), tz));
+      setDay(date);
+      setSelected(linked.data);
+    } else {
+      toast.show('That block no longer exists', 'error');
+    }
+    setParams(
+      (p) => {
+        p.delete('block');
+        return p;
+      },
+      { replace: true },
+    );
+  }, [linkedId, linked.isPending, linked.data, tz, toast, setParams]);
 
   const range = useMemo(() => {
     const r = weekRangeUtc(weekStart, tz);

@@ -6,6 +6,7 @@ import { usePreferences } from '../../api/hooks/preferences';
 import { useSettings, useTimezone } from '../../api/hooks/settings';
 import { Modal } from '../../components/Modal';
 import { BlockForm } from '../blocks/BlockForm';
+import { ChangesFeed } from './ChangesFeed';
 import { MacroSummary } from './MacroSummary';
 import { NextUpCard, pickNextUp } from './NextUpCard';
 import { Timeline } from './Timeline';
@@ -44,6 +45,7 @@ function TodayContent() {
           Add block
         </button>
       </div>
+      <ChangesFeed />
       <NextUpCard block={pickNextUp(blocks, now)} tz={tz} />
       <MacroSummary weekStart={weekStartOf(now, tz)} today={today} />
       {isPending ? (

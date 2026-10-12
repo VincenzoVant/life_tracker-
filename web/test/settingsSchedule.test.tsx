@@ -25,6 +25,7 @@ const base = {
     freeEvenings: null, dailyKcal: null, dailyProteinG: null,
   }),
   'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
+  'GET /api/google/status': () => ({ configured: false, connected: false }),
   'GET /api/courses': () => [{ id: 'c1', name: 'Algorithms' }],
   'GET /api/backups': () => ({ dir: '/b', files: [], lastBackupAt: null, lastError: null }),
   'GET /api/preferences': () => DEFAULT_PREFERENCES,

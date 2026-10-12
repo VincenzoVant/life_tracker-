@@ -27,6 +27,7 @@ function api() {
   return mockApi({
     'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
     'GET /api/blocks': () => blocks,
+    'GET /api/google/changes': () => [],
     'GET /api/preferences': () => ({ reviewPromptTime: reviewPromptTime }),
     'GET /api/progress/week': () => ({
       nutrition: [

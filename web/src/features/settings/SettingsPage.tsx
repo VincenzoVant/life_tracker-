@@ -4,6 +4,7 @@ import { BackupsSection } from './BackupsSection';
 import { ChangePinForm } from './ChangePinForm';
 import { FixedScheduleSection } from './FixedScheduleSection';
 import { GoalsForm } from './GoalsForm';
+import { GoogleSection } from './GoogleSection';
 import { PreferencesSection } from './PreferencesSection';
 import { TimezoneForm } from './TimezoneForm';
 import './settings.css';
@@ -39,6 +40,7 @@ const SECTIONS: Array<{ id: string; title: string; render: () => ReactNode }> = 
   { id: 'timezone', title: 'Timezone', render: () => <TimezoneForm /> },
   { id: 'schedule', title: 'Fixed schedule', render: () => <FixedScheduleSection /> },
   { id: 'preferences', title: 'Planner preferences', render: () => <PreferencesSection /> },
+  { id: 'google', title: 'Google Calendar', render: () => <GoogleSection /> },
   { id: 'backups', title: 'Backups', render: () => <BackupsSection /> },
   { id: 'security', title: 'Security', render: () => <Security /> },
   { id: 'about', title: 'About', render: () => <About /> },

@@ -18,6 +18,7 @@ const goals = {
 const base = {
   'GET /api/goals': () => goals,
   'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
+  'GET /api/google/status': () => ({ configured: false, connected: false }),
   'GET /api/schedule': () => [],
   'GET /api/courses': () => [],
   'GET /api/backups': () => ({ dir: '/b', files: [], lastBackupAt: null, lastError: null }),
