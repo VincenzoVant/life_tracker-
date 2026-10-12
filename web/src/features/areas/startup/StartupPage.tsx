@@ -191,7 +191,6 @@ export function StartupPage() {
 
       {groups.map((g) => {
         const inGroup = tasks.filter((t) => t.milestoneId === g.id);
-        if (g.id === null && inGroup.length === 0 && milestones.length > 0) return null;
         return (
           <section key={g.id ?? 'none'} className="section" aria-label={g.title}>
             <div className="area-row">
@@ -216,6 +215,7 @@ export function StartupPage() {
                 </>
               )}
             </div>
+            {g.id === null && inGroup.length === 0 && milestones.length > 0 && <p className="muted">No tasks without a milestone</p>}
             <div className="task-columns">
               {TASK_STATUSES.map((s) => {
                 const col = inGroup.filter((t) => t.status === s);

@@ -33,6 +33,14 @@ test('startup groups tasks by milestone and shows hours against goal', async () 
   expect(await screen.findByText('4.5 / 10.0 h')).toBeInTheDocument();
 });
 
+test('startup keeps the No milestone group with an empty-state line when it has no tasks', async () => {
+  mockApi({ ...base(), 'GET /api/startup/tasks': () => tasks.slice(0, 2) });
+  renderWithProviders(<StartupPage />);
+  expect(await screen.findByRole('heading', { name: 'No milestone' })).toBeInTheDocument();
+  expect(await screen.findByText('No tasks without a milestone')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'No milestone' })).toBeInTheDocument();
+});
+
 test('startup move task down calls reorder with new order', async () => {
   const user = userEvent.setup();
   const { calls } = mockApi({ ...base(), 'POST /api/startup/tasks/reorder': () => ({}) });
