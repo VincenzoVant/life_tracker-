@@ -3,7 +3,7 @@ import { localDateOf, type Block, type Preferences } from '@life-tracker/shared'
 import type { CSSProperties, ReactNode } from 'react';
 import { BlockCard } from './BlockCard';
 import { blocksOnDate, dayLabel } from './days';
-import { PX_PER_HOUR, blockHeight, blockTop, canDrag, gridHours, layoutOverlaps, minutesFromPixels } from './geometry';
+import { PX_PER_HOUR, blockHeight, blockTop, canDrag, extendGridHours, gridHours, layoutOverlaps, minutesFromPixels } from './geometry';
 
 export interface WeekGridProps {
   dates: string[];
@@ -107,7 +107,7 @@ function DraggableCard({
 
 /** Seven day columns with an hour gutter. Each column carries `data-date`, `data-px-per-hour` and `data-grid-from` for hit-testing. */
 export function WeekGrid({ dates, blocks, prefs, tz, onSelect, onMove, onResize, renderBlock }: WeekGridProps) {
-  const hours = gridHours(prefs);
+  const hours = extendGridHours(gridHours(prefs), blocks.filter((b) => b.status !== 'removed'), tz);
   const height = (hours.to - hours.from) * PX_PER_HOUR;
   const labels = Array.from({ length: hours.to - hours.from }, (_, i) => hours.from + i);
   // A small activation distance keeps a plain click opening the details dialog.
@@ -118,7 +118,7 @@ export function WeekGrid({ dates, blocks, prefs, tz, onSelect, onMove, onResize,
       collisionDetection={pointerWithin}
       onDragEnd={(e) => onMove && handleDragEnd(e, blocks, onMove, tz)}
     >
-      <div className="week-grid" role="group" aria-label="Week grid">
+      <div className="week-grid" role="group" aria-label="Week grid" style={{ ['--px-per-hour' as string]: `${PX_PER_HOUR}px` }}>
         <div className="week-grid-head">
           <div className="week-gutter" />
           {dates.map((d) => (
