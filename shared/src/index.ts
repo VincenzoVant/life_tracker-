@@ -14,3 +14,4 @@ export * from './schemas/schedule.js';
 export * from './schemas/google.js';
 export * from './schemas/preferences.js';
 export * from './schemas/mealPlan.js';
+export * from './schemas/plans.js';

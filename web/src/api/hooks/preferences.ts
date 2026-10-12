@@ -9,6 +9,6 @@ export const usePreferences = () =>
 
 export const useSavePreferences = () =>
   useInvalidatingMutation(
-    (input: Preferences) => apiFetch<Preferences>('/api/preferences', { method: 'PUT', body: input }),
+    (input: Partial<Preferences>) => apiFetch<Preferences>('/api/preferences', { method: 'PUT', body: input }),
     ['preferences', 'progress'],
   );
