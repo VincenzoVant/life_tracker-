@@ -83,6 +83,8 @@ export function detectConflicts(
       const existing = find(ctx, ev.calendarId, ev.eventId);
       if (ids.length > 0) {
         const fields = { title: ev.title, start: ev.start, end: ev.end, blockIds: JSON.stringify(ids), status: 'open', updatedAt: now };
+        const moved = !existing || existing.title !== ev.title || existing.start !== ev.start || existing.end !== ev.end;
+        if (existing && existing.status !== 'open' && !moved) continue; // dismissed/replanned stays so until the event really changes
         if (!existing) {
           ctx.db.insert(conflicts).values({ calendarId: ev.calendarId, externalEventId: ev.eventId, createdAt: now, ...fields }).run();
           opened++;

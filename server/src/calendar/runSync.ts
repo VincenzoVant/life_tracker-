@@ -62,21 +62,23 @@ async function doSync(ctx: Ctx): Promise<SyncRunResult> {
     }
   }
 
+  // Pull first so a newer Google move beats a queued app edit, then push (which carries the app's other fields).
+  const lt = await step(() => pullLifeTrackerChanges(ctx, client));
+  result.moved = lt?.moved ?? 0;
+  result.deleted = lt?.deleted ?? 0;
+
   const push = await step(() => processQueue(ctx, client));
   if (push?.paused === 'reconnect') authFailed = true;
   result.pushed = push?.done ?? 0;
   if (push && push.failed > 0) error ??= firstFailingQueueError(ctx);
 
-  const lt = await step(() => pullLifeTrackerChanges(ctx, client));
-  result.moved = lt?.moved ?? 0;
-  result.deleted = lt?.deleted ?? 0;
-
   const busy: { changed: BusyEventRow[]; removed: BusyEventRow[] } | null = await step(() => pullBusyCalendars(ctx, client));
   result.busyChanged = busy?.changed.length ?? 0;
   if (busy) result.conflictsOpened = detectConflicts(ctx, busy).opened;
 
-  // Re-pushes queued during the pull.
+  // Re-pushes queued during the pulls.
   const again = await step(() => processQueue(ctx, client));
+  if (again) result.pushed += again.done;
   if (again && again.failed > 0) error ??= firstFailingQueueError(ctx);
 
   updateCalendarState(ctx, { lastSyncAt: ctx.clock.now().toISOString(), lastError: error });

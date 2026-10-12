@@ -2,13 +2,18 @@ import { and, eq, gt, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { Ctx } from '../ctx.js';
 import { blocks, syncQueue } from '../db/schema.js';
 import { getBlock } from '../domains/blocks/service.js';
-import { deriveOp } from './eventBody.js';
+import { getTimezone } from '../domains/settings/service.js';
+import { appOrigin, deriveOp, eventHash, toGoogleEvent } from './eventBody.js';
 
 /** Re-derives what the block needs: drops the queue row, or upserts the single row for it. */
 export function enqueueBlock(ctx: Ctx, blockId: string): void {
   const exists = ctx.db.select({ id: blocks.id }).from(blocks).where(eq(blocks.id, blockId)).get();
-  const op = exists ? deriveOp(getBlock(ctx, blockId)) : null;
-  if (!op) {
+  const block = exists ? getBlock(ctx, blockId) : null;
+  const op = block ? deriveOp(block) : null;
+  // A change that leaves the event body as Google has it (e.g. status only) needs no push.
+  const unchanged =
+    block && op === 'update' && (block as { gcalHash?: string | null }).gcalHash === eventHash(toGoogleEvent(block, { tz: getTimezone(ctx), appOrigin: appOrigin(ctx) }));
+  if (!op || unchanged) {
     ctx.db.delete(syncQueue).where(eq(syncQueue.blockId, blockId)).run();
     return;
   }
@@ -33,8 +38,9 @@ export function registerSyncEnqueue(ctx: Ctx): () => void {
   return ctx.events.subscribe((c) => {
     try {
       enqueueBlock(ctx, c.blockId);
-    } catch {
-      /* the queue is re-derivable (see enqueueFutureMirrored); never break the caller */
+    } catch (err) {
+      // The queue is re-derivable (see enqueueFutureMirrored); never break the caller, but do leave a trace.
+      console.error('sync enqueue failed', c.blockId, err);
     }
   });
 }

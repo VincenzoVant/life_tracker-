@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createApp } from '../../src/app.js';
 import { ensureCalendarSetup } from '../../src/calendar/setup.js';
-import { getCalendarState } from '../../src/calendar/state.js';
+import { getCalendarState, updateCalendarState } from '../../src/calendar/state.js';
 import { googleChanges } from '../../src/db/schema.js';
 import { createBlock } from '../../src/domains/blocks/service.js';
 import { FakeCalendarClient, createFakeGoogle } from '../fakes/fakeCalendar.js';
@@ -88,6 +88,7 @@ describe('google routes', () => {
   test('recreate-calendar and disconnect return status', async () => {
     const { c } = await setup();
     const old = getCalendarState(c.ctx).lifeTrackerCalendarId;
+    updateCalendarState(c.ctx, { calendarMissing: true });
     const re = await c.post('/api/google/recreate-calendar');
     expect(re.status).toBe(200);
     expect(re.body.calendarId).not.toBe(old);

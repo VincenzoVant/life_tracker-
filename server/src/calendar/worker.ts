@@ -5,6 +5,7 @@ import { syncQueue } from '../db/schema.js';
 import { getBlock, setGcalFields } from '../domains/blocks/service.js';
 import { getTimezone } from '../domains/settings/service.js';
 import { CalendarApiError, type CalendarClient } from './client.js';
+import { enqueueBlock } from './enqueue.js';
 import { appOrigin, deriveOp, eventHash, toGoogleEvent } from './eventBody.js';
 import { getCalendarState, updateCalendarState } from './state.js';
 
@@ -96,6 +97,8 @@ export async function processQueue(
         setGcalFields(ctx, block.id, CLEARED);
       }
       finish(ctx, row);
+      // The block may have been removed while the call was in flight: re-derive so the delete is queued.
+      if (op !== 'delete') enqueueBlock(ctx, block.id);
       result.done++;
     } catch (err) {
       let status = err instanceof CalendarApiError ? err.status : 0;

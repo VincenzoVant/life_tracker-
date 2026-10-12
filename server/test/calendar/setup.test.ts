@@ -30,7 +30,7 @@ test('setup is idempotent (no second calendar)', async () => {
   expect(fake.calls.filter((c) => c.method === 'createCalendar')).toHaveLength(1);
 });
 
-test('recreate makes a new calendar and clears future gcal ids (past ones stay)', async () => {
+test('recreate makes a new calendar and clears every gcal link, past blocks included', async () => {
   const ctx = createTestCtx();
   const fake = new FakeCalendarClient();
   await ensureCalendarSetup(ctx, fake);
@@ -47,7 +47,7 @@ test('recreate makes a new calendar and clears future gcal ids (past ones stay)'
   expect(getBlock(ctx, future.id).gcalEventId).toBeNull();
   const row = ctx.db.select().from(blocks).where(eq(blocks.id, future.id)).get()!;
   expect(row.gcalHash).toBeNull();
-  expect(getBlock(ctx, past.id).gcalEventId).toBe('e');
+  expect(getBlock(ctx, past.id).gcalEventId).toBeNull();
 });
 
 test('setGcalFields does not emit and does not change updatedAt', () => {

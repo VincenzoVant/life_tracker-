@@ -65,7 +65,7 @@ describe('processQueue', () => {
     expect(queue(ctx)).toHaveLength(0);
     fake.calls.length = 0;
     submitReview(ctx, { date: '2026-10-14', entries: made.map((b) => ({ blockId: b.id, outcome: 'done' as const })), unplanned: [] });
-    expect(queue(ctx)).toHaveLength(20);
+    expect(queue(ctx)).toHaveLength(0); // enqueue sees the event body is unchanged
     await processQueue(ctx, fake, { limit: 100 });
     expect(fake.calls).toHaveLength(0);
     expect(queue(ctx)).toHaveLength(0);

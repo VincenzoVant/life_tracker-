@@ -89,8 +89,11 @@ describe('detectConflicts', () => {
     // unrelated pull with nothing changed leaves it dismissed
     expect(detectConflicts(ctx, { changed: [], removed: [] })).toEqual({ opened: 0, resolved: 0 });
     expect(listConflicts(ctx, 'open')).toEqual([]);
-    // the event changes again and still overlaps: reopened
-    expect(detectConflicts(ctx, { changed: [{ ...E10, updated: '2026-10-14T20:00:00.000Z' }], removed: [] }).opened).toBe(1);
+    // only a re-stamped `updated` (no start/end/title change) leaves it dismissed
+    expect(detectConflicts(ctx, { changed: [{ ...E10, updated: '2026-10-14T20:00:00.000Z' }], removed: [] }).opened).toBe(0);
+    expect(listConflicts(ctx, 'open')).toEqual([]);
+    // the event is moved and still overlaps: reopened
+    expect(detectConflicts(ctx, { changed: [{ ...E10, end: '2026-10-15T11:45:00.000Z', updated: '2026-10-14T20:30:00.000Z' }], removed: [] }).opened).toBe(1);
     expect(listConflicts(ctx, 'open').map((c) => c.id)).toEqual([id]);
   });
 

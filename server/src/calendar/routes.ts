@@ -78,10 +78,11 @@ export function calendarRoutes(ctx: Ctx): Hono {
     try {
       await ctx.google.completeAuth(code, state);
       await ensureCalendarSetup(ctx, requireClient(ctx));
-      await runSync(ctx);
     } catch (err) {
       return fail(err instanceof Error ? err.message : 'Google connection failed');
     }
+    // The first sync can take a while; the user does not wait for it.
+    void runSync(ctx).catch((err: unknown) => console.error('first Google sync failed', err));
     return c.redirect('/settings?google=connected', 302);
   });
 
@@ -104,7 +105,9 @@ export function calendarRoutes(ctx: Ctx): Hono {
   });
 
   app.post('/google/recreate-calendar', async (c) => {
-    await recreateCalendar(ctx, requireClient(ctx));
+    const client = requireClient(ctx);
+    if (!getCalendarState(ctx).calendarMissing) throw new AppError('CONFLICT', 'The Life Tracker calendar is not missing');
+    await recreateCalendar(ctx, client);
     return c.json(googleStatus(ctx));
   });
 
