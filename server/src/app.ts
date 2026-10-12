@@ -5,6 +5,7 @@ import { AppError } from './lib/errors.js';
 import { authRoutes } from './auth/routes.js';
 import { createLockout } from './auth/lockout.js';
 import { requireOrigin, requireSession } from './auth/middleware.js';
+import { blockRoutes } from './domains/blocks/routes.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
 export function createApp(ctx: Ctx): Hono {
@@ -16,6 +17,7 @@ export function createApp(ctx: Ctx): Hono {
   app.get('/api/health', (c) => c.json({ ok: true, time: ctx.clock.now().toISOString() }));
   app.route('/api/auth', authRoutes(ctx, createLockout(ctx.clock)));
   app.route('/api/settings', settingsRoutes(ctx));
+  app.route('/api/blocks', blockRoutes(ctx));
 
   app.notFound((c) => {
     if (c.req.path.startsWith('/api/')) {

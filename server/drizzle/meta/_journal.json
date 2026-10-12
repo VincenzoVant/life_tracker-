@@ -15,6 +15,13 @@
       "when": 1791833114972,
       "tag": "0001_hot_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791833403834,
+      "tag": "0002_tough_triton",
+      "breakpoints": true
     }
   ]
 }

@@ -46,7 +46,7 @@ test('runMigrations backs up an existing file db before applying pending migrati
   expect(backups()).toHaveLength(0); // nothing pending
 
   // Simulate a pending migration: forget the last one and drop what it created.
-  second.sqlite.exec('DROP TABLE sessions');
+  second.sqlite.exec('DROP TABLE blocks');
   second.sqlite.exec('DELETE FROM __drizzle_migrations WHERE created_at = (SELECT MAX(created_at) FROM __drizzle_migrations)');
   expect(runMigrations(second, { backupDir }).applied).toBe(1);
   expect(backups()).toHaveLength(1);
