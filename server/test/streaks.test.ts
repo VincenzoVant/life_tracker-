@@ -79,3 +79,9 @@ test('GET /api/streaks', async () => {
   expect(res.status).toBe(200);
   expect(res.body).toEqual({ reviewDays: 0, workoutWeeks: 0 });
 });
+
+test('workoutWeeks: a goal of 0 is treated as no goal (streak 0, no 520-week walk)', () => {
+  const ctx = createTestCtx();
+  saveGoals(ctx, { ...emptyGoals, workoutsTotal: 0, workoutsByType: { gym: 0, cardio: null, sport: null } });
+  expect(getStreaks(ctx).workoutWeeks).toBe(0);
+});

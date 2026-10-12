@@ -22,10 +22,11 @@ function reviewDays(ctx: Ctx, today: string): number {
 function workoutWeeks(ctx: Ctx, currentWeek: string): number {
   const g = getGoals(ctx);
   const set = [g.workoutsTotal, g.workoutsByType.gym, g.workoutsByType.cardio, g.workoutsByType.sport];
-  if (set.every((x) => x === null)) return 0;
+  // A goal of 0 is no goal: it is always met and would walk the whole look-back window.
+  if (set.every((x) => !x)) return 0;
   const met = (weekStart: string): boolean => {
     const w = progressForWeek(ctx, weekStart).workouts;
-    return [w.total, w.byType.gym, w.byType.cardio, w.byType.sport].every((m) => m.goal === null || m.actual >= m.goal);
+    return [w.total, w.byType.gym, w.byType.cardio, w.byType.sport].every((m) => !m.goal || m.actual >= m.goal);
   };
   let week = met(currentWeek) ? currentWeek : addDays(currentWeek, -7);
   let n = 0;
