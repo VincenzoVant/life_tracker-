@@ -8,7 +8,7 @@ export type SyncOp = 'create' | 'update' | 'delete';
 const MIRRORED = new Set(['committed', 'done', 'partial', 'skipped']);
 
 export function appOrigin(ctx: Ctx): string {
-  return process.env.LT_PUBLIC_ORIGIN || `http://127.0.0.1:${ctx.config.port}`;
+  return ctx.config.publicOrigin ?? `http://127.0.0.1:${ctx.config.port}`;
 }
 
 /** Mirrored when not an unplanned review block and committed or reviewed. */
