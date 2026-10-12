@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { addDays, isoWeekday } from '../time.js';
+import { LocalDate } from './localDate.js';
+import { isoWeekday } from '../time.js';
 import type { WorkoutType } from './blocks.js';
 
 const goalMinutes = z.number().int().min(0).max(100_000).nullable().default(null);
@@ -23,16 +24,7 @@ export const GoalSet = z.object({
 });
 export type GoalSet = z.infer<typeof GoalSet>;
 
-const localDate = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD')
-  .refine((d) => {
-    try {
-      return addDays(d, 0) === d;
-    } catch {
-      return false;
-    }
-  }, 'Not a valid date');
+const localDate = LocalDate;
 
 export const WeekProgressQuery = z.object({
   weekStart: localDate.refine((d) => isoWeekday(d) === 1, 'Must be a Monday'),

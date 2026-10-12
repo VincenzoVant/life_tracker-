@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LocalDate } from './localDate.js';
 
 export const TASK_STATUSES = ['todo', 'doing', 'done'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
@@ -39,10 +40,7 @@ export type TaskReorderInput = z.infer<typeof TaskReorderInput>;
 
 export const MilestoneInput = z.object({
   title: z.string().trim().min(1).max(200),
-  targetDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD')
-    .nullable()
+  targetDate: LocalDate.nullable()
     .optional(),
   done: z.boolean().optional(),
 });

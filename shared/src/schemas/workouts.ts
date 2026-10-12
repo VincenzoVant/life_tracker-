@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { WORKOUT_TYPES, type WorkoutType } from './blocks.js';
+import { LocalDate } from './localDate.js';
 
-const localDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
+const localDate = LocalDate;
 
 export const WorkoutDetails = z.object({
   intensity: z.number().int().min(1).max(5).optional(),

@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { BlockCreateInput, type Block } from './blocks.js';
 import { WorkoutDetails } from './workouts.js';
 import type { WeekProgress } from './goals.js';
+import { LocalDate } from './localDate.js';
 
-const localDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
+const localDate = LocalDate;
 
 export const REVIEW_OUTCOMES = ['done', 'partial', 'skipped'] as const;
 export type ReviewOutcome = (typeof REVIEW_OUTCOMES)[number];

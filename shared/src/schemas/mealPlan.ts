@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { MEAL_SLOTS, type MealSlot } from './blocks.js';
 import type { Meal } from './food.js';
 import { isoWeekday } from '../time.js';
+import { LocalDate } from './localDate.js';
 
-const localDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
+const localDate = LocalDate;
 const monday = localDate.refine((d) => isoWeekday(d) === 1, 'Must be a Monday');
 
 export interface MealPlanEntry {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { addDays, isoWeekday } from '../time.js';
+import { LocalDate } from './localDate.js';
+import { isoWeekday } from '../time.js';
 import type { Category } from '../categories.js';
 import type { Block, MealSlot, WorkoutType } from './blocks.js';
 
@@ -60,17 +61,7 @@ export interface PlanDraft {
 }
 
 export const PlanCreateInput = z.object({
-  weekStart: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD')
-    .refine((d) => {
-      try {
-        return addDays(d, 0) === d;
-      } catch {
-        return false;
-      }
-    }, 'Not a valid date')
-    .refine((d) => isoWeekday(d) === 1, 'Must be a Monday'),
+  weekStart: LocalDate.refine((d) => isoWeekday(d) === 1, 'Must be a Monday'),
 });
 export type PlanCreateInput = z.infer<typeof PlanCreateInput>;
 

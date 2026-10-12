@@ -3,6 +3,7 @@ export * from './errors.js';
 export * from './time.js';
 export * from './schemas/settings.js';
 export * from './schemas/auth.js';
+export * from './schemas/localDate.js';
 export * from './schemas/blocks.js';
 export * from './schemas/courses.js';
 export * from './schemas/startup.js';

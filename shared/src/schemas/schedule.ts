@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LocalDate } from './localDate.js';
 
 export interface FixedEvent {
   id: string;
@@ -14,7 +15,7 @@ export interface FixedEvent {
 }
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:mm');
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
+const date = LocalDate;
 
 const fixedEventFields = {
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
