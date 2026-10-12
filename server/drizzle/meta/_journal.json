@@ -29,6 +29,13 @@
       "when": 1791833552906,
       "tag": "0003_lovely_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791833672879,
+      "tag": "0004_neat_prowler",
+      "breakpoints": true
     }
   ]
 }

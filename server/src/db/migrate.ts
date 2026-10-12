@@ -20,6 +20,26 @@ function appliedCount(handle: DbHandle): number | null {
   return (handle.sqlite.prepare('SELECT COUNT(*) AS n FROM __drizzle_migrations').get() as { n: number }).n;
 }
 
+/**
+ * Runs fn with foreign key enforcement off. The pragma is a no-op inside a transaction, so it must be
+ * set before drizzle's migrator opens one; otherwise table rebuilds (DROP + RENAME) fire ON DELETE
+ * actions on child rows. Enforcement is restored afterwards and the result is checked.
+ */
+export function withForeignKeysOff<T>(sqlite: DbHandle['sqlite'], fn: () => T): T {
+  sqlite.pragma('foreign_keys = OFF');
+  let result: T;
+  try {
+    result = fn();
+  } finally {
+    sqlite.pragma('foreign_keys = ON');
+  }
+  const violations = sqlite.pragma('foreign_key_check') as unknown[];
+  if (violations.length > 0) {
+    throw new Error(`Foreign key check failed after migration: ${JSON.stringify(violations.slice(0, 5))}`);
+  }
+  return result;
+}
+
 export function runMigrations(handle: DbHandle, opts: { backupDir?: string } = {}): { applied: number } {
   const before = appliedCount(handle);
   const applied = journalCount() - (before ?? 0);
@@ -30,6 +50,6 @@ export function runMigrations(handle: DbHandle, opts: { backupDir?: string } = {
     // better-sqlite3 backup is async; use VACUUM INTO for a synchronous consistent copy.
     handle.sqlite.exec(`VACUUM INTO '${join(opts.backupDir, `pre-migrate-${stamp}.db`).replace(/'/g, "''")}'`);
   }
-  migrate(handle.db, { migrationsFolder: MIGRATIONS_FOLDER });
+  withForeignKeysOff(handle.sqlite, () => migrate(handle.db, { migrationsFolder: MIGRATIONS_FOLDER }));
   return { applied };
 }

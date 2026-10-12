@@ -27,6 +27,27 @@ export const courses = sqliteTable(
   (t) => [uniqueIndex('courses_active_name_uq').on(t.name).where(sql`${t.active} = 1`)],
 );
 
+export const startupMilestones = sqliteTable('startup_milestones', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  targetDate: text('target_date'),
+  doneAt: text('done_at'),
+  sortOrder: integer('sort_order').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const startupTasks = sqliteTable('startup_tasks', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  status: text('status').notNull(), // todo | doing | done
+  milestoneId: text('milestone_id').references(() => startupMilestones.id, { onDelete: 'set null' }),
+  sortOrder: integer('sort_order').notNull(),
+  doneAt: text('done_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
 export const blocks = sqliteTable(
   'blocks',
   {
@@ -40,7 +61,7 @@ export const blocks = sqliteTable(
     source: text('source').notNull(),
     locked: integer('locked', { mode: 'boolean' }).notNull().default(false),
     courseId: text('course_id').references(() => courses.id, { onDelete: 'set null' }),
-    startupTaskId: text('startup_task_id'), // FK ON DELETE SET NULL added in Task 7
+    startupTaskId: text('startup_task_id').references(() => startupTasks.id, { onDelete: 'set null' }),
     workoutType: text('workout_type'),
     mealSlot: text('meal_slot'),
     fixedEventId: text('fixed_event_id'),
