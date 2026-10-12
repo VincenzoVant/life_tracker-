@@ -158,3 +158,8 @@ export const mealLogs =sqliteTable(
   },
   (t) => [index('meal_logs_date_idx').on(t.date)],
 );
+
+export const dailyReviews = sqliteTable('daily_reviews', {
+  date: text('date').primaryKey(),
+  completedAt: text('completed_at').notNull(),
+});

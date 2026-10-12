@@ -9,3 +9,4 @@ export * from './schemas/startup.js';
 export * from './schemas/workouts.js';
 export * from './schemas/food.js';
 export * from './schemas/goals.js';
+export * from './schemas/review.js';
