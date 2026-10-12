@@ -15,12 +15,17 @@ function nearest(cands: Interval[], target: number): Interval | null {
   return best;
 }
 
-export function placeMeals(t: Timeline, input: PlannerInput): ProposedBlock[] {
+export function placeMeals(
+  t: Timeline,
+  input: PlannerInput,
+  opts: { onlySlots?: Array<{ date: string; slot: MealSlot }> } = {},
+): ProposedBlock[] {
   const { prefs, timezone: tz } = input;
   const flex = prefs.mealFlexMinutes * MINUTE_MS;
   const out: ProposedBlock[] = [];
   for (const day of t.days) {
     for (const slot of SLOTS) {
+      if (opts.onlySlots && !opts.onlySlots.some((s) => s.date === day.date && s.slot === slot)) continue;
       const cfg = prefs.meals[slot];
       const already = input.existing.some(
         (e) => e.category === 'meal' && e.mealSlot === slot && localDateOf(new Date(e.start), tz) === day.date,
