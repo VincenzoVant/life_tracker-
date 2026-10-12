@@ -43,7 +43,17 @@ export function createReplanDraft(
 ): ReplanDraft | null {
   const { input, weekStart, basis } = buildReplanInput(ctx, opts.trigger);
   const out = replan(input);
-  if (out.changes.length === 0) return null;
+  // Any replan attempt supersedes the week's open draft, even when the new result is empty.
+  const discardOpenDrafts = () =>
+    ctx.db
+      .update(plans)
+      .set({ status: 'discarded' })
+      .where(and(eq(plans.weekStart, weekStart), eq(plans.mode, 'replan'), eq(plans.status, 'draft')))
+      .run();
+  if (out.changes.length === 0) {
+    discardOpenDrafts();
+    return null;
+  }
 
   const byId = new Map(input.movable.map((m) => [m.id, m]));
   const changes: ApiPlanChange[] = out.changes.map((c: PlanChangeCore) => {
@@ -72,11 +82,7 @@ export function createReplanDraft(
   };
   const id = ulid();
   ctx.db.transaction(() => {
-    ctx.db
-      .update(plans)
-      .set({ status: 'discarded' })
-      .where(and(eq(plans.weekStart, weekStart), eq(plans.mode, 'replan'), eq(plans.status, 'draft')))
-      .run();
+    discardOpenDrafts();
     ctx.db
       .insert(plans)
       .values({
@@ -125,8 +131,9 @@ export function applyReplan(ctx: Ctx, planId: string, conflicts: ConflictsPort =
       let cur: Block;
       try {
         cur = getBlock(ctx, id);
-      } catch {
-        throw new AppError('CONFLICT', STALE_MESSAGE);
+      } catch (e) {
+        if (e instanceof AppError && e.code === 'NOT_FOUND') throw new AppError('CONFLICT', STALE_MESSAGE);
+        throw e;
       }
       if (cur.updatedAt !== was.updatedAt || cur.status !== was.status) throw new AppError('CONFLICT', STALE_MESSAGE);
     }

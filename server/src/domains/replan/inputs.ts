@@ -82,6 +82,8 @@ export function buildReplanInput(
 
   const basis: Basis = {};
   for (const b of movable) basis[b.id] = { updatedAt: b.updatedAt, status: b.status };
+  // Locked blocks in range are obstacles the draft was placed around; changing one makes the draft stale.
+  for (const b of frozen) if (b.locked) basis[b.id] = { updatedAt: b.updatedAt, status: b.status };
 
   const input: ReplanInput = {
     range,
