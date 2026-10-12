@@ -14,7 +14,11 @@
     "test": "vitest run",
     "typecheck": "tsc -b shared server web",
     "dev": "concurrently -n server,web \"npm run dev -w server\" \"npm run dev -w web\"",
-    "build": "npm run build -w shared && npm run build -w web && npm run build -w server"
+    "build": "npm run build -w shared && npm run build -w web && npm run build -w server",
+    "service:install": "node scripts/service.mjs install",
+    "service:uninstall": "node scripts/service.mjs uninstall",
+    "service:status": "node scripts/service.mjs status",
+    "service:restart": "node scripts/service.mjs restart"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",
