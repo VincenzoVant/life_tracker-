@@ -79,6 +79,7 @@ export function ReviewPage() {
         if (w) entry.workout = w;
       }
       if (b.category === 'startup' && b.startupTaskId && v.completeTask && v.outcome !== 'skipped') entry.completeStartupTask = true;
+      if (b.category === 'meal' && 'plannedMeal' in b && b.plannedMeal && v.outcome !== 'skipped') entry.ateAsPlanned = v.ateAsPlanned;
       return entry;
     });
     setFieldErrors({});

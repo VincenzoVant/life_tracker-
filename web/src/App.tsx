@@ -11,6 +11,7 @@ import { ReviewPage } from "./features/review/ReviewPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { StartupPage } from "./features/areas/startup/StartupPage";
 import { StudiesPage } from "./features/areas/studies/StudiesPage";
+import { MealAssignAction } from './features/week/MealAssignModal';
 import { WeekPage } from './features/week/WeekPage';
 import { TodayPage } from "./features/today/TodayPage";
 import { TopLiftsPage } from "./features/areas/workouts/TopLiftsPage";
@@ -24,7 +25,7 @@ function Placeholder({ title }: { title: string }) {
 // Single routes list: later tasks replace the placeholder elements (and Stage 2 adds '/week').
 export const routes: Array<{ path: string; element: ReactElement }> = [
   { path: "/", element: <TodayPage /> },
-  { path: "/week", element: <WeekPage /> },
+  { path: "/week", element: <WeekPage detailsActions={(block) => <MealAssignAction block={block} />} /> },
   { path: "/review", element: <ReviewPage /> },
   { path: "/areas", element: <AreasPage /> },
   { path: "/areas/studies", element: <StudiesPage /> },
