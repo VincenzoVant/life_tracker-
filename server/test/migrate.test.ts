@@ -78,3 +78,28 @@ test('migration 0004 (blocks rebuild) preserves existing blocks and their course
     { id: 'b1', course_id: 'c1', startup_task_id: null },
   ]);
 });
+
+test('a pre-existing dangling FK does not block boot when no migrations are pending', () => {
+  const handle = openDb(':memory:');
+  runMigrations(handle, {});
+  handle.sqlite.pragma('foreign_keys = OFF');
+  handle.sqlite.exec(
+    `INSERT INTO blocks (id, category, title, start, end, status, source, locked, course_id, created_at, updated_at)
+     VALUES ('b1','study','x','a','b','committed','manual',0,'ghost','t','t')`,
+  );
+  handle.sqlite.pragma('foreign_keys = ON');
+  expect(runMigrations(handle, {}).applied).toBe(0);
+});
+
+test('FK violation error names the tables and the backup path', () => {
+  const { sqlite } = openDb(':memory:');
+  sqlite.exec(`
+    CREATE TABLE parent (id text PRIMARY KEY NOT NULL);
+    CREATE TABLE child (id text PRIMARY KEY NOT NULL, parent_id text REFERENCES parent(id));
+  `);
+  expect(() =>
+    withForeignKeysOff(sqlite, () => sqlite.exec("INSERT INTO child VALUES ('c1','ghost')"), { backupPath: '/b/pre.db' }),
+  ).toThrow(/tables: child\); restore from \/b\/pre\.db/);
+  // check disabled: no throw
+  expect(() => withForeignKeysOff(sqlite, () => 1, { check: false })).not.toThrow();
+});

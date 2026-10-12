@@ -25,7 +25,11 @@ function appliedCount(handle: DbHandle): number | null {
  * set before drizzle's migrator opens one; otherwise table rebuilds (DROP + RENAME) fire ON DELETE
  * actions on child rows. Enforcement is restored afterwards and the result is checked.
  */
-export function withForeignKeysOff<T>(sqlite: DbHandle['sqlite'], fn: () => T): T {
+export function withForeignKeysOff<T>(
+  sqlite: DbHandle['sqlite'],
+  fn: () => T,
+  opts: { check?: boolean; backupPath?: string } = {},
+): T {
   sqlite.pragma('foreign_keys = OFF');
   let result: T;
   try {
@@ -33,9 +37,12 @@ export function withForeignKeysOff<T>(sqlite: DbHandle['sqlite'], fn: () => T): 
   } finally {
     sqlite.pragma('foreign_keys = ON');
   }
-  const violations = sqlite.pragma('foreign_key_check') as unknown[];
+  if (opts.check === false) return result;
+  const violations = sqlite.pragma('foreign_key_check') as { table: string }[];
   if (violations.length > 0) {
-    throw new Error(`Foreign key check failed after migration: ${JSON.stringify(violations.slice(0, 5))}`);
+    const tables = [...new Set(violations.map((v) => v.table))].join(', ');
+    const hint = opts.backupPath ? `; restore from ${opts.backupPath}` : '';
+    throw new Error(`Foreign key check failed after migration (tables: ${tables})${hint}`);
   }
   return result;
 }
@@ -44,12 +51,18 @@ export function runMigrations(handle: DbHandle, opts: { backupDir?: string } = {
   const before = appliedCount(handle);
   const applied = journalCount() - (before ?? 0);
   const isFile = handle.sqlite.name !== ':memory:' && handle.sqlite.name !== '';
+  let backupPath: string | undefined;
   if (applied > 0 && before !== null && isFile && opts.backupDir) {
     mkdirSync(opts.backupDir, { recursive: true });
     const stamp = new Date().toISOString().replace(/:/g, '-');
     // better-sqlite3 backup is async; use VACUUM INTO for a synchronous consistent copy.
-    handle.sqlite.exec(`VACUUM INTO '${join(opts.backupDir, `pre-migrate-${stamp}.db`).replace(/'/g, "''")}'`);
+    backupPath = join(opts.backupDir, `pre-migrate-${stamp}.db`);
+    handle.sqlite.exec(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`);
   }
-  withForeignKeysOff(handle.sqlite, () => migrate(handle.db, { migrationsFolder: MIGRATIONS_FOLDER }));
+  // Only check when something was applied, so a pre-existing violation cannot block every boot.
+  withForeignKeysOff(handle.sqlite, () => migrate(handle.db, { migrationsFolder: MIGRATIONS_FOLDER }), {
+    check: applied > 0,
+    ...(backupPath ? { backupPath } : {}),
+  });
   return { applied };
 }
