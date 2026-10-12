@@ -227,3 +227,57 @@ test('completedAt recorded; GET route works', async () => {
   expect(get.body.reviewed).toHaveLength(1);
   expect((await client.get('/api/review?date=bad')).status).toBe(400);
 });
+
+test('re-review partial -> done without workout keeps stored details', () => {
+  const ctx = createTestCtx();
+  const w = add(ctx, { category: 'workout', workoutType: 'cardio' }, '2026-10-14', '07:00', 60);
+  submitReview(ctx, {
+    date: '2026-10-14',
+    entries: [{ blockId: w.id, outcome: 'partial', actualMinutes: 30, workout: { intensity: 4, distanceKm: 5 } }],
+    unplanned: [],
+  });
+  submitReview(ctx, { date: '2026-10-14', entries: [{ blockId: w.id, outcome: 'done' }], unplanned: [] });
+  const [s] = listSessions(ctx, { from: '2026-10-14', to: '2026-10-14' });
+  expect(s).toMatchObject({ durationMinutes: 60, intensity: 4, distanceKm: 5 });
+});
+
+test('a failed unplanned entry rolls back the whole submission', () => {
+  const ctx = createTestCtx();
+  const a = add(ctx, { category: 'work' }, '2026-10-14', '09:00', 60);
+  expect(() =>
+    submitReview(ctx, {
+      date: '2026-10-14',
+      entries: [{ blockId: a.id, outcome: 'done' }],
+      // a workout block without workoutType fails to create, after the entries were applied
+      unplanned: [
+        { title: 'x', category: 'workout', start: utc('2026-10-14', '12:00'), end: utc('2026-10-14', '13:00') } as BlockCreateInput,
+      ],
+    }),
+  ).toThrow();
+  expect(getBlock(ctx, a.id).status).toBe('committed');
+  expect(getPendingReview(ctx, '2026-10-14').completedAt).toBeNull();
+  expect(getPendingReview(ctx, '2026-10-14').reviewed).toHaveLength(0);
+});
+
+test('duplicate blockId -> 400', async () => {
+  const client = await createTestClient();
+  const a = add(client.ctx, { category: 'work' }, '2026-10-14', '09:00', 60);
+  const res = await client.post('/api/review', {
+    date: '2026-10-14',
+    entries: [
+      { blockId: a.id, outcome: 'done' },
+      { blockId: a.id, outcome: 'skipped' },
+    ],
+    unplanned: [],
+  });
+  expect(res.status).toBe(400);
+  expect(res.body.error.fields['entries.1.blockId']).toBeTruthy();
+});
+
+test('completeStartupTask is ignored when the block is skipped', () => {
+  const ctx = createTestCtx();
+  const t = createTask(ctx, { title: 'Ship it' });
+  const b = add(ctx, { category: 'startup', startupTaskId: t.id }, '2026-10-14', '09:00', 60);
+  submitReview(ctx, { date: '2026-10-14', entries: [{ blockId: b.id, outcome: 'skipped', completeStartupTask: true }], unplanned: [] });
+  expect(listTasks(ctx).find((x) => x.id === t.id)?.status).not.toBe('done');
+});

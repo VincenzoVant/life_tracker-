@@ -7,9 +7,10 @@ import {
   isoWeekday,
   type PendingReview,
   type ReviewResult,
+  type WorkoutDetails,
 } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
-import { blocks, dailyReviews } from '../../db/schema.js';
+import { blocks, dailyReviews, workoutSessions } from '../../db/schema.js';
 import { AppError } from '../../lib/errors.js';
 import { parse } from '../../lib/validate.js';
 import { createBlock, getBlock, listBlocks, setBlockStatus } from '../blocks/service.js';
@@ -44,6 +45,20 @@ function checkMinutes(
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > max) fields[key] = `Must be a whole number between 1 and ${max}`;
 }
 
+/** Details already stored for a block's session, so a re-review without a workout payload keeps them. */
+function existingDetails(ctx: Ctx, blockId: string): WorkoutDetails {
+  const row = ctx.db.select().from(workoutSessions).where(eq(workoutSessions.blockId, blockId)).get();
+  if (!row) return {};
+  return {
+    ...(row.intensity != null && { intensity: row.intensity }),
+    ...(row.notes != null && { notes: row.notes }),
+    ...(row.gymFocus != null && { gymFocus: row.gymFocus }),
+    ...(row.cardioKind != null && { cardioKind: row.cardioKind }),
+    ...(row.distanceKm != null && { distanceKm: row.distanceKm }),
+    ...(row.sportName != null && { sportName: row.sportName }),
+  } as WorkoutDetails;
+}
+
 export function submitReview(ctx: Ctx, input: ReviewSubmission): ReviewResult {
   const s = parse(ReviewSubmission, input);
   const fields: Record<string, string> = {};
@@ -66,7 +81,7 @@ export function submitReview(ctx: Ctx, input: ReviewSubmission): ReviewResult {
       const updated = setBlockStatus(ctx, block.id, e.outcome, minutes);
       if (block.category === 'workout') {
         if (e.outcome === 'skipped') deleteSessionForBlock(ctx, block.id);
-        else upsertSessionForBlock(ctx, updated, minutes, e.workout ?? {});
+        else upsertSessionForBlock(ctx, updated, minutes, e.workout ?? existingDetails(ctx, block.id));
       }
       if (e.completeStartupTask && e.outcome !== 'skipped' && block.startupTaskId) {
         updateTask(ctx, block.startupTaskId, { status: 'done' });
