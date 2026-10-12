@@ -1,0 +1,1 @@
+ALTER TABLE `plans` ADD `basis_json` text;

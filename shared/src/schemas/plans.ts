@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { addDays, isoWeekday } from '../time.js';
-import type { Block, WorkoutType } from './blocks.js';
+import type { Category } from '../categories.js';
+import type { Block, MealSlot, WorkoutType } from './blocks.js';
 
 export interface BusyInterval {
   start: string;
@@ -19,19 +20,25 @@ export interface ApiShortfall {
   unit: 'minutes' | 'count';
 }
 
-/** Filled by Stage 4 (replan); absent on full plans. */
-export interface PlanChange {
-  blockId: string;
-  kind: 'moved' | 'removed' | 'added';
-  from?: string;
-  to?: string;
-  reason?: string;
+export interface ApiPlanChange {
+  type: 'moved' | 'shortened' | 'removed' | 'added';
+  blockId: string | null;
+  title: string;
+  category: Category;
+  from: { start: string; end: string } | null;
+  to: { start: string; end: string } | null;
+  /** Links an `added` block carries, so Apply can create it. */
+  courseId?: string;
+  startupTaskId?: string;
+  workoutType?: WorkoutType;
+  mealSlot?: MealSlot;
 }
 
 export interface PlanSummary {
   shortfalls: ApiShortfall[];
   reservedEvenings: string[];
-  changes?: PlanChange[];
+  changes?: ApiPlanChange[];
+  conflictId?: string;
 }
 
 export type PlanMode = 'full' | 'replan';

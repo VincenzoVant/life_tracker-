@@ -200,6 +200,7 @@ export const plans = sqliteTable(
     triggerBlockId: text('trigger_block_id'),
     status: text('status').notNull(), // draft | applied | discarded
     summary: text('summary', { mode: 'json' }).notNull(),
+    basisJson: text('basis_json'),
     createdAt: text('created_at').notNull(),
   },
   (t) => [index('plans_week_idx').on(t.weekStart)],

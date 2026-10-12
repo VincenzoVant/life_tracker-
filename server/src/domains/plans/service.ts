@@ -11,7 +11,7 @@ import { buildPlannerInput } from './inputs.js';
 
 type Row = typeof plans.$inferSelect;
 
-const toPlan = (r: Row): Plan => ({
+export const toPlan = (r: Row): Plan => ({
   id: r.id,
   weekStart: r.weekStart,
   mode: r.mode as Plan['mode'],
@@ -21,7 +21,7 @@ const toPlan = (r: Row): Plan => ({
   summary: r.summary as PlanSummary,
 });
 
-function toApiShortfall(s: Shortfall): ApiShortfall {
+export function toApiShortfall(s: Shortfall): ApiShortfall {
   const g = s.goal;
   switch (g.kind) {
     case 'study':
@@ -35,7 +35,7 @@ function toApiShortfall(s: Shortfall): ApiShortfall {
   }
 }
 
-function getPlanRow(ctx: Ctx, id: string): Row {
+export function getPlanRow(ctx: Ctx, id: string): Row {
   const row = ctx.db.select().from(plans).where(eq(plans.id, id)).get();
   if (!row) throw notFound('Plan');
   return row;
