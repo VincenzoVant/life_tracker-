@@ -1,4 +1,5 @@
 import { CalendarApiError, type CalendarClient, type EventBody, type GEvent, type ListEventsQuery } from '../../src/calendar/client.js';
+import type { GoogleIntegration } from '../../src/calendar/oauth.js';
 
 const PAGE_SIZE = 2;
 
@@ -181,4 +182,23 @@ export class FakeCalendarClient implements CalendarClient {
     stored.event = this.stamp({ ...stored.event, status: 'cancelled' });
     stored.seq = this.seq;
   }
+}
+
+/** A configured, connected GoogleIntegration that hands out `fake`. */
+export function createFakeGoogle(fake: FakeCalendarClient): GoogleIntegration {
+  let reconnect = false;
+  return {
+    isConfigured: () => true,
+    isConnected: () => true,
+    needsReconnect: () => reconnect,
+    markNeedsReconnect: () => {
+      reconnect = true;
+    },
+    client: () => (reconnect ? null : fake),
+    beginAuth: async (host) => `https://accounts.google.test/auth?host=${encodeURIComponent(host)}`,
+    completeAuth: async () => {
+      reconnect = false;
+    },
+    disconnect: async () => {},
+  };
 }
