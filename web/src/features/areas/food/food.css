@@ -1,0 +1,9 @@
+.food-tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); }
+.food-tabs button[aria-selected='true'], .food-tabs button[aria-pressed='true'] { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+.food-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; }
+.food-row + .food-row { border-top: 1px solid var(--border); }
+.food-slot h3 { display: flex; justify-content: space-between; align-items: center; margin: 0 0 var(--space-2); text-transform: capitalize; }
+.food-date { display: flex; gap: var(--space-2); align-items: center; }
+.food-totals > div { margin-bottom: var(--space-3); }
+.food-actions { display: flex; gap: var(--space-2); align-items: center; }
+.food-stack > * + * { margin-top: var(--space-3); }
