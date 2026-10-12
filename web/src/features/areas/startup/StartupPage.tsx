@@ -37,7 +37,7 @@ function TaskForm({ task, milestones, onClose }: { task: StartupTask | null; mil
       else await create.mutateAsync(body);
       onClose();
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : 'Could not save task', 'error');
+      toast.showError(err, 'Could not save task');
     }
   }
 
@@ -88,7 +88,7 @@ function MilestoneForm({ milestone, onClose }: { milestone: Milestone | null; on
       else await create.mutateAsync(body);
       onClose();
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : 'Could not save milestone', 'error');
+      toast.showError(err, 'Could not save milestone');
     }
   }
 
@@ -137,7 +137,7 @@ export function StartupPage() {
   ];
   const startup = progress.data?.startup;
 
-  const fail = (err: unknown, fallback: string) => toast.show(err instanceof Error ? err.message : fallback, 'error');
+  const fail = (err: unknown, fallback: string) => toast.showError(err, fallback);
 
   async function move(task: StartupTask, dir: -1 | 1) {
     const peers = tasks.filter((t) => t.milestoneId === task.milestoneId && t.status === task.status);

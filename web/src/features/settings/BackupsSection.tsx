@@ -21,7 +21,7 @@ export function BackupsSection() {
       await run.mutateAsync();
       toast.show('Backup complete');
     } catch (err) {
-      toast.show(err instanceof ApiError ? err.message : 'Backup failed', 'error');
+      toast.showError(err, 'Backup failed');
     }
   }
 

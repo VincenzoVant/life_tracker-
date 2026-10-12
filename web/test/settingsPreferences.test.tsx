@@ -48,4 +48,35 @@ describe('Planner preferences settings', () => {
     expect(confirm).toHaveBeenCalled();
     await waitFor(() => expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({}));
   });
+
+  test('field errors without a rendered field are shown on day chips and in a fallback list', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      ...base,
+      'GET /api/preferences': () => DEFAULT_PREFERENCES,
+      'PUT /api/preferences': () => ({
+        status: 400,
+        body: { error: { code: 'VALIDATION', message: 'Invalid preferences', fields: { 'studyBlock.min': 'Min too small', studyBlock: 'Study block is inconsistent', allowedWorkoutDays: 'Pick at least one day' } } },
+      }),
+    });
+    renderWithProviders(<SettingsPage />);
+    await user.click(await screen.findByRole('button', { name: 'Save preferences' }));
+    expect(await screen.findByText('Min too small')).toBeInTheDocument();
+    expect(screen.getByText('Pick at least one day')).toBeInTheDocument();
+    expect(screen.getByText(/Study block is inconsistent/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Min too small/)).toHaveLength(1);
+    expect(screen.getAllByText(/Pick at least one day/)).toHaveLength(1);
+  });
+
+  test('clearing a numeric input does not silently send 0', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({ ...base, 'GET /api/preferences': () => DEFAULT_PREFERENCES, 'PUT /api/preferences': () => DEFAULT_PREFERENCES });
+    renderWithProviders(<SettingsPage />);
+    const input = await screen.findByLabelText('Buffer between blocks (min)');
+    await user.clear(input);
+    expect(input).toHaveValue(null);
+    await user.click(screen.getByRole('button', { name: 'Save preferences' }));
+    await waitFor(() => expect(calls.find((c) => c.method === 'PUT')).toBeDefined());
+    expect((calls.find((c) => c.method === 'PUT')?.body as { bufferMinutes: unknown }).bufferMinutes).toBeNull();
+  });
 });

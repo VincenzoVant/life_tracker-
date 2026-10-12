@@ -1,6 +1,6 @@
 import { DEFAULT_PREFERENCES, type Block } from '@life-tracker/shared';
 import { describe, expect, test } from 'vitest';
-import { applyMove, applyResize, blockHeight, blockTop, canDrag, gridHours, layoutOverlaps, minutesFromPixels } from '../src/features/week/geometry';
+import { applyMove, applyResize, blockHeight, blockTop, canDrag, extendGridHours, gridHours, layoutOverlaps, minutesFromPixels } from '../src/features/week/geometry';
 
 const tz = 'America/Los_Angeles';
 const b = (id: string, start: string, end: string) => ({ id, start, end }) as Block;
@@ -15,6 +15,24 @@ describe('week geometry', () => {
     const block = b('x', '2026-10-14T19:30:00.000Z', '2026-10-14T21:00:00.000Z'); // 12:30-14:00 PDT
     expect(blockTop(block, '2026-10-14', tz, gridHours(DEFAULT_PREFERENCES))).toBe((12.5 - 7) * 48);
     expect(blockHeight(block)).toBe(72);
+  });
+
+  test('blockTop uses wall-clock hours on DST days', () => {
+    const hours = gridHours(DEFAULT_PREFERENCES);
+    const fall = b('f', '2026-11-01T20:30:00.000Z', '2026-11-01T21:30:00.000Z'); // 12:30 PST
+    const spring = b('s', '2027-03-14T19:30:00.000Z', '2027-03-14T20:30:00.000Z'); // 12:30 PDT
+    expect(blockTop(fall, '2026-11-01', tz, hours)).toBe((12.5 - 7) * 48);
+    expect(blockTop(spring, '2027-03-14', tz, hours)).toBe((12.5 - 7) * 48);
+    expect(blockHeight(fall)).toBe(48);
+  });
+
+  test('extendGridHours widens the range to include blocks outside the preference window', () => {
+    const hours = { from: 7, to: 24 };
+    const early = b('e', '2026-10-14T12:00:00.000Z', '2026-10-14T13:00:00.000Z'); // 05:00-06:00 PDT
+    expect(extendGridHours(hours, [early], tz)).toEqual({ from: 5, to: 24 });
+    const overnight = b('o', '2026-10-15T05:00:00.000Z', '2026-10-15T08:00:00.000Z'); // 22:00-01:00 PDT
+    expect(extendGridHours({ from: 7, to: 23 }, [overnight], tz)).toEqual({ from: 7, to: 24 });
+    expect(extendGridHours(hours, [], tz)).toEqual(hours);
   });
 
   test('minutesFromPixels snaps to 15', () => {

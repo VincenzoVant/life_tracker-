@@ -1,7 +1,7 @@
 import { act, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../src/App';
-import { ApiError, apiFetch } from '../src/api/client';
+import { ApiError, apiFetch, isNetworkError } from '../src/api/client';
 import { useToast } from '../src/components/Toast';
 import { renderWithProviders } from './render';
 
@@ -91,16 +91,18 @@ describe('offline screen', () => {
     expect(err).toBeInstanceOf(ApiError);
     expect(err).toMatchObject({ status: 0, code: 'INTERNAL' });
 
+    expect(isNetworkError(err)).toBe(true);
+    expect(isNetworkError(new ApiError(500, 'INTERNAL', 'Boom'))).toBe(false);
+    expect(isNetworkError(new Error('x'))).toBe(false);
+
     function Trigger() {
       const toast = useToast();
       return (
-        <button
-          onClick={() =>
-            void apiFetch('/api/x').catch((e) => toast.show(e instanceof ApiError ? e.message : 'Could not save', 'error'))
-          }
-        >
-          go
-        </button>
+        <>
+          <button onClick={() => void apiFetch('/api/x').catch((e) => toast.showError(e, 'Could not save'))}>go</button>
+          <button onClick={() => toast.showError(new ApiError(500, 'INTERNAL', 'Server exploded'), 'Could not save')}>fail</button>
+          <button onClick={() => toast.show('Network unreachable', 'error')}>plain</button>
+        </>
       );
     }
     renderWithProviders(<Trigger />);
@@ -109,5 +111,13 @@ describe('offline screen', () => {
     });
     await flush();
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
+
+    // A non-network error still toasts, and suppression is by flag, not message text.
+    await act(async () => {
+      screen.getByRole('button', { name: 'fail' }).click();
+      screen.getByRole('button', { name: 'plain' }).click();
+    });
+    expect(screen.getByText('Server exploded')).toBeInTheDocument();
+    expect(screen.getByText('Network unreachable')).toBeInTheDocument();
   });
 });

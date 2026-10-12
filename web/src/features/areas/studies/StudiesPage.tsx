@@ -30,7 +30,7 @@ function CourseForm({ course, onClose }: { course: Course | null; onClose: () =>
       else await create.mutateAsync(body);
       onClose();
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : 'Could not save course', 'error');
+      toast.showError(err, 'Could not save course');
     }
   }
 
@@ -73,7 +73,7 @@ export function StudiesPage() {
     try {
       await archive.mutateAsync(c.id);
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : 'Could not archive course', 'error');
+      toast.showError(err, 'Could not archive course');
     }
   }
 

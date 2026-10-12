@@ -51,7 +51,7 @@ export function PlanBar({ weekStart, thisWeek, hasDraft }: PlanBarProps) {
         className="primary"
         disabled={create.isPending}
         onClick={() =>
-          create.mutate(weekStart, { onError: (e) => toast.show(e instanceof Error ? e.message : 'Could not plan the week', 'error') })
+          create.mutate(weekStart, { onError: (e) => toast.showError(e, 'Could not plan the week') })
         }
       >
         {label}
@@ -78,7 +78,7 @@ export function DraftPanel({ draft, weekStart }: DraftPanelProps) {
   const { shortfalls, reservedEvenings } = plan.summary;
   const p = progress.data;
 
-  const fail = (e: unknown) => toast.show(e instanceof Error ? e.message : 'Something went wrong', 'error');
+  const fail = (e: unknown) => toast.showError(e, 'Something went wrong');
 
   return (
     <aside className="draft-panel" aria-label="Draft plan">
