@@ -1,5 +1,6 @@
 import {
   DEFAULT_PREFERENCES,
+  LocalDate,
   addDays,
   isoWeekday,
   localDateOf,
@@ -58,11 +59,12 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
   const tz = useTimezone();
   const wide = useIsWide();
   const today = localDateOf(new Date(), tz);
-  // `?week=<date>` opens that week (e.g. after applying a replan); any date in the week works.
+  // `?week=<date>` opens that week (e.g. after applying a replan); must be a valid Monday.
   const [params, setParams] = useSearchParams();
   const [initialWeek] = useState(() => {
     const w = params.get('week');
-    return w && /^\d{4}-\d{2}-\d{2}$/.test(w) ? addDays(w, 1 - isoWeekday(w)) : null;
+    const parsed = LocalDate.safeParse(w);
+    return parsed.success && isoWeekday(parsed.data) === 1 ? parsed.data : null;
   });
   const [weekStart, setWeekStart] = useState(() => initialWeek ?? weekStartOf(new Date(), tz));
   const [day, setDay] = useState(() => (initialWeek && initialWeek !== weekStartOf(new Date(), tz) ? initialWeek : today));

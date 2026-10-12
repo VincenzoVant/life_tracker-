@@ -48,6 +48,12 @@ afterEach(() => {
 });
 
 describe('WeekPage', () => {
+  test('an impossible or non-Monday ?week= falls back to the current week', async () => {
+    api();
+    renderWithProviders(<WeekPage />, { route: '/week?week=2026-13-45' });
+    expect(await screen.findByRole('group', { name: 'Day 2026-10-14' })).toBeInTheDocument();
+  });
+
   test('week grid renders 7 columns with blocks in correct day column', async () => {
     api();
     renderWithProviders(<WeekPage />);
