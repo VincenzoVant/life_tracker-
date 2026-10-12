@@ -23,22 +23,25 @@ export class FakeCalendarClient implements CalendarClient {
   private idCounter = 0;
   private expiredBefore = 0;
   private calendars = new Map<string, FakeCal>();
-  private failures = new Map<string, { error: CalendarApiError; times: number }>();
+  private failures = new Map<string, CalendarApiError[]>();
 
   constructor() {
     this.calendars.set('primary', { summary: 'Primary', primary: true, events: new Map() });
   }
 
+  /** Queues `times` failures for `method`; successive calls append (e.g. 429 then 500). */
   failNext(method: keyof CalendarClient, error: CalendarApiError, times = 1): void {
-    this.failures.set(method, { error, times });
+    const queue = this.failures.get(method) ?? [];
+    for (let i = 0; i < times; i++) queue.push(error);
+    this.failures.set(method, queue);
   }
 
   addExternalEvent(calendarId: string, partial: Partial<GEvent> & { start: GEvent['start']; end: GEvent['end'] }): GEvent {
     const cal = this.cal(calendarId);
     const id = partial.id ?? `ext-${++this.idCounter}`;
-    const event = this.stamp({ status: 'confirmed', ...partial, id } as GEvent);
+    const event = this.stamp(structuredClone({ status: 'confirmed', ...partial, id }) as GEvent, partial.updated);
     cal.events.set(id, { event, seq: this.seq });
-    return { ...event };
+    return structuredClone(event);
   }
 
   userMove(calendarId: string, eventId: string, start: string, end: string, updatedAt: string): void {
@@ -69,7 +72,7 @@ export class FakeCalendarClient implements CalendarClient {
 
   /** Live (non-cancelled) events as stored. */
   events(calendarId: string): GEvent[] {
-    return [...this.cal(calendarId).events.values()].filter((s) => s.event.status !== 'cancelled').map((s) => ({ ...s.event }));
+    return [...this.cal(calendarId).events.values()].filter((s) => s.event.status !== 'cancelled').map((s) => structuredClone(s.event));
   }
 
   async listCalendars() {
@@ -98,18 +101,18 @@ export class FakeCalendarClient implements CalendarClient {
     this.enter('insertEvent', calendarId);
     const cal = this.cal(calendarId);
     const id = `ev-${++this.idCounter}`;
-    const event = this.stamp({ ...body, id, status: 'confirmed' } as GEvent);
+    const event = this.stamp(structuredClone({ ...body, id, status: 'confirmed' }) as GEvent);
     cal.events.set(id, { event, seq: this.seq });
     this.calls[this.calls.length - 1]!.eventId = id;
-    return { ...event };
+    return structuredClone(event);
   }
 
   async patchEvent(calendarId: string, eventId: string, body: EventBody) {
     this.enter('patchEvent', calendarId, eventId);
     const stored = this.mustGet(calendarId, eventId);
-    stored.event = this.stamp({ ...stored.event, ...body });
+    stored.event = this.stamp({ ...stored.event, ...structuredClone(body) });
     stored.seq = this.seq;
-    return { ...stored.event };
+    return structuredClone(stored.event);
   }
 
   async deleteEvent(calendarId: string, eventId: string) {
@@ -121,6 +124,9 @@ export class FakeCalendarClient implements CalendarClient {
     this.enter('listEvents', calendarId);
     const cal = this.cal(calendarId);
     let items = [...cal.events.values()];
+    if (q.syncToken && (q.timeMin || q.timeMax)) {
+      throw new CalendarApiError(400, 'syncToken cannot be combined with timeMin/timeMax', 'invalid');
+    }
     if (q.syncToken) {
       const since = Number(q.syncToken.replace('sync-', ''));
       if (!Number.isFinite(since) || since < this.expiredBefore) {
@@ -141,7 +147,7 @@ export class FakeCalendarClient implements CalendarClient {
       });
     }
     const offset = q.pageToken ? Number(q.pageToken) : 0;
-    const page = events.slice(offset, offset + PAGE_SIZE).map((e) => ({ ...e }));
+    const page = events.slice(offset, offset + PAGE_SIZE).map((e) => structuredClone(e));
     return offset + PAGE_SIZE < events.length
       ? { items: page, nextPageToken: String(offset + PAGE_SIZE) }
       : { items: page, nextSyncToken: `sync-${this.seq}` };
@@ -149,11 +155,8 @@ export class FakeCalendarClient implements CalendarClient {
 
   private enter(method: keyof CalendarClient, calendarId: string, eventId?: string): void {
     this.calls.push({ method, calendarId, ...(eventId ? { eventId } : {}) });
-    const f = this.failures.get(method);
-    if (f && f.times > 0) {
-      f.times--;
-      throw f.error;
-    }
+    const queued = this.failures.get(method)?.shift();
+    if (queued) throw queued;
     if (calendarId && method !== 'calendarExists' && !this.calendars.has(calendarId)) {
       throw new CalendarApiError(404, 'Not Found', 'notFound');
     }
@@ -171,14 +174,15 @@ export class FakeCalendarClient implements CalendarClient {
     return s;
   }
 
-  private stamp(event: GEvent): GEvent {
+  private stamp(event: GEvent, updated?: string): GEvent {
     this.seq++;
-    return { ...event, updated: this.now, etag: `seq-${this.seq}` };
+    return { ...event, updated: updated ?? this.now, etag: `seq-${this.seq}` };
   }
 
   private tombstone(cal: FakeCal, eventId: string): void {
     const stored = cal.events.get(eventId);
-    if (!stored || stored.event.status === 'cancelled') throw new CalendarApiError(404, 'Not Found', 'notFound');
+    if (!stored) throw new CalendarApiError(404, 'Not Found', 'notFound');
+    if (stored.event.status === 'cancelled') throw new CalendarApiError(410, 'Resource has been deleted', 'deleted');
     stored.event = this.stamp({ ...stored.event, status: 'cancelled' });
     stored.seq = this.seq;
   }
