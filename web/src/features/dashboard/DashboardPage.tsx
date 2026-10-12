@@ -32,6 +32,11 @@ export function DashboardPage() {
         <button type="button" aria-label="Next week" onClick={() => setWeekStart(addDays(current, 7))}>
           ▶
         </button>
+        {current !== thisWeek && (
+          <button type="button" onClick={() => setWeekStart(null)}>
+            This week
+          </button>
+        )}
       </div>
       {isPending && <p className="muted">Loading…</p>}
       {isError && (

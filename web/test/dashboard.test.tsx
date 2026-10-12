@@ -74,5 +74,8 @@ describe('DashboardPage', () => {
     expect(await screen.findByText('Week of 2026-10-05')).toBeInTheDocument();
     expect(weeks).toContain('2026-10-12');
     expect(weeks).toContain('2026-10-05');
+    await user.click(screen.getByRole('button', { name: 'This week' }));
+    expect(await screen.findByText('Week of 2026-10-12')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'This week' })).not.toBeInTheDocument();
   });
 });
