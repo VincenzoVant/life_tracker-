@@ -204,3 +204,14 @@ export const syncQueue = sqliteTable('sync_queue', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+export const googleChanges = sqliteTable('google_changes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  blockId: text('block_id').notNull(),
+  kind: text('kind').notNull(), // 'moved' | 'deleted'
+  beforeStart: text('before_start'),
+  beforeEnd: text('before_end'),
+  afterStart: text('after_start'),
+  afterEnd: text('after_end'),
+  createdAt: text('created_at').notNull(),
+  seen: integer('seen', { mode: 'boolean' }).notNull().default(false),
+});
