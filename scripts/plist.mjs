@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 export const LABEL = 'com.lifetracker.server';
@@ -17,6 +18,41 @@ const unescapeXml = (s) =>
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, '&');
+
+/** Prefers a stable symlink (e.g. /opt/homebrew/bin/node) over a versioned Cellar path. */
+export function resolveNodePath(
+  execPath,
+  candidates = ['/opt/homebrew/bin/node', '/usr/local/bin/node'],
+  realpath = realpathSync,
+) {
+  const safe = (p) => {
+    try {
+      return realpath(p);
+    } catch {
+      return undefined;
+    }
+  };
+  const real = safe(execPath);
+  return candidates.find((c) => real !== undefined && safe(c) === real) ?? execPath;
+}
+
+/** Merges CLI values over the existing plist's options over defaults. Throws on an invalid port. */
+export function mergeOptions({ values = {}, existing = {}, home, repoDir, nodePath, expandHome = (p) => p }) {
+  const rawPort = values.port ?? existing.port ?? 4280;
+  const source = values.port !== undefined ? '--port' : existing.port !== undefined ? 'the installed plist' : 'default';
+  const port = Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`Invalid port ${rawPort} (from ${source})`);
+  }
+  return {
+    label: LABEL,
+    nodePath,
+    repoDir,
+    dataDir: expandHome(values['data-dir'] ?? existing.dataDir ?? `${home}/LifeTracker`),
+    port,
+    publicOrigin: values['public-origin'] ?? existing.publicOrigin,
+  };
+}
 
 export function renderPlist({ label, nodePath, repoDir, dataDir, port, publicOrigin }) {
   const env = [

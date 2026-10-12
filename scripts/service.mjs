@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { LABEL, parsePlistOptions, renderPlist } from './plist.mjs';
+import { LABEL, mergeOptions, parsePlistOptions, renderPlist, resolveNodePath } from './plist.mjs';
 
 const USAGE = `Usage: node scripts/service.mjs <install|uninstall|status|restart> [options]
 
@@ -51,19 +51,20 @@ const expandHome = (p) => (p === '~' || p.startsWith('~/') ? join(homedir(), p.s
 
 function resolveOptions() {
   const existing = existsSync(plistPath) ? parsePlistOptions(readFileSync(plistPath, 'utf8')) : {};
-  const port = Number(values.port ?? existing.port ?? 4280);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    console.error(`Invalid port: ${values.port}`);
+  try {
+    const o = mergeOptions({
+      values,
+      existing,
+      home: homedir(),
+      repoDir,
+      nodePath: resolveNodePath(process.execPath),
+      expandHome: (p) => resolve(expandHome(p)),
+    });
+    return o;
+  } catch (e) {
+    console.error(e.message);
     process.exit(2);
   }
-  return {
-    label: LABEL,
-    nodePath: process.execPath,
-    repoDir,
-    dataDir: resolve(expandHome(values['data-dir'] ?? existing.dataDir ?? '~/LifeTracker')),
-    port,
-    publicOrigin: values['public-origin'] ?? existing.publicOrigin,
-  };
 }
 
 function launchctl(args, { ignoreErrors = false } = {}) {
@@ -109,7 +110,14 @@ async function install() {
     writeFileSync(plistPath, plist);
   }
   launchctl(['bootout', target], { ignoreErrors: true });
-  launchctl(['bootstrap', `gui/${uid}`, plistPath]);
+  console.log(`Using node at ${o.nodePath}`);
+  try {
+    launchctl(['bootstrap', `gui/${uid}`, plistPath]);
+  } catch {
+    // bootout is asynchronous; give it a moment and retry once
+    await sleep(1000);
+    launchctl(['bootstrap', `gui/${uid}`, plistPath]);
+  }
   if (dryRun) return console.log(`(dry run) would poll http://127.0.0.1:${o.port}/api/health for up to 20 s`);
   for (let i = 0; i < 40; i++) {
     if (await health(o.port)) return console.log(`Life Tracker is running at http://127.0.0.1:${o.port}`);

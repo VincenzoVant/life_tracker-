@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { renderPlist, parsePlistOptions } from './plist.mjs';
+import { renderPlist, parsePlistOptions, resolveNodePath, mergeOptions } from './plist.mjs';
 
 const base = {
   label: 'com.lifetracker.server',
@@ -33,6 +33,45 @@ describe('renderPlist', () => {
   test('omits LT_PUBLIC_ORIGIN when not given', () => {
     const { publicOrigin: _omit, ...rest } = base;
     expect(renderPlist(rest)).not.toContain('LT_PUBLIC_ORIGIN');
+  });
+});
+
+describe('resolveNodePath', () => {
+  const cellar = '/opt/homebrew/Cellar/node/26.8.2/bin/node';
+  const fake = (map) => (p) => {
+    if (!(p in map)) throw new Error('ENOENT');
+    return map[p];
+  };
+
+  test('prefers a stable symlink resolving to the same binary', () => {
+    const rp = fake({ [cellar]: cellar, '/opt/homebrew/bin/node': cellar });
+    expect(resolveNodePath(cellar, undefined, rp)).toBe('/opt/homebrew/bin/node');
+  });
+
+  test('falls back to execPath when no candidate matches or exists', () => {
+    expect(resolveNodePath(cellar, undefined, fake({ [cellar]: cellar, '/opt/homebrew/bin/node': '/other' }))).toBe(cellar);
+    expect(resolveNodePath(cellar, undefined, fake({ [cellar]: cellar }))).toBe(cellar);
+    expect(resolveNodePath(cellar, undefined, fake({}))).toBe(cellar);
+  });
+});
+
+describe('mergeOptions', () => {
+  const ctx = { home: '/h', repoDir: '/r', nodePath: '/n' };
+
+  test('defaults, then existing plist, then CLI values win', () => {
+    expect(mergeOptions(ctx)).toMatchObject({ port: 4280, dataDir: '/h/LifeTracker', publicOrigin: undefined });
+    const existing = { port: 5000, dataDir: '/d', publicOrigin: 'https://a' };
+    expect(mergeOptions({ ...ctx, existing })).toMatchObject({ port: 5000, dataDir: '/d', publicOrigin: 'https://a' });
+    expect(mergeOptions({ ...ctx, existing, values: { port: '6000', 'public-origin': 'https://b' } })).toMatchObject({
+      port: 6000,
+      dataDir: '/d',
+      publicOrigin: 'https://b',
+    });
+  });
+
+  test('invalid port names its source', () => {
+    expect(() => mergeOptions({ ...ctx, values: { port: 'abc' } })).toThrow(/abc.*--port/);
+    expect(() => mergeOptions({ ...ctx, existing: { port: 99999 } })).toThrow(/99999.*installed plist/);
   });
 });
 
