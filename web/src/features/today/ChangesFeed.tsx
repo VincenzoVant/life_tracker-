@@ -1,6 +1,7 @@
 import { localTimeOf, type GoogleChange } from '@life-tracker/shared';
 import { useGoogleChanges, useMarkChangesSeen } from '../../api/hooks/google';
 import { useTimezone } from '../../api/hooks/settings';
+import { useToast } from '../../components/Toast';
 
 function describe(c: GoogleChange, tz: string): string {
   if (c.kind === 'deleted' || !c.afterStart) return `Deleted in Google: ${c.title}`;
@@ -14,6 +15,7 @@ export function ChangesFeed() {
   const tz = useTimezone();
   const { data } = useGoogleChanges();
   const seen = useMarkChangesSeen();
+  const toast = useToast();
   if (!data || data.length === 0) return null;
   return (
     <section className="card changes-feed" aria-label="Changes from Google">
@@ -23,7 +25,7 @@ export function ChangesFeed() {
           <li key={c.id}>{describe(c, tz)}</li>
         ))}
       </ul>
-      <button type="button" onClick={() => seen.mutate(data.map((c) => c.id))} disabled={seen.isPending}>
+      <button type="button" onClick={() => seen.mutate(data.map((c) => c.id), { onError: (e) => toast.showError(e, 'Could not mark as seen') })} disabled={seen.isPending}>
         Mark as seen
       </button>
     </section>

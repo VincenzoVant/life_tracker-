@@ -1,7 +1,6 @@
 import type { GoogleStatus } from '@life-tracker/shared';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ApiError } from '../../api/client';
 import {
   useDisconnectGoogle,
   useGoogleCalendars,
@@ -55,7 +54,7 @@ function Connected({ status }: { status: GoogleStatus }) {
       await action();
       toast.show(ok);
     } catch (e) {
-      toast.show(e instanceof ApiError ? e.message : 'Something went wrong', 'error');
+      toast.showError(e, 'Something went wrong');
     }
   }
 

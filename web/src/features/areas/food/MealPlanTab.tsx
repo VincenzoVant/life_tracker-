@@ -31,7 +31,7 @@ export function MealPlanTab() {
   function onRepeat() {
     repeat.mutate(weekStart, {
       onSuccess: (r) => toast.show(`Copied ${r.copied} meals`),
-      onError: (e) => toast.show(e instanceof Error ? e.message : 'Could not copy last week', 'error'),
+      onError: (e) => toast.showError(e, 'Could not copy last week'),
     });
   }
 

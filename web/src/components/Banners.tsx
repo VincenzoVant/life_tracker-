@@ -1,6 +1,5 @@
 import { localTimeOf, type Conflict } from '@life-tracker/shared';
 import { useNavigate } from 'react-router';
-import { ApiError } from '../api/client';
 import {
   useConflicts,
   useDismissConflict,
@@ -32,7 +31,7 @@ function ConflictBanner({ conflict }: { conflict: Conflict }) {
       if (draft) navigate(`/replan/${draft.plan.id}`);
       else toast.show('Nothing needs to move');
     } catch (e) {
-      toast.show(e instanceof ApiError ? e.message : 'Could not replan', 'error');
+      toast.showError(e, 'Could not replan');
     }
   }
 
@@ -46,7 +45,7 @@ function ConflictBanner({ conflict }: { conflict: Conflict }) {
         <button type="button" onClick={onReplan} disabled={replan.isPending}>
           Replan around this
         </button>
-        <button type="button" onClick={() => dismiss.mutate(conflict.id)} disabled={dismiss.isPending}>
+        <button type="button" onClick={() => dismiss.mutate(conflict.id, { onError: (e) => toast.showError(e, 'Could not dismiss') })} disabled={dismiss.isPending}>
           Dismiss
         </button>
       </div>
@@ -65,7 +64,7 @@ export function Banners() {
     try {
       await recreate.mutateAsync();
     } catch (e) {
-      toast.show(e instanceof ApiError ? e.message : 'Could not recreate the calendar', 'error');
+      toast.showError(e, 'Could not recreate the calendar');
     }
   }
 

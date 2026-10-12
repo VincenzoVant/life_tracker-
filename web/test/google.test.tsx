@@ -5,6 +5,7 @@ import { Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Banners } from '../src/components/Banners';
 import { SyncBadge } from '../src/components/SyncBadge';
+import { LogoutButton } from '../src/features/settings/SettingsPage';
 import { ChangesFeed } from '../src/features/today/ChangesFeed';
 import { GoogleSection } from '../src/features/settings/GoogleSection';
 import { WeekPage } from '../src/features/week/WeekPage';
@@ -183,6 +184,42 @@ describe('Replan around this', () => {
     await user.click(await screen.findByRole('button', { name: 'Replan around this' }));
     expect(await screen.findByText('Nothing needs to move')).toBeInTheDocument();
     expect(screen.getByText(/Dentist \(Tue/)).toBeInTheDocument();
+  });
+});
+
+const failure = (message: string) => ({ status: 500, body: { error: { code: 'INTERNAL', message } } });
+
+describe('error feedback', () => {
+  test('dismiss and mark-as-seen failures show a toast', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      ...settings,
+      'GET /api/google/status': () => status(),
+      'GET /api/conflicts': () => [conflict],
+      'POST /api/conflicts/7/dismiss': () => failure('Dismiss exploded'),
+      'GET /api/google/changes': () => [
+        { id: 1, blockId: 'g', kind: 'deleted', title: 'Gym', beforeStart: '', beforeEnd: '', afterStart: null, afterEnd: null, createdAt: '' },
+      ],
+      'POST /api/google/changes/seen': () => failure('Seen exploded'),
+    });
+    renderWithProviders(
+      <>
+        <Banners />
+        <ChangesFeed />
+      </>,
+    );
+    await user.click(await screen.findByRole('button', { name: 'Dismiss' }));
+    expect(await screen.findByText('Dismiss exploded')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Mark as seen' }));
+    expect(await screen.findByText('Seen exploded')).toBeInTheDocument();
+  });
+
+  test('logout failure shows a toast', async () => {
+    const user = userEvent.setup();
+    mockApi({ 'POST /api/auth/logout': () => failure('Logout exploded') });
+    renderWithProviders(<LogoutButton />);
+    await user.click(screen.getByRole('button', { name: 'Log out' }));
+    expect(await screen.findByText('Logout exploded')).toBeInTheDocument();
   });
 });
 
