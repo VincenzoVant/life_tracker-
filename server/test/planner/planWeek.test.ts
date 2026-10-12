@@ -1,7 +1,7 @@
 import { addDays, localDateOf, localTimeOf, weekRangeUtc } from '@life-tracker/shared';
 import { expect, test } from 'vitest';
 import { planWeek } from '../../src/planner/index.js';
-import type { PlannerGoal, PlannerInput } from '../../src/planner/types.js';
+import type { PlannerGoal, PlannerInput, PlannerOutput, ProposedBlock } from '../../src/planner/types.js';
 import { TZ, at, baseInput, ref } from './fixtures.js';
 import { checkInvariants } from './invariants.js';
 
@@ -127,17 +127,67 @@ test('blocks are sorted by start, then category order', () => {
   for (let i = 1; i < out.blocks.length; i++) expect(out.blocks[i]!.start).toBeGreaterThanOrEqual(out.blocks[i - 1]!.start);
 });
 
-test('checkInvariants catches violations', () => {
+test('DST spring-forward week 2027-03-08: invariants hold, meals at local times, nothing lands an hour off', () => {
+  const r = weekRangeUtc('2027-03-08', TZ);
+  const input = baseInput({
+    range: { start: r.start.getTime(), end: r.end.getTime() },
+    goals: [study('A', 360), { kind: 'startup', minutes: 300 }, wk('gym', 2), { kind: 'free_evenings', count: 2 }],
+  });
+  const out = plan(input);
+  expect(out.shortfalls).toEqual([]);
+  const meals = out.blocks.filter((b) => b.category === 'meal');
+  expect(meals).toHaveLength(21);
+  const slotTime = { breakfast: '08:00', lunch: '12:30', dinner: '19:00' } as const;
+  for (const m of meals) {
+    expect(localTimeOf(new Date(m.start), TZ)).toBe(slotTime[m.mealSlot as keyof typeof slotTime]);
+  }
+  // 2027-03-14 is the 23-hour Sunday: lunch is still 12:30 local.
+  const lunch = meals.find((b) => b.mealSlot === 'lunch' && localDateOf(new Date(b.start), TZ) === '2027-03-14')!;
+  expect(localTimeOf(new Date(lunch.start), TZ)).toBe('12:30');
+});
+
+const MEAL_DINNER = (date: string, from: string, to: string) =>
+  ({ category: 'meal' as const, title: 'Dinner', mealSlot: 'dinner' as const, start: at(date, from), end: at(date, to) });
+const blk = (category: 'study' | 'startup' | 'workout', date: string, from: string, to: string, extra = {}): ProposedBlock =>
+  ({ category, title: category, start: at(date, from), end: at(date, to), ...extra });
+const out = (blocks: ProposedBlock[], extra: Partial<{ shortfalls: PlannerOutput['shortfalls']; reservedEvenings: string[] }> = {}): PlannerOutput =>
+  ({ blocks, shortfalls: [], reservedEvenings: [], ...extra });
+
+test('checkInvariants catches one bad output per branch', () => {
   const input = baseInput();
-  const bad = {
-    blocks: [
-      { category: 'study' as const, title: 'x', start: at(MON, '07:00'), end: at(MON, '09:00') },
-      { category: 'study' as const, title: 'y', start: at(MON, '08:40'), end: at(MON, '09:40') },
-    ],
-    shortfalls: [],
-    reservedEvenings: [],
-  };
-  const errs = checkInvariants(input, bad);
-  expect(errs.some((e) => e.includes('outside day window'))).toBe(true);
-  expect(errs.some((e) => e.includes('closer than buffer'))).toBe(true);
+  const errs = (o: PlannerOutput, i: PlannerInput = input) => checkInvariants(i, o);
+  const has = (list: string[], text: string) => expect(list.some((e) => e.includes(text)), `${text} in ${JSON.stringify(list)}`).toBe(true);
+
+  has(errs(out([blk('study', MON, '07:00', '09:00')])), 'outside day window');
+  has(errs(out([blk('study', MON, '09:00', '10:00'), blk('study', MON, '10:05', '11:05')])), 'closer than buffer');
+  has(errs(out([blk('study', MON, '09:10', '10:10')])), 'start not on a 15-minute boundary');
+  has(errs(out([blk('study', MON, '09:00', '09:50')])), 'end not on a 15-minute boundary');
+  has(errs(out([blk('workout', '2026-10-20', '09:00', '10:15', { workoutType: 'gym' })]), baseInput({ prefs: { ...input.prefs, allowedWorkoutDays: [1] } })), 'not allowed');
+  has(errs(out([blk('study', MON, '09:00', '09:30')])), 'study block length');
+  has(errs(out([blk('study', MON, '09:00', '11:15')])), 'study block length');
+  has(errs(out([blk('startup', MON, '09:00', '09:45')])), 'startup block length');
+  has(errs(out([blk('startup', MON, '09:00', '12:15')])), 'startup block length');
+  has(errs(out([blk('workout', MON, '17:00', '18:00', { workoutType: 'gym' })])), 'workout duration');
+  has(errs(out([MEAL_DINNER(MON, '22:00', '22:45')])), 'from its target time');
+  has(errs(out([MEAL_DINNER(MON, '19:00', '19:30')])), 'meal duration');
+  has(errs(out([MEAL_DINNER(MON, '19:00', '19:45'), MEAL_DINNER(MON, '19:00', '19:45')])), 'more than one dinner');
+  // Independent local-time bound: a 22:45 end is past latestBlockEnd even if the day window were mis-built.
+  has(errs(out([blk('study', MON, '21:30', '22:45')])), 'outside local day bounds');
+  // Reserved evening, gym spacing, caps.
+  has(errs(out([blk('study', MON, '19:30', '20:30')], { reservedEvenings: [MON] })), 'reserved evening');
+  has(
+    errs(out([blk('workout', MON, '17:00', '18:15', { workoutType: 'gym' }), blk('workout', '2026-10-20', '17:00', '18:15', { workoutType: 'gym' })])),
+    'gym spacing',
+  );
+  has(errs(out([blk('study', MON, '09:00', '11:00'), blk('study', MON, '11:15', '13:15'), blk('study', MON, '13:30', '15:30')])), 'over cap');
+
+  // Shortfall accounting per goal.
+  const g: PlannerGoal = study('A', 120);
+  const withGoal = baseInput({ goals: [g, wk('gym', 2), { kind: 'free_evenings', count: 2 }] });
+  const placed = blk('study', MON, '09:00', '10:00', { courseId: 'A' });
+  has(errs(out([placed]), withGoal), 'study A');
+  has(errs(out([placed], { shortfalls: [{ goal: g, missing: 30 }] }), withGoal), 'study A');
+  expect(errs(out([placed], { shortfalls: [{ goal: g, missing: 60 }] }), withGoal).some((e) => e.startsWith('study A'))).toBe(false);
+  has(errs(out([]), withGoal), 'workout gym');
+  has(errs(out([]), withGoal), 'free evenings');
 });

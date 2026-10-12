@@ -1,6 +1,6 @@
 import { eveningWindowUtc, isoWeekday, localDateOf } from '@life-tracker/shared';
 import { rangeDates } from './days.js';
-import { overlaps } from './intervals.js';
+import { mergeIntervals, overlaps, subtractIntervals } from './intervals.js';
 import type { Timeline } from './timeline.js';
 import type { Interval, PlannerInput, Shortfall } from './types.js';
 
@@ -29,7 +29,8 @@ export function reserveEvenings(
     .filter(
       ({ window }) =>
         !input.existing.some((e) => BLOCKING.has(e.category) && overlaps(e, window)) &&
-        !input.busy.some((b) => overlaps(b, window)),
+        // A night out still counts as free: only busy time covering the whole window rules it out.
+        subtractIntervals([window], mergeIntervals(input.busy)).length > 0,
     );
 
   const isProtected = (date: string) => prefs.protectedEvenings.includes(isoWeekday(date));

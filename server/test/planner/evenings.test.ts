@@ -41,8 +41,19 @@ test('shortfall when fewer eligible evenings than goal', () => {
   expect(r.reserved).toEqual(['2026-10-25']);
   expect(r.shortfall).toEqual({ goal: goalObj, missing: 2 });
 });
-test('calendar busy time in the evening makes it ineligible', () => {
-  const { r } = run({ goals: [goal(1)], busy: [{ start: at(MON, '20:00'), end: at(MON, '21:00'), title: 'x' }] });
+test('a night out (busy 20:00-22:00) still counts as a free evening', () => {
+  const { r } = run({ goals: [goal(1)], busy: [{ start: at(MON, '20:00'), end: at(MON, '22:00'), title: 'x' }] });
+  expect(r.reserved).toEqual([MON]);
+});
+test('busy time covering the whole evening window makes it ineligible', () => {
+  const w = eveningWindowUtc(MON, prefs(), TZ);
+  const { r } = run({
+    goals: [goal(1)],
+    busy: [
+      { start: w.start.getTime() - 60_000, end: w.start.getTime() + 60 * 60_000, title: 'a' },
+      { start: w.start.getTime() + 60 * 60_000, end: w.end.getTime() + 60_000, title: 'b' },
+    ],
+  });
   expect(r.reserved).toEqual([TUE]);
 });
 test('current-week range starting Wed 12:00 → Mon/Tue ineligible', () => {

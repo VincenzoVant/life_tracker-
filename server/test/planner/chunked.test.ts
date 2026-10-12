@@ -124,3 +124,17 @@ test('existing study load counts against the daily caps', () => {
   expect(blocks).toEqual([]);
   expect(shortfalls[0]!.missing).toBe(120);
 });
+
+test('startup block that cannot fit a preferred window at full size shrinks to fit it (weekday 20:00-22:30)', () => {
+  // Monday only; dinner 19:00-19:45 + 15 min buffer leaves 20:00-22:30 (150 min) of the preferred evening window.
+  const input = baseInput({
+    range: { start: at(MON, '00:00'), end: at(addDays(MON, 1), '00:00') },
+    goals: [{ kind: 'startup', minutes: 180 }],
+    existing: [ref(MON, '19:00', '19:45', { category: 'meal', source: 'planner', mealSlot: 'dinner' })],
+  });
+  const { blocks, shortfalls } = placeStartup(createTimeline(input), input, []);
+  expect(blocks[0]).toMatchObject({ start: at(MON, '20:00'), end: at(MON, '22:30') });
+  const placed = blocks.reduce((n, b) => n + mins(b), 0);
+  expect(placed).toBeGreaterThanOrEqual(180);
+  expect(shortfalls).toEqual([]);
+});
