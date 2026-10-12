@@ -98,7 +98,7 @@ test('fixed blocks reject time changes', () => {
   expect(updateBlock(ctx, b.id, { title: 'Renamed' }).title).toBe('Renamed');
 });
 
-test('unknown courseId → 400 fields.courseId', async () => {
+test('unknown courseId → 400 fields.courseId (real ids are covered in studies.test.ts)', async () => {
   const c = await createTestClient();
   const res = await c.post('/api/blocks', { category: 'study', title: 'S', start: '2026-10-14T22:00:00.000Z', end: '2026-10-14T23:00:00.000Z', courseId: 'nope' });
   expect(res.status).toBe(400);

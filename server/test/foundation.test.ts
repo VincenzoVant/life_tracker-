@@ -45,10 +45,15 @@ test('runMigrations backs up an existing file db before applying pending migrati
   expect(runMigrations(second, { backupDir }).applied).toBe(0);
   expect(backups()).toHaveLength(0); // nothing pending
 
-  // Simulate a pending migration: forget the last one and drop what it created.
-  second.sqlite.exec('DROP TABLE blocks');
-  second.sqlite.exec('DELETE FROM __drizzle_migrations WHERE created_at = (SELECT MAX(created_at) FROM __drizzle_migrations)');
-  expect(runMigrations(second, { backupDir }).applied).toBe(1);
+  // Simulate pending migrations without naming any table: drop every user table and forget all applied rows.
+  second.sqlite.pragma('foreign_keys = OFF');
+  const tables = second.sqlite
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name <> '__drizzle_migrations'")
+    .all() as { name: string }[];
+  for (const t of tables) second.sqlite.exec(`DROP TABLE "${t.name}"`);
+  second.sqlite.exec('DELETE FROM __drizzle_migrations');
+  second.sqlite.pragma('foreign_keys = ON');
+  expect(runMigrations(second, { backupDir }).applied).toBeGreaterThan(0);
   expect(backups()).toHaveLength(1);
   second.sqlite.close();
 

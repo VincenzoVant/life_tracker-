@@ -22,6 +22,13 @@
       "when": 1791833403834,
       "tag": "0002_tough_triton",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791833552906,
+      "tag": "0003_lovely_warbound",
+      "breakpoints": true
     }
   ]
 }

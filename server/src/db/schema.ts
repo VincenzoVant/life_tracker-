@@ -1,4 +1,5 @@
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
@@ -12,6 +13,20 @@ export const sessions = sqliteTable('sessions', {
   lastSeenAt: text('last_seen_at').notNull(),
 });
 
+export const courses = sqliteTable(
+  'courses',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    color: text('color').notNull(),
+    weeklyGoalMinutes: integer('weekly_goal_minutes').notNull().default(0),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [uniqueIndex('courses_active_name_uq').on(t.name).where(sql`${t.active} = 1`)],
+);
+
 export const blocks = sqliteTable(
   'blocks',
   {
@@ -24,7 +39,7 @@ export const blocks = sqliteTable(
     actualMinutes: integer('actual_minutes'),
     source: text('source').notNull(),
     locked: integer('locked', { mode: 'boolean' }).notNull().default(false),
-    courseId: text('course_id'), // FK ON DELETE SET NULL added in Task 6
+    courseId: text('course_id').references(() => courses.id, { onDelete: 'set null' }),
     startupTaskId: text('startup_task_id'), // FK ON DELETE SET NULL added in Task 7
     workoutType: text('workout_type'),
     mealSlot: text('meal_slot'),

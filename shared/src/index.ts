@@ -4,3 +4,4 @@ export * from './time.js';
 export * from './schemas/settings.js';
 export * from './schemas/auth.js';
 export * from './schemas/blocks.js';
+export * from './schemas/courses.js';

@@ -9,7 +9,7 @@ import {
   type BlockUpdateInput,
 } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
-import { blocks } from '../../db/schema.js';
+import { blocks, courses } from '../../db/schema.js';
 import { AppError, notFound } from '../../lib/errors.js';
 import { parse } from '../../lib/validate.js';
 import { canTransition } from './status.js';
@@ -23,12 +23,14 @@ function toBlock(r: Row): Block {
 const normIso = (s: string): string => new Date(s).toISOString();
 
 /**
- * Checks that referenced courses / startup tasks exist. The course and startup-task tables arrive in
- * Tasks 6 and 7, which extend this; until then any non-null link is unknown.
+ * Checks that referenced courses / startup tasks exist (archived courses are still valid links).
+ * The startup-task table arrives in Task 7, which extends this; until then any non-null link is unknown.
  */
-export function assertLinksExist(_ctx: Ctx, links: { courseId?: string | null; startupTaskId?: string | null }): void {
+export function assertLinksExist(ctx: Ctx, links: { courseId?: string | null; startupTaskId?: string | null }): void {
   const fields: Record<string, string> = {};
-  if (links.courseId) fields.courseId = 'Unknown course';
+  if (links.courseId && !ctx.db.select({ id: courses.id }).from(courses).where(eq(courses.id, links.courseId)).get()) {
+    fields.courseId = 'Unknown course';
+  }
   if (links.startupTaskId) fields.startupTaskId = 'Unknown task';
   if (Object.keys(fields).length > 0) throw new AppError('VALIDATION', 'Invalid input', fields);
 }

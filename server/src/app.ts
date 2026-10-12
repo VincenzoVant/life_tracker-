@@ -6,6 +6,7 @@ import { authRoutes } from './auth/routes.js';
 import { createLockout } from './auth/lockout.js';
 import { requireOrigin, requireSession } from './auth/middleware.js';
 import { blockRoutes } from './domains/blocks/routes.js';
+import { courseRoutes } from './domains/studies/routes.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
 export function createApp(ctx: Ctx): Hono {
@@ -18,6 +19,7 @@ export function createApp(ctx: Ctx): Hono {
   app.route('/api/auth', authRoutes(ctx, createLockout(ctx.clock)));
   app.route('/api/settings', settingsRoutes(ctx));
   app.route('/api/blocks', blockRoutes(ctx));
+  app.route('/api/courses', courseRoutes(ctx));
 
   app.notFound((c) => {
     if (c.req.path.startsWith('/api/')) {
