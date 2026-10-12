@@ -164,5 +164,19 @@ test('busy provider intervals are respected', async () => {
   }
 });
 
-// 'draft blocks do not count in progress planned unless includeProposed' is deferred until the
-// getWeekProgress `includeProposed` option (separate task) is merged.
+test('draft blocks do not count in progress planned unless includeProposed', async () => {
+  const c = await createTestClient();
+  const course = seed(c);
+  const res = await c.post('/api/plans', { weekStart: '2026-10-19' });
+  expect(res.status).toBe(201);
+  const plannedStudy = (res.body.blocks as Block[])
+    .filter((b) => b.category === 'study' && b.courseId === course.id)
+    .reduce((sum, b) => sum + (new Date(b.end).getTime() - new Date(b.start).getTime()) / 60_000, 0);
+  expect(plannedStudy).toBeGreaterThan(0);
+  const without = await c.get('/api/progress/week?weekStart=2026-10-19');
+  expect(without.status).toBe(200);
+  expect(without.body.study[0].planned).toBe(0);
+  const withProposed = await c.get('/api/progress/week?weekStart=2026-10-19&includeProposed=true');
+  expect(withProposed.status).toBe(200);
+  expect(withProposed.body.study[0].planned).toBe(plannedStudy);
+});
