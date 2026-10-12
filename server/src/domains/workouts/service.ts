@@ -124,7 +124,7 @@ export function deleteSession(ctx: Ctx, id: string): WorkoutSession {
 export function upsertSessionForBlock(ctx: Ctx, block: Block, minutes: number, details: WorkoutDetails): WorkoutSession {
   if (!block.workoutType) throw new AppError('VALIDATION', 'Block is not a workout', { workoutType: 'Not a workout block' });
   const d = parse(WorkoutDetails, details);
-  const durationMinutes = Math.max(1, Math.round(minutes));
+  const durationMinutes = Math.min(600, Math.max(1, Math.round(minutes)));
   const now = ctx.clock.now().toISOString();
   const date = localDateOf(new Date(block.start), getTimezone(ctx));
   const existing = ctx.db.select().from(workoutSessions).where(eq(workoutSessions.blockId, block.id)).get();
