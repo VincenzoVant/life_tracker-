@@ -11,10 +11,12 @@ export interface DayViewProps {
   onPrev: () => void;
   onNext: () => void;
   renderBlock?: (block: Block, card: ReactNode, ctx: { date: string }) => ReactNode;
+  /** IDs to mark with ⚠ (see `overlapWarnings`). */
+  overlaps?: Set<string>;
 }
 
 /** Single-day list for narrow screens. Horizontal swipe (> 60px) moves between days. */
-export function DayView({ date, blocks, tz, onSelect, onPrev, onNext, renderBlock }: DayViewProps) {
+export function DayView({ date, blocks, tz, onSelect, onPrev, onNext, renderBlock, overlaps }: DayViewProps) {
   const startX = useRef<number | null>(null);
   const day = blocksOnDate(blocks, date, tz);
   return (
@@ -44,7 +46,7 @@ export function DayView({ date, blocks, tz, onSelect, onPrev, onNext, renderBloc
       {day.length === 0 && <p className="muted">Nothing scheduled.</p>}
       <div className="day-view-list" data-date={date}>
         {day.map((b) => {
-          const card = <BlockCard key={b.id} block={b} tz={tz} onSelect={onSelect} />;
+          const card = <BlockCard key={b.id} block={b} tz={tz} onSelect={onSelect} overlap={overlaps?.has(b.id)} />;
           return renderBlock ? <div key={b.id}>{renderBlock(b, card, { date })}</div> : card;
         })}
       </div>

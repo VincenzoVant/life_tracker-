@@ -12,6 +12,7 @@
 .block-card-time { opacity: 0.9; }
 .block-card-proposed { font-style: italic; }
 .block-card-badge { position: absolute; top: 2px; right: 4px; }
+.block-card-warning { position: absolute; top: 2px; right: 20px; }
 .day-view-nav { display: flex; align-items: center; justify-content: space-between; }
 .block-details { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); }
 .block-details dd { margin: 0; }

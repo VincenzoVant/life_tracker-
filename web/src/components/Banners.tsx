@@ -1,10 +1,12 @@
 import { localTimeOf, type Conflict } from '@life-tracker/shared';
+import { useNavigate } from 'react-router';
 import { ApiError } from '../api/client';
 import {
   useConflicts,
   useDismissConflict,
   useGoogleStatus,
   useRecreateCalendar,
+  useReplanFromConflict,
 } from '../api/hooks/google';
 import { useTimezone } from '../api/hooks/settings';
 import { useToast } from './Toast';
@@ -18,7 +20,20 @@ function when(c: Conflict, tz: string): string {
 
 function ConflictBanner({ conflict }: { conflict: Conflict }) {
   const tz = useTimezone();
+  const navigate = useNavigate();
+  const toast = useToast();
   const dismiss = useDismissConflict();
+  const replan = useReplanFromConflict();
+
+  async function onReplan() {
+    try {
+      const { draft } = await replan.mutateAsync(conflict.id);
+      if (draft) navigate(`/replan/${draft.plan.id}`);
+      else toast.show('Nothing needs to move');
+    } catch (e) {
+      toast.show(e instanceof ApiError ? e.message : 'Could not replan', 'error');
+    }
+  }
 
   const overlaps = conflict.blocks.map((b) => b.title).join(', ');
   return (
@@ -27,7 +42,7 @@ function ConflictBanner({ conflict }: { conflict: Conflict }) {
         {conflict.title} ({when(conflict, tz)}) overlaps {overlaps || 'your plan'}
       </p>
       <div className="banner-actions">
-        <button type="button" disabled title="Available after the replan update">
+        <button type="button" onClick={onReplan} disabled={replan.isPending}>
           Replan around this
         </button>
         <button type="button" onClick={() => dismiss.mutate(conflict.id)} disabled={dismiss.isPending}>

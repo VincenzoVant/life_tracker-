@@ -120,3 +120,24 @@ describe('WeekPage', () => {
     expect(screen.getByRole('dialog', { name: 'Edit block' })).toBeInTheDocument();
   });
 });
+
+describe('overlap markers', () => {
+  test('overlapping blocks show a warning marker on both cards', async () => {
+    mockApi({
+      'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
+      'GET /api/preferences': () => DEFAULT_PREFERENCES,
+      'GET /api/blocks': () => [
+        block({ id: 'a', title: 'Class', start: '2026-10-14T16:00:00.000Z', end: '2026-10-14T18:00:00.000Z' }),
+        block({ id: 'b', title: 'Drinks', start: '2026-10-14T17:00:00.000Z', end: '2026-10-14T19:00:00.000Z' }),
+        block({ id: 'c', title: 'Later', start: '2026-10-14T19:00:00.000Z', end: '2026-10-14T20:00:00.000Z' }),
+      ],
+      'GET /api/plans/draft': () => null,
+    });
+    renderWithProviders(<WeekPage />);
+    for (const title of ['Class', 'Drinks']) {
+      const card = (await screen.findByText(title)).closest('button')!;
+      expect(within(card).getByTitle('Overlaps another block')).toBeInTheDocument();
+    }
+    expect(within(screen.getByText('Later').closest('button')!).queryByTitle('Overlaps another block')).not.toBeInTheDocument();
+  });
+});

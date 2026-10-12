@@ -12,6 +12,8 @@ export interface BlockCardProps extends Omit<HTMLAttributes<HTMLButtonElement>, 
   cardRef?: Ref<HTMLButtonElement>;
   /** When set, a drag handle at the bottom edge resizes the block; called with the end-time change in minutes. */
   onResize?: (block: Block, deltaMinutes: number) => void;
+  /** Shows the ⚠ marker (see `overlapWarnings`). */
+  overlap?: boolean;
 }
 
 /** Pointer-drag handle on the bottom edge of a card. Previews the new height while dragging. */
@@ -51,7 +53,7 @@ function ResizeHandle({ block, onResize }: { block: Block; onResize: (block: Blo
 }
 
 /** A single block. Extra props (drag handlers) are spread onto the root button. */
-export function BlockCard({ block, tz, onSelect, style, className, children, cardRef, onResize, ...rest }: BlockCardProps) {
+export function BlockCard({ block, tz, onSelect, style, className, children, cardRef, onResize, overlap, ...rest }: BlockCardProps) {
   const meta = CATEGORY_META[block.category];
   const proposed = block.status === 'proposed';
   const reviewed = block.status === 'done' || block.status === 'partial';
@@ -81,6 +83,11 @@ export function BlockCard({ block, tz, onSelect, style, className, children, car
       <span className="block-card-time">
         {localTimeOf(new Date(block.start), tz)}–{localTimeOf(new Date(block.end), tz)}
       </span>
+      {overlap && (
+        <span className="block-card-warning" role="img" aria-label="Overlaps another block" title="Overlaps another block">
+          ⚠
+        </span>
+      )}
       {proposed && <span className="block-card-proposed">Proposed</span>}
       {reviewed && (
         <span className="block-card-badge" role="img" aria-label={block.status === 'done' ? 'Done' : 'Partly done'}>

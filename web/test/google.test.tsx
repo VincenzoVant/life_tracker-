@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DEFAULT_PREFERENCES, type Block, type Conflict, type GoogleChange, type GoogleStatus } from '@life-tracker/shared';
+import { Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Banners } from '../src/components/Banners';
 import { SyncBadge } from '../src/components/SyncBadge';
@@ -95,6 +96,46 @@ describe('Banners', () => {
     await user.click(screen.getByRole('button', { name: 'Dismiss' }));
     await waitFor(() => expect(screen.queryByText(/Dentist/)).not.toBeInTheDocument());
     expect(calls.some((c) => c.method === 'POST' && c.path === '/api/conflicts/7/dismiss')).toBe(true);
+  });
+});
+
+describe('Replan around this', () => {
+  const draft = { plan: { id: 'plan-1' }, changes: [], shortfalls: [] };
+
+  test('Replan around this navigates to replan page', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({
+      ...settings,
+      'GET /api/google/status': () => status(),
+      'GET /api/conflicts': () => [conflict],
+      'POST /api/conflicts/7/replan': () => ({ status: 201, body: draft }),
+    });
+    renderWithProviders(
+      <>
+        <Banners />
+        <Routes>
+          <Route path="/replan/:planId" element={<h1>Replan page</h1>} />
+          <Route path="*" element={null} />
+        </Routes>
+      </>,
+    );
+    await user.click(await screen.findByRole('button', { name: 'Replan around this' }));
+    expect(await screen.findByRole('heading', { name: 'Replan page' })).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/api/conflicts/7/replan')).toBe(true);
+  });
+
+  test('no draft shows a toast and the conflict stays open', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      ...settings,
+      'GET /api/google/status': () => status(),
+      'GET /api/conflicts': () => [conflict],
+      'POST /api/conflicts/7/replan': () => ({ draft: null }),
+    });
+    renderWithProviders(<Banners />);
+    await user.click(await screen.findByRole('button', { name: 'Replan around this' }));
+    expect(await screen.findByText('Nothing needs to move')).toBeInTheDocument();
+    expect(screen.getByText(/Dentist \(Tue/)).toBeInTheDocument();
   });
 });
 

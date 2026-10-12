@@ -20,6 +20,7 @@ import { BlockDetails } from './BlockDetails';
 import { DraftPanel, PlanBar } from './DraftPanel';
 import { DayView } from './DayView';
 import { WeekGrid } from './WeekGrid';
+import { overlapWarnings } from './overlaps';
 import { useBlockEditing } from './useBlockEditing';
 import './week.css';
 
@@ -95,6 +96,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
   const { data, isPending, isError } = useBlocks(range);
   const blocks = useMemo(() => data ?? [], [data]);
   const dates = weekDates(weekStart);
+  const overlaps = useMemo(() => overlapWarnings(blocks), [blocks]);
 
   function shiftWeek(n: number) {
     setWeekStart((w) => addDays(w, 7 * n));
@@ -153,6 +155,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
             onMove={editing.onMove}
             onResize={editing.onResize}
             renderBlock={renderBlock}
+            overlaps={overlaps}
           />
         ) : (
           <DayView
@@ -163,6 +166,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
             onPrev={() => shiftDay(-1)}
             onNext={() => shiftDay(1)}
             renderBlock={renderBlock}
+            overlaps={overlaps}
           />
         ))}
         </div>

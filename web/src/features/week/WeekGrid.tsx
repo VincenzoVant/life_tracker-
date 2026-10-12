@@ -17,6 +17,8 @@ export interface WeekGridProps {
   onResize?: (block: Block, deltaMinutes: number) => void;
   /** Lets other features wrap a card. Receives the default card. */
   renderBlock?: (block: Block, card: ReactNode, ctx: { date: string }) => ReactNode;
+  /** IDs to mark with ⚠ (see `overlapWarnings`). */
+  overlaps?: Set<string>;
 }
 
 /** The subset of dnd-kit's DragEndEvent that the handler reads. */
@@ -72,6 +74,7 @@ function DraggableCard({
   tz,
   onSelect,
   onResize,
+  overlap,
   style,
 }: {
   block: Block;
@@ -79,6 +82,7 @@ function DraggableCard({
   tz: string;
   onSelect: (block: Block) => void;
   onResize?: (block: Block, deltaMinutes: number) => void;
+  overlap?: boolean;
   style: CSSProperties;
 }) {
   const draggable = canDrag(block);
@@ -92,6 +96,7 @@ function DraggableCard({
       block={block}
       tz={tz}
       onSelect={onSelect}
+      overlap={overlap}
       cardRef={setNodeRef}
       onResize={draggable ? onResize : undefined}
       className={isDragging ? 'is-dragging' : undefined}
@@ -106,7 +111,7 @@ function DraggableCard({
 }
 
 /** Seven day columns with an hour gutter. Each column carries `data-date`, `data-px-per-hour` and `data-grid-from` for hit-testing. */
-export function WeekGrid({ dates, blocks, prefs, tz, onSelect, onMove, onResize, renderBlock }: WeekGridProps) {
+export function WeekGrid({ dates, blocks, prefs, tz, onSelect, onMove, onResize, renderBlock, overlaps }: WeekGridProps) {
   const hours = gridHours(prefs);
   const height = (hours.to - hours.from) * PX_PER_HOUR;
   const labels = Array.from({ length: hours.to - hours.from }, (_, i) => hours.from + i);
@@ -150,7 +155,7 @@ export function WeekGrid({ dates, blocks, prefs, tz, onSelect, onMove, onResize,
                     width: `${100 / l.cols}%`,
                   };
                   const card = (
-                    <DraggableCard key={b.id} block={b} date={date} tz={tz} onSelect={onSelect} onResize={onResize} style={style} />
+                    <DraggableCard key={b.id} block={b} date={date} tz={tz} onSelect={onSelect} onResize={onResize} overlap={overlaps?.has(b.id)} style={style} />
                   );
                   return renderBlock ? <span key={b.id}>{renderBlock(b, card, { date })}</span> : card;
                 })}
