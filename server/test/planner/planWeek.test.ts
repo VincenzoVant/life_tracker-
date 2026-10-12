@@ -1,8 +1,8 @@
-import { addDays, localDateOf, localTimeOf, weekRangeUtc } from '@life-tracker/shared';
+import { addDays, eveningWindowUtc, localDateOf, localTimeOf, weekRangeUtc } from '@life-tracker/shared';
 import { expect, test } from 'vitest';
 import { planWeek } from '../../src/planner/index.js';
 import type { PlannerGoal, PlannerInput, PlannerOutput, ProposedBlock } from '../../src/planner/types.js';
-import { TZ, at, baseInput, ref } from './fixtures.js';
+import { TZ, at, baseInput, prefs, ref } from './fixtures.js';
 import { checkInvariants } from './invariants.js';
 
 const MON = '2026-10-19';
@@ -190,4 +190,19 @@ test('checkInvariants catches one bad output per branch', () => {
   expect(errs(out([placed], { shortfalls: [{ goal: g, missing: 60 }] }), withGoal).some((e) => e.startsWith('study A'))).toBe(false);
   has(errs(out([]), withGoal), 'workout gym');
   has(errs(out([]), withGoal), 'free evenings');
+});
+
+test('A4: protected evenings stay free even without a free_evenings goal', () => {
+  const input = baseInput({
+    prefs: prefs({ protectedEvenings: [5] }),
+    goals: [study('A', 1200), { kind: 'startup', minutes: 1200 }],
+    startupTasks: [{ id: 't1', title: 'Landing page' }],
+  });
+  const out = plan(input);
+  expect(out.reservedEvenings).toEqual(['2026-10-23']);
+  const w = eveningWindowUtc('2026-10-23', input.prefs, TZ);
+  const clash = out.blocks.filter(
+    (b) => (b.category === 'study' || b.category === 'startup') && b.start < w.end.getTime() && b.end > w.start.getTime(),
+  );
+  expect(clash).toEqual([]);
 });

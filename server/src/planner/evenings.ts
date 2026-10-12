@@ -10,8 +10,8 @@ export function reserveEvenings(
   _t: Timeline,
   input: PlannerInput,
 ): { reserved: string[]; reservedIntervals: Interval[]; shortfall: Shortfall | null } {
-  const goal = input.goals.find((g) => g.kind === 'free_evenings');
-  if (!goal || goal.kind !== 'free_evenings') return { reserved: [], reservedIntervals: [], shortfall: null };
+  const found = input.goals.find((g) => g.kind === 'free_evenings');
+  const goal = found && found.kind === 'free_evenings' ? found : null;
 
   const { prefs, timezone: tz, range } = input;
   const occupiedMinutes = new Map<string, number>();
@@ -41,15 +41,15 @@ export function reserveEvenings(
 
   const chosen = [...protectedDates];
   for (const o of others) {
-    if (chosen.length >= goal.count) break;
+    if (!goal || chosen.length >= goal.count) break;
     chosen.push(o);
   }
   chosen.sort((a, b) => a.date.localeCompare(b.date));
 
-  const missing = goal.count - chosen.length;
+  const missing = goal ? goal.count - chosen.length : 0;
   return {
     reserved: chosen.map((c) => c.date),
     reservedIntervals: chosen.map((c) => c.window),
-    shortfall: missing > 0 ? { goal, missing } : null,
+    shortfall: goal && missing > 0 ? { goal, missing } : null,
   };
 }
