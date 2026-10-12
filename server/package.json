@@ -8,11 +8,13 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@googleapis/calendar": "^20.1.0",
     "@hono/node-server": "^2.1.4",
     "@life-tracker/shared": "*",
     "@node-rs/argon2": "^2.2.2",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
+    "google-auth-library": "^11.2.0",
     "hono": "^4.13.13",
     "pino": "^10.4.0",
     "pino-roll": "^4.0.0",

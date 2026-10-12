@@ -40,6 +40,8 @@ export function requireSession(ctx: Ctx): MiddlewareHandler {
   return async (c, next) => {
     const path = c.req.path;
     if (path === '/api/health' || path.startsWith('/api/auth/')) return next();
+    // OAuth redirect from Google: protected by the one-time `state`, not the session cookie.
+    if (c.req.method === 'GET' && path === '/api/google/callback') return next();
     const token = getCookie(c, SESSION_COOKIE);
     if (!token || !findSession(ctx, token)) throw new AppError('UNAUTHORIZED', 'Login required');
     await next();

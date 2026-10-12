@@ -11,3 +11,4 @@ export * from './schemas/food.js';
 export * from './schemas/goals.js';
 export * from './schemas/review.js';
 export * from './schemas/schedule.js';
+export * from './schemas/google.js';
