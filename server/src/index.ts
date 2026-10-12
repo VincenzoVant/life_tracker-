@@ -9,6 +9,7 @@ import { createCtx } from './ctx.js';
 import { openDb } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
 import { runBackup } from './domains/backups/service.js';
+import { materializeFixedEvents } from './domains/schedule/materialize.js';
 import { getTimezone } from './domains/settings/service.js';
 import { systemClock } from './lib/clock.js';
 import { createScheduler } from './jobs/scheduler.js';
@@ -42,6 +43,10 @@ export async function main(): Promise<void> {
   scheduler.dailyAt('backup', '03:00', () => getTimezone(ctx), async () => {
     await runBackup(ctx);
   });
+  scheduler.dailyAt('materialize-fixed', '00:05', () => getTimezone(ctx), () => {
+    materializeFixedEvents(ctx);
+  });
+  void scheduler.runNow('materialize-fixed');
   for (const sig of ['SIGINT', 'SIGTERM'] as const) {
     process.once(sig, () => {
       scheduler.stop();
