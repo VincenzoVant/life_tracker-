@@ -50,10 +50,10 @@ function GoalField({ label, entry: e, onChange, error, step }: { label: string; 
   return (
     <div className="goal-row">
       <Field label={label} error={error}>
-        <input type="number" inputMode="decimal" min={0} step={step ?? '1'} disabled={e.off} value={e.value} onChange={(ev) => onChange({ ...e, value: ev.target.value })} />
+        <input type="number" inputMode="decimal" min={0} step={step ?? '1'} value={e.value} onChange={(ev) => onChange({ off: ev.target.value.trim() === '', value: ev.target.value })} />
       </Field>
       <label className="goal-off">
-        <input type="checkbox" checked={e.off} onChange={(ev) => onChange({ ...e, off: ev.target.checked })} aria-label={`No goal for ${label}`} />
+        <input type="checkbox" checked={e.off} onChange={(ev) => onChange(ev.target.checked ? { off: true, value: '' } : { ...e, off: false })} aria-label={`No goal for ${label}`} />
         No goal
       </label>
     </div>
@@ -86,6 +86,7 @@ function GoalsFields({ initial }: { initial: GoalSet }) {
 
   return (
     <form onSubmit={onSubmit} noValidate>
+      <p className="muted">Study hours are set per course in Areas → Studies. Your classes and shifts go in Fixed schedule below. Then plan your week from the Week tab.</p>
       <GoalField label="Startup (hours per week)" step="0.25" entry={s.startupHours} onChange={(v) => setS({ ...s, startupHours: v })} error={errors.startupMinutes} />
       <GoalField label="Workouts per week" entry={s.workoutsTotal} onChange={(v) => setS({ ...s, workoutsTotal: v })} error={errors.workoutsTotal} />
       {WORKOUT_TYPES.map((t) => (
