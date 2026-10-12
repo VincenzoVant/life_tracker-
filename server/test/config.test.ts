@@ -11,6 +11,11 @@ test('production allowedOrigins without public origin', () => {
   expect(c.allowedOrigins).toEqual(['http://127.0.0.1:5000', 'http://localhost:5000']);
 });
 
+test('LT_PUBLIC_ORIGIN trailing slash is stripped', () => {
+  const c = loadConfig({ HOME: '/u', NODE_ENV: 'production', LT_PUBLIC_ORIGIN: 'https://mac.tail1.ts.net/' } as any);
+  expect(c.allowedOrigins).toContain('https://mac.tail1.ts.net');
+});
+
 test('non-production keeps vite dev origin', () => {
   expect(loadConfig({ HOME: '/u' } as any).allowedOrigins).toContain('http://localhost:5173');
 });

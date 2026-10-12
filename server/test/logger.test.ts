@@ -1,8 +1,11 @@
+import { existsSync, lstatSync, mkdtempSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Writable } from 'node:stream';
 import { expect, test } from 'vitest';
 import pino from 'pino';
 import { createApp } from '../src/app.js';
-import { createLogger } from '../src/logger.js';
+import { LOG_CURRENT_PATH_NAME, createLogger } from '../src/logger.js';
 import { createTestCtx, request } from './helpers.js';
 
 function capture(): { lines: () => any[]; log: pino.Logger } {
@@ -29,6 +32,22 @@ test('request log line has method/path/status/ms but no query, body or cookie', 
   expect(raw).not.toContain('from=');
   expect(raw).not.toContain('lt_session');
   expect(raw).not.toContain('1234');
+});
+
+test('file transport writes server.*.log and a current.log symlink', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'lt-log-'));
+  const log = createLogger({ dataDir, toFile: true });
+  log.info('hello');
+  const logs = join(dataDir, 'logs');
+  const current = join(logs, LOG_CURRENT_PATH_NAME);
+  const ready = (): boolean =>
+    existsSync(logs) &&
+    readdirSync(logs).some((f) => /^server\.\d+\.log$/.test(f)) &&
+    existsSync(current) &&
+    lstatSync(current).isSymbolicLink();
+  for (let i = 0; i < 50 && !ready(); i++) await new Promise((r) => setTimeout(r, 100));
+  expect(ready()).toBe(true);
+  await new Promise<void>((r) => log.flush(() => r()));
 });
 
 test('createLogger without file returns a usable logger', () => {

@@ -17,7 +17,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
     env.NODE_ENV === 'production'
       ? [`http://127.0.0.1:${port}`, `http://localhost:${port}`]
       : [`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:5173'];
-  if (env.LT_PUBLIC_ORIGIN) allowedOrigins.push(env.LT_PUBLIC_ORIGIN);
+  if (env.LT_PUBLIC_ORIGIN) allowedOrigins.push(env.LT_PUBLIC_ORIGIN.replace(/\/+$/, ''));
   const dist = fileURLToPath(new URL('../../web/dist', import.meta.url));
   return {
     dataDir,
