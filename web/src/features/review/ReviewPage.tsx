@@ -10,6 +10,7 @@ import { useToast } from '../../components/Toast';
 import { initialRowValue, ReviewRow, type RowValue } from './ReviewRow';
 import { UnplannedForm } from './UnplannedForm';
 import { toWorkoutDetails } from './WorkoutDetailsFields';
+import { SettingsGate } from '../../components/SettingsGate';
 
 function Summary({ progress }: { progress: WeekProgress }) {
   const rows: Array<{ label: string; actual: number; goal: number | null; unit: string; color?: string }> = [
@@ -34,7 +35,7 @@ function Summary({ progress }: { progress: WeekProgress }) {
   );
 }
 
-export function ReviewPage() {
+function ReviewPageContent() {
   const tz = useTimezone();
   const today = localDateOf(new Date(), tz);
   const [picked, setPicked] = useState<string | null>(null);
@@ -196,5 +197,13 @@ export function ReviewPage() {
         />
       )}
     </div>
+  );
+}
+
+export function ReviewPage() {
+  return (
+    <SettingsGate>
+      <ReviewPageContent />
+    </SettingsGate>
   );
 }

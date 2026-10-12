@@ -9,6 +9,7 @@ import { ProgressBar } from '../../../components/ProgressBar';
 import { useToast } from '../../../components/Toast';
 import { currentWeek, hours } from '../format';
 import '../areas.css';
+import { SettingsGate } from '../../../components/SettingsGate';
 
 function CourseForm({ course, onClose }: { course: Course | null; onClose: () => void }) {
   const create = useCreateCourse();
@@ -59,7 +60,7 @@ function CourseForm({ course, onClose }: { course: Course | null; onClose: () =>
   );
 }
 
-export function StudiesPage() {
+function StudiesPageContent() {
   const tz = useTimezone();
   const { weekStart } = currentWeek(tz);
   const courses = useCourses();
@@ -119,5 +120,13 @@ export function StudiesPage() {
       </ul>
       {editing && <CourseForm course={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
+  );
+}
+
+export function StudiesPage() {
+  return (
+    <SettingsGate>
+      <StudiesPageContent />
+    </SettingsGate>
   );
 }

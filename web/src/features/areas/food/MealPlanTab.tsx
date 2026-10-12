@@ -4,10 +4,11 @@ import { useMealPlan, useRepeatMealPlan, type MealPlanEntry } from '../../../api
 import { useTimezone } from '../../../api/hooks/settings';
 import { useToast } from '../../../components/Toast';
 import { MealAssignModal } from '../../week/MealAssignModal';
+import { SettingsGate } from '../../../components/SettingsGate';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner'];
 
-export function MealPlanTab() {
+function MealPlanTabContent() {
   const tz = useTimezone();
   const toast = useToast();
   const [weekStart, setWeekStart] = useState(() => weekStartOf(new Date(), tz));
@@ -105,5 +106,13 @@ export function MealPlanTab() {
       )}
       {editing && <MealAssignModal {...editing} current={entry(editing.date, editing.slot)} onClose={() => setEditing(undefined)} />}
     </div>
+  );
+}
+
+export function MealPlanTab() {
+  return (
+    <SettingsGate>
+      <MealPlanTabContent />
+    </SettingsGate>
   );
 }

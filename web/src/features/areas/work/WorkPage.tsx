@@ -4,8 +4,9 @@ import { useWeekProgress } from '../../../api/hooks/progress';
 import { useTimezone } from '../../../api/hooks/settings';
 import { currentWeek, hours } from '../format';
 import '../areas.css';
+import { SettingsGate } from '../../../components/SettingsGate';
 
-export function WorkPage() {
+function WorkPageContent() {
   const tz = useTimezone();
   const { weekStart, from, to } = currentWeek(tz);
   const blocks = useBlocks({ from, to });
@@ -42,5 +43,13 @@ export function WorkPage() {
         ))}
       </ul>
     </div>
+  );
+}
+
+export function WorkPage() {
+  return (
+    <SettingsGate>
+      <WorkPageContent />
+    </SettingsGate>
   );
 }

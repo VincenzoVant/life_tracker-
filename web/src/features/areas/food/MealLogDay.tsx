@@ -7,6 +7,7 @@ import { Field } from '../../../components/Field';
 import { Modal } from '../../../components/Modal';
 import { ProgressBar } from '../../../components/ProgressBar';
 import { useToast } from '../../../components/Toast';
+import { SettingsGate } from '../../../components/SettingsGate';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -86,7 +87,7 @@ function AddLogModal({ date, slot, onClose }: { date: string; slot: MealSlot; on
   );
 }
 
-export function MealLogDay() {
+function MealLogDayContent() {
   const tz = useTimezone();
   const [picked, setPicked] = useState<string | null>(null);
   const date = picked ?? localDateOf(new Date(), tz);
@@ -155,5 +156,13 @@ export function MealLogDay() {
       ))}
       {adding && <AddLogModal date={date} slot={adding} onClose={() => setAdding(null)} />}
     </div>
+  );
+}
+
+export function MealLogDay() {
+  return (
+    <SettingsGate>
+      <MealLogDayContent />
+    </SettingsGate>
   );
 }

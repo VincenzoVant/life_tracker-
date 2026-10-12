@@ -19,6 +19,7 @@ import { ProgressBar } from '../../../components/ProgressBar';
 import { useToast } from '../../../components/Toast';
 import { currentWeek, hours } from '../format';
 import '../areas.css';
+import { SettingsGate } from '../../../components/SettingsGate';
 
 const STATUS_LABEL: Record<TaskStatus, string> = { todo: 'To do', doing: 'Doing', done: 'Done' };
 
@@ -119,7 +120,7 @@ function MilestoneForm({ milestone, onClose }: { milestone: Milestone | null; on
   );
 }
 
-export function StartupPage() {
+function StartupPageContent() {
   const tz = useTimezone();
   const { weekStart } = currentWeek(tz);
   const tasksQ = useStartupTasks();
@@ -269,5 +270,13 @@ export function StartupPage() {
       {taskEdit && <TaskForm task={taskEdit === 'new' ? null : taskEdit} milestones={milestones} onClose={() => setTaskEdit(null)} />}
       {msEdit && <MilestoneForm milestone={msEdit === 'new' ? null : msEdit} onClose={() => setMsEdit(null)} />}
     </div>
+  );
+}
+
+export function StartupPage() {
+  return (
+    <SettingsGate>
+      <StartupPageContent />
+    </SettingsGate>
   );
 }

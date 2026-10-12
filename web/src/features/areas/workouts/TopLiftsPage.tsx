@@ -17,6 +17,7 @@ import { Modal } from '../../../components/Modal';
 import { useToast } from '../../../components/Toast';
 import { LiftHistoryChart } from './LiftHistoryChart';
 import './workouts.css';
+import { SettingsGate } from '../../../components/SettingsGate';
 
 type LiftInfo = LiftSummary['lift'];
 
@@ -117,7 +118,7 @@ function History({ lift }: { lift: LiftInfo }) {
   );
 }
 
-export function TopLiftsPage() {
+function TopLiftsPageContent() {
   const tz = useTimezone();
   const today = localDateOf(new Date(), tz);
   const lifts = useLifts();
@@ -212,5 +213,13 @@ export function TopLiftsPage() {
       {selected && <History lift={selected} />}
       {adding && <AddSetModal lift={adding} today={today} onClose={() => setAdding(null)} />}
     </section>
+  );
+}
+
+export function TopLiftsPage() {
+  return (
+    <SettingsGate>
+      <TopLiftsPageContent />
+    </SettingsGate>
   );
 }

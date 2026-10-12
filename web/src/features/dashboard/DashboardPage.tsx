@@ -6,11 +6,12 @@ import { StreakTiles } from './StreakTiles';
 import { TrendsSection } from './TrendsSection';
 import { AreaProgressRow, formatCount } from './AreaProgressRow';
 import './dashboard.css';
+import { SettingsGate } from '../../components/SettingsGate';
 
 const dotClass = (ok: boolean | null) => (ok === null ? 'nutrition-dot' : ok ? 'nutrition-dot ok' : 'nutrition-dot bad');
 const dotText = (ok: boolean | null) => (ok === null ? 'no data' : ok ? 'on target' : 'off target');
 
-export function DashboardPage() {
+function DashboardPageContent() {
   const tz = useTimezone();
   const thisWeek = weekStartOf(new Date(), tz);
   const [weekStart, setWeekStart] = useState<string | null>(null);
@@ -85,5 +86,13 @@ export function DashboardPage() {
       )}
       <TrendsSection />
     </div>
+  );
+}
+
+export function DashboardPage() {
+  return (
+    <SettingsGate>
+      <DashboardPageContent />
+    </SettingsGate>
   );
 }

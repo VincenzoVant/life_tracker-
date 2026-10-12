@@ -9,6 +9,7 @@ import { ProgressBar } from '../../../components/ProgressBar';
 import { useToast } from '../../../components/Toast';
 import { SessionForm, TYPE_LABEL } from './SessionForm';
 import './workouts.css';
+import { SettingsGate } from '../../../components/SettingsGate';
 
 export function formatPace(secPerKm: number): string {
   const m = Math.floor(secPerKm / 60);
@@ -25,7 +26,7 @@ function describe(s: WorkoutSession): string {
   return parts.join(' · ');
 }
 
-export function WorkoutsPage() {
+function WorkoutsPageContent() {
   const tz = useTimezone();
   const now = new Date();
   const today = localDateOf(now, tz);
@@ -120,5 +121,13 @@ export function WorkoutsPage() {
       {logging && <SessionForm today={today} onClose={() => setLogging(false)} />}
       {editing && <SessionForm today={today} session={editing} onClose={() => setEditing(null)} />}
     </section>
+  );
+}
+
+export function WorkoutsPage() {
+  return (
+    <SettingsGate>
+      <WorkoutsPageContent />
+    </SettingsGate>
   );
 }
