@@ -1,0 +1,13 @@
+.quick-add { display: flex; flex-direction: column; gap: var(--space-2); max-width: 480px; }
+.quick-add .field-label { font-size: 0.9rem; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip { min-height: 44px; padding: 0 var(--space-4); border-radius: 999px; }
+.chip.selected { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); font-weight: 600; }
+.when-custom { margin-top: var(--space-3); display: flex; flex-direction: column; }
+.quick-add-save { min-height: 48px; margin-top: var(--space-3); }
+.link-button.something-came-up { min-height: 56px; width: 100%; justify-content: center; font-size: 1.1rem; font-weight: 600; background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+.app-header .header-quick-add { display: none; }
+@media (min-width: 768px) { .app-header .header-quick-add { display: inline-flex; margin-left: auto; margin-right: var(--space-3); } }
+.change-summary h3 { margin-top: var(--space-4); }
+.change-summary ul { margin: 0; padding-left: var(--space-5); }
+.replan-actions { display: flex; gap: var(--space-2); margin-top: var(--space-4); }

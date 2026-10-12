@@ -7,6 +7,8 @@ import { AuthGate } from "./features/auth/AuthGate";
 import { AreasPage } from "./features/areas/AreasPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { FoodPage } from "./features/areas/food/FoodPage";
+import { QuickAddPage } from "./features/quickAdd/QuickAddPage";
+import { ReplanPage } from "./features/replan/ReplanPage";
 import { ReviewPage } from "./features/review/ReviewPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { StartupPage } from "./features/areas/startup/StartupPage";
@@ -26,6 +28,8 @@ function Placeholder({ title }: { title: string }) {
 export const routes: Array<{ path: string; element: ReactElement }> = [
   { path: "/", element: <TodayPage /> },
   { path: "/week", element: <WeekPage detailsActions={(block) => <MealAssignAction block={block} />} /> },
+  { path: "/quick-add", element: <QuickAddPage /> },
+  { path: "/replan/:planId", element: <ReplanPage /> },
   { path: "/review", element: <ReviewPage /> },
   { path: "/areas", element: <AreasPage /> },
   { path: "/areas/studies", element: <StudiesPage /> },

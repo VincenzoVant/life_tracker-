@@ -75,6 +75,21 @@ test('custom start + duration passes through', () => {
   expect(r.end.toISOString()).toBe('2026-10-16T03:30:00.000Z');
 });
 
+test('rest_of_tonight at 00:10 with bedtime 00:30 uses the previous night → 00:15 .. 00:30', () => {
+  const prefs = { ...PREFS, sleep: { start: '00:30', end: '07:30' } };
+  const now = new Date('2026-10-15T07:10:00Z'); // Thu 00:10 PDT
+  const r = resolveQuickAddWhen({ preset: 'rest_of_tonight' }, now, prefs, TZ);
+  expect(local(r.start)).toBe('00:15');
+  expect(local(r.end)).toBe('00:30');
+  expect(r.end.getTime() - r.start.getTime()).toBe(15 * 60_000);
+});
+
+test('rest_of_tonight at 00:10 with default bedtime 23:30 → already past bedtime', () => {
+  const e = failure(() => resolveQuickAddWhen({ preset: 'rest_of_tonight' }, new Date('2026-10-15T07:10:00Z'), PREFS, TZ));
+  expect(e.code).toBe('VALIDATION');
+  expect(e.fields).toEqual({ when: "It's already past your bedtime" });
+});
+
 test('QuickAddInput defaults category to social and rejects a 10-minute duration', () => {
   const ok = QuickAddInput.parse({ title: 'Drinks', when: { preset: 'all_day' } });
   expect(ok.category).toBe('social');

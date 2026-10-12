@@ -120,3 +120,33 @@ test('conflict replan returns draft', async () => {
   expect(none.status).toBe(200);
   expect(none.body).toEqual({ draft: null });
 });
+
+test('retry after stale apply returns a fresh draft for the same trigger block', async () => {
+  const { ctx, study, c } = await setup();
+  const s = study('2026-10-15', '18:30', '20:00');
+  const other = study('2026-10-17', '10:00', '11:00');
+  const res = await c.post('/api/quick-add', drinks());
+  const oldId = res.body.draft.plan.id as string;
+  ctx.clock.set('2026-10-14T19:05:00.000Z');
+  updateBlock(ctx, other.id, { title: 'Study — Algebra II' });
+  expect((await c.post(`/api/replan/${oldId}/apply`)).status).toBe(409);
+
+  const retry = await c.post(`/api/replan/${oldId}/retry`);
+  expect(retry.status).toBe(201);
+  expect(retry.body.plan.id).not.toBe(oldId);
+  expect(retry.body.plan.triggerBlockId).toBe(res.body.block.id);
+  expect(retry.body.changes.map((x: { blockId: string }) => x.blockId)).toContain(s.id);
+  expect((await c.get(`/api/replan/${oldId}`)).body.plan.status).toBe('discarded');
+  expect((await c.post(`/api/replan/${retry.body.plan.id}/apply`)).status).toBe(200);
+});
+
+test('retry with nothing left to move returns { draft: null }; unknown plan → 404', async () => {
+  const { ctx, study, c } = await setup();
+  const s = study('2026-10-15', '18:30', '20:00');
+  const res = await c.post('/api/quick-add', drinks());
+  updateBlock(ctx, s.id, { start: iso('2026-10-16', '10:00'), end: iso('2026-10-16', '11:30') });
+  const retry = await c.post(`/api/replan/${res.body.draft.plan.id}/retry`);
+  expect(retry.status).toBe(200);
+  expect(retry.body).toEqual({ draft: null });
+  expect((await c.post('/api/replan/nope/retry')).status).toBe(404);
+});
