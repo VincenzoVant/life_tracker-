@@ -1,0 +1,67 @@
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, test } from 'vitest';
+import { SettingsPage } from '../src/features/settings/SettingsPage';
+import { mockApi } from './mockApi';
+import { renderWithProviders } from './render';
+
+const goals = {
+  startupMinutes: 600,
+  workoutsTotal: 4,
+  workoutsByType: { gym: 2, cardio: null, sport: null },
+  freeEvenings: 2,
+  dailyKcal: { target: 2200, tolerancePct: 10 },
+  dailyProteinG: 120,
+};
+
+const base = {
+  'GET /api/goals': () => goals,
+  'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
+};
+
+describe('SettingsPage', () => {
+  test('goals form sends startupMinutes from hours and null when toggled off', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({ ...base, 'PUT /api/goals': (b) => b });
+    renderWithProviders(<SettingsPage />);
+    const startup = await screen.findByLabelText('Startup (hours per week)');
+    await waitFor(() => expect(startup).toHaveValue(10));
+    await user.clear(startup);
+    await user.type(startup, '7.5');
+    await user.click(screen.getByLabelText('No goal for Free evenings per week'));
+    await user.click(screen.getByRole('button', { name: 'Save goals' }));
+    await waitFor(() => expect(calls.find((c) => c.method === 'PUT')).toBeDefined());
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({
+      ...goals,
+      startupMinutes: 450,
+      freeEvenings: null,
+    });
+  });
+
+  test('timezone save calls PUT /api/settings', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({ ...base, 'PUT /api/settings': (b) => b });
+    renderWithProviders(<SettingsPage />);
+    const select = await screen.findByRole('combobox', { name: 'Timezone' });
+    await user.selectOptions(select, 'Europe/Brussels');
+    await user.click(screen.getByRole('button', { name: 'Save timezone' }));
+    await waitFor(() => expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ timezone: 'Europe/Brussels' }));
+  });
+
+  test('change pin mismatched confirmation blocks submit', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({ ...base, 'POST /api/auth/change-pin': () => ({}) });
+    renderWithProviders(<SettingsPage />);
+    await user.type(await screen.findByLabelText('Current PIN'), '1234');
+    await user.type(screen.getByLabelText('New PIN'), '5678');
+    await user.type(screen.getByLabelText('Confirm new PIN'), '5679');
+    await user.click(screen.getByRole('button', { name: 'Change PIN' }));
+    expect(await screen.findByText("PINs don't match")).toBeInTheDocument();
+    expect(calls.some((c) => c.path === '/api/auth/change-pin')).toBe(false);
+
+    await user.clear(screen.getByLabelText('Confirm new PIN'));
+    await user.type(screen.getByLabelText('Confirm new PIN'), '5678');
+    await user.click(screen.getByRole('button', { name: 'Change PIN' }));
+    await waitFor(() => expect(calls.find((c) => c.path === '/api/auth/change-pin')?.body).toEqual({ currentPin: '1234', newPin: '5678' }));
+  });
+});

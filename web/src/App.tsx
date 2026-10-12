@@ -3,8 +3,10 @@ import { Route, Routes } from 'react-router';
 import { Layout } from './components/Layout';
 import { AuthGate } from './features/auth/AuthGate';
 import { AreasPage } from './features/areas/AreasPage';
+import { DashboardPage } from './features/dashboard/DashboardPage';
 import { FoodPage } from './features/areas/food/FoodPage';
 import { ReviewPage } from './features/review/ReviewPage';
+import { SettingsPage } from './features/settings/SettingsPage';
 import { StartupPage } from './features/areas/startup/StartupPage';
 import { StudiesPage } from './features/areas/studies/StudiesPage';
 import { TodayPage } from './features/today/TodayPage';
@@ -27,8 +29,8 @@ export const routes: Array<{ path: string; element: ReactElement }> = [
   { path: '/areas/workouts', element: <WorkoutsPage /> },
   { path: '/areas/workouts/lifts', element: <TopLiftsPage /> },
   { path: '/areas/food', element: <FoodPage /> },
-  { path: '/dashboard', element: <Placeholder title="Dashboard" /> },
-  { path: '/settings', element: <Placeholder title="Settings" /> },
+  { path: '/dashboard', element: <DashboardPage /> },
+  { path: '/settings', element: <SettingsPage /> },
 ];
 
 export function App() {

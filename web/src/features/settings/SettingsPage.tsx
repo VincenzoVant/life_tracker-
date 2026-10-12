@@ -1,0 +1,53 @@
+import type { ReactNode } from 'react';
+import { useLogout } from '../../api/hooks/auth';
+import { ChangePinForm } from './ChangePinForm';
+import { GoalsForm } from './GoalsForm';
+import { TimezoneForm } from './TimezoneForm';
+import './settings.css';
+
+export const APP_VERSION = '0.1.0';
+
+function LogoutButton() {
+  const logout = useLogout();
+  return (
+    <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending}>
+      Log out
+    </button>
+  );
+}
+
+function Security() {
+  return (
+    <>
+      <ChangePinForm />
+      <hr className="settings-sep" />
+      <LogoutButton />
+    </>
+  );
+}
+
+function About() {
+  return <p className="muted">Life Tracker v{APP_VERSION}</p>;
+}
+
+/** Later stages append entries here (Fixed schedule, Planner preferences, Google, Backups). */
+const SECTIONS: Array<{ id: string; title: string; render: () => ReactNode }> = [
+  { id: 'goals', title: 'Goals', render: () => <GoalsForm /> },
+  { id: 'timezone', title: 'Timezone', render: () => <TimezoneForm /> },
+  { id: 'security', title: 'Security', render: () => <Security /> },
+  { id: 'about', title: 'About', render: () => <About /> },
+];
+
+export function SettingsPage() {
+  return (
+    <div>
+      <h1>Settings</h1>
+      {SECTIONS.map((s) => (
+        <section key={s.id} className="card settings-section" aria-labelledby={`settings-${s.id}`}>
+          <h2 id={`settings-${s.id}`}>{s.title}</h2>
+          {s.render()}
+        </section>
+      ))}
+    </div>
+  );
+}
