@@ -23,6 +23,8 @@ export { CourseField, MealSlotField, StartupTaskField, WorkoutTypeField } from '
 export interface BlockFormProps {
   initial?: Partial<Block>;
   onDone: () => void;
+  /** Replaces the default create call (e.g. adding to a draft plan). Not used when editing. */
+  onCreate?: (input: BlockCreateInput) => Promise<unknown>;
 }
 
 function defaults(initial: Partial<Block> | undefined, tz: string) {
@@ -36,7 +38,7 @@ function defaults(initial: Partial<Block> | undefined, tz: string) {
 }
 
 /** Create (no `initial.id`) or edit (`initial.id`) a block. Times are entered in the configured timezone. */
-export function BlockForm({ initial, onDone }: BlockFormProps) {
+export function BlockForm({ initial, onDone, onCreate }: BlockFormProps) {
   const tz = useTimezone();
   const create = useCreateBlock();
   const update = useUpdateBlock();
@@ -83,6 +85,7 @@ export function BlockForm({ initial, onDone }: BlockFormProps) {
     };
     try {
       if (initial?.id) await update.mutateAsync({ id: initial.id, ...input });
+      else if (onCreate) await onCreate(input);
       else await create.mutateAsync(input);
       onDone();
     } catch (err) {
