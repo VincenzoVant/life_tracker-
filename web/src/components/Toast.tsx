@@ -1,3 +1,4 @@
+import { NETWORK_ERROR_MESSAGE } from '../api/client';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 interface ToastItem {
@@ -15,6 +16,7 @@ let nextId = 1;
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const show = useCallback((message: string, kind: 'info' | 'error' = 'info') => {
+    if (message === NETWORK_ERROR_MESSAGE) return;
     const id = nextId++;
     setItems((cur) => [...cur, { id, message, kind }]);
     setTimeout(() => setItems((cur) => cur.filter((t) => t.id !== id)), 4000);
