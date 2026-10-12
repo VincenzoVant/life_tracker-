@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router';
 import type { ReplanDraft } from '@life-tracker/shared';
+import { useConflicts } from '../src/api/hooks/google';
 import { describe, expect, test } from 'vitest';
 import { ChangeSummary } from '../src/features/replan/ChangeSummary';
 import { ReplanPage } from '../src/features/replan/ReplanPage';
@@ -106,5 +107,42 @@ describe('ReplanPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Keep as is' }));
     expect(await screen.findByText('today page')).toBeInTheDocument();
     expect(calls.some((c) => c.method === 'POST' && c.path === '/api/replan/p1/keep')).toBe(true);
+  });
+});
+
+function ConflictProbe() {
+  const { data } = useConflicts();
+  return <p>open conflicts: {data?.length ?? '?'}</p>;
+}
+
+describe('ReplanPage refreshes the conflict banner', () => {
+  test.each([
+    ['Apply', 'apply'],
+    ['Keep as is', 'keep'],
+  ])('%s refetches the conflicts query', async (label, endpoint) => {
+    let open = 1;
+    mockApi({
+      ...settings,
+      'GET /api/replan/p1': () => draftWith(),
+      'GET /api/conflicts': () => Array.from({ length: open }, () => ({})),
+      [`POST /api/replan/p1/${endpoint}`]: () => {
+        open = 0;
+        return { plan: {}, blocks: [] };
+      },
+    });
+    renderWithProviders(
+      <>
+        <ConflictProbe />
+        <Routes>
+          <Route path="/replan/:planId" element={<ReplanPage />} />
+          <Route path="/week" element={<p>week page</p>} />
+          <Route path="/" element={<p>today page</p>} />
+        </Routes>
+      </>,
+      { route: '/replan/p1' },
+    );
+    expect(await screen.findByText('open conflicts: 1')).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: label }));
+    expect(await screen.findByText('open conflicts: 0')).toBeInTheDocument();
   });
 });

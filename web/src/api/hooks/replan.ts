@@ -4,7 +4,7 @@ import { apiFetch } from '../client';
 import { useInvalidatingMutation } from '../invalidate';
 import type { QueryFamily } from '../queryKeys';
 
-const FAMILIES: QueryFamily[] = ['blocks', 'progress', 'plans', 'conflicts', 'sync'];
+const FAMILIES: QueryFamily[] = ['blocks', 'progress', 'plans', 'google'];
 
 export function useReplanDraft(planId: string) {
   return useQuery({
@@ -33,12 +33,5 @@ export const useKeepAsIs = () =>
 export const useRetryReplan = () =>
   useInvalidatingMutation(
     (planId: string) => apiFetch<ReplanDraft | { draft: null }>(`/api/replan/${planId}/retry`, { method: 'POST' }),
-    FAMILIES,
-  );
-
-export const useReplanFromConflict = () =>
-  useInvalidatingMutation(
-    (conflictId: string) =>
-      apiFetch<ReplanDraft | { draft: null }>(`/api/conflicts/${conflictId}/replan`, { method: 'POST' }),
     FAMILIES,
   );
