@@ -3,12 +3,13 @@ import {
   SLEEP_START_DEFAULT,
   WORKOUT_TYPES,
   blockMinutes,
+  eveningWindowUtc,
   localDateOf,
   weekDates,
   weekRangeUtc,
-  zonedToUtc,
   type Block,
   type Metric,
+  type Preferences,
   type WeekProgress,
   type WorkoutType,
 } from '@life-tracker/shared';
@@ -21,34 +22,41 @@ import { listSessions } from '../workouts/service.js';
 import { getGoals } from './service.js';
 
 export interface WeekProgressOpts {
-  classesCountTowardStudy?: boolean;
-  eveningStart?: string;
-  sleepStart?: string;
+  prefs?: Preferences;
+  includeProposed?: boolean;
 }
 
 const PLANNED_STATUSES = new Set(['committed', 'done', 'partial', 'skipped']);
+const PLANNED_WITH_PROPOSED = new Set([...PLANNED_STATUSES, 'proposed']);
 const ACTUAL_STATUSES = new Set(['done', 'partial']);
 const BUSY_STATUSES = new Set(['committed', 'done', 'partial']);
 const BUSY_CATEGORIES = new Set(['study', 'startup', 'work']);
 
-/** The free-evening window of one local date: [evening start, sleep start). Kept in one place so Stage 2 can swap in preferences. */
-function eveningWindow(date: string, tz: string, opts: WeekProgressOpts): { start: Date; end: Date } {
-  return {
-    start: zonedToUtc(date, opts.eveningStart ?? EVENING_START_DEFAULT, tz),
-    end: zonedToUtc(date, opts.sleepStart ?? SLEEP_START_DEFAULT, tz),
-  };
+/** The free-evening window of one local date; without preferences it falls back to the Stage 1 defaults. */
+function eveningWindow(date: string, tz: string, prefs?: Preferences): { start: Date; end: Date } {
+  return eveningWindowUtc(
+    date,
+    prefs ?? {
+      sleep: { start: SLEEP_START_DEFAULT, end: '07:30' },
+      earliestBlock: '08:00',
+      latestBlockEnd: '22:30',
+      eveningStart: EVENING_START_DEFAULT,
+    },
+    tz,
+  );
 }
 
-const plannedMinutes = (bs: Block[]): number =>
-  bs.filter((b) => PLANNED_STATUSES.has(b.status) && b.source !== 'unplanned').reduce((s, b) => s + blockMinutes(b), 0);
+const plannedMinutes = (bs: Block[], statuses: Set<string> = PLANNED_STATUSES): number =>
+  bs.filter((b) => statuses.has(b.status) && b.source !== 'unplanned').reduce((s, b) => s + blockMinutes(b), 0);
 const actualMinutes = (bs: Block[]): number =>
   bs.filter((b) => ACTUAL_STATUSES.has(b.status)).reduce((s, b) => s + (b.actualMinutes ?? 0), 0);
-const plannedCount = (bs: Block[]): number =>
-  bs.filter((b) => PLANNED_STATUSES.has(b.status) && b.source !== 'unplanned').length;
+const plannedCount = (bs: Block[], statuses: Set<string> = PLANNED_STATUSES): number =>
+  bs.filter((b) => statuses.has(b.status) && b.source !== 'unplanned').length;
 const actualCount = (bs: Block[]): number => bs.filter((b) => ACTUAL_STATUSES.has(b.status)).length;
 
 export function getWeekProgress(ctx: Ctx, weekStart: string, opts: WeekProgressOpts = {}): WeekProgress {
   const tz = getTimezone(ctx);
+  const planned = opts.includeProposed ? PLANNED_WITH_PROPOSED : PLANNED_STATUSES;
   const goals = getGoals(ctx);
   const dates = weekDates(weekStart);
   const range = weekRangeUtc(weekStart, tz);
@@ -64,7 +72,7 @@ export function getWeekProgress(ctx: Ctx, weekStart: string, opts: WeekProgressO
 
   // Study, split per course.
   const studyBlocks = ofCategory('study').filter(
-    (b) => b.courseId !== null && (opts.classesCountTowardStudy === true || b.source !== 'fixed'),
+    (b) => b.courseId !== null && (opts.prefs?.classesCountTowardStudy === true || b.source !== 'fixed'),
   );
   const withBlocks = new Set(studyBlocks.map((b) => b.courseId));
   const courses = listCourses(ctx, { includeArchived: true }).filter((c) => c.active || withBlocks.has(c.id));
@@ -75,7 +83,7 @@ export function getWeekProgress(ctx: Ctx, weekStart: string, opts: WeekProgressO
       name: c.name,
       color: c.color,
       goal: c.weeklyGoalMinutes > 0 ? c.weeklyGoalMinutes : null,
-      planned: plannedMinutes(bs),
+      planned: plannedMinutes(bs, planned),
       actual: actualMinutes(bs),
     };
   });
@@ -83,11 +91,11 @@ export function getWeekProgress(ctx: Ctx, weekStart: string, opts: WeekProgressO
   const startupBlocks = ofCategory('startup');
   const startup: Metric = {
     goal: goals.startupMinutes,
-    planned: plannedMinutes(startupBlocks),
+    planned: plannedMinutes(startupBlocks, planned),
     actual: actualMinutes(startupBlocks),
   };
   const workBlocks = ofCategory('work');
-  const work = { planned: plannedMinutes(workBlocks), actual: actualMinutes(workBlocks) };
+  const work = { planned: plannedMinutes(workBlocks, planned), actual: actualMinutes(workBlocks) };
 
   // Workouts: block counts plus standalone sessions (no block) in the week.
   const workoutBlocks = ofCategory('workout');
@@ -95,7 +103,7 @@ export function getWeekProgress(ctx: Ctx, weekStart: string, opts: WeekProgressO
   const metricFor = (type: WorkoutType | null, goal: number | null): Metric => {
     const bs = type ? workoutBlocks.filter((b) => b.workoutType === type) : workoutBlocks;
     const extra = standalone.filter((s) => type === null || s.type === type).length;
-    return { goal, planned: plannedCount(bs), actual: actualCount(bs) + extra };
+    return { goal, planned: plannedCount(bs, planned), actual: actualCount(bs) + extra };
   };
   const byType = {} as Record<WorkoutType, Metric>;
   for (const t of WORKOUT_TYPES) byType[t] = metricFor(t, goals.workoutsByType[t]);
@@ -103,7 +111,7 @@ export function getWeekProgress(ctx: Ctx, weekStart: string, opts: WeekProgressO
   // Free evenings: nothing study/startup/work overlaps the evening window.
   const busy = all.filter((b) => BUSY_CATEGORIES.has(b.category) && BUSY_STATUSES.has(b.status));
   const freeAll = dates.filter((d) => {
-    const w = eveningWindow(d, tz, opts);
+    const w = eveningWindow(d, tz, opts.prefs);
     return !busy.some((b) => new Date(b.start) < w.end && new Date(b.end) > w.start);
   });
   const freeDates = freeAll.filter((d) => d <= today);

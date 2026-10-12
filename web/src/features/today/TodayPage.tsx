@@ -2,6 +2,7 @@ import { REVIEW_PROMPT_TIME_DEFAULT, dayRangeUtc, localDateOf, localTimeOf, week
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useBlocks } from '../../api/hooks/blocks';
+import { usePreferences } from '../../api/hooks/preferences';
 import { useSettings, useTimezone } from '../../api/hooks/settings';
 import { Modal } from '../../components/Modal';
 import { BlockForm } from '../blocks/BlockForm';
@@ -27,12 +28,13 @@ function TodayContent() {
     return { from: r.start.toISOString(), to: r.end.toISOString() };
   }, [today, tz]);
   const { data, isPending, isError } = useBlocks(range);
+  const { data: prefs } = usePreferences();
 
   const blocks = useMemo(
     () => (data ?? []).filter((b) => b.status !== 'removed').sort((a, b) => a.start.localeCompare(b.start)),
     [data],
   );
-  const emphasize = localTimeOf(now, tz) >= REVIEW_PROMPT_TIME_DEFAULT;
+  const emphasize = localTimeOf(now, tz) >= (prefs?.reviewPromptTime ?? REVIEW_PROMPT_TIME_DEFAULT);
 
   return (
     <div className="today-stack">

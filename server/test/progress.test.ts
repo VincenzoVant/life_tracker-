@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { PreferencesSchema } from '@life-tracker/shared';
 import type { BlockCreateInput, BlockSource, BlockStatus } from '@life-tracker/shared';
 import { createBlock } from '../src/domains/blocks/service.js';
 import { getWeekProgress } from '../src/domains/goals/progress.js';
@@ -31,6 +32,8 @@ function add(
   const end = new Date(new Date(start).getTime() + mins * 60_000).toISOString();
   return createBlock(ctx, { title: 'b', ...input, start, end } as BlockCreateInput, { status, actualMinutes: actual, source });
 }
+
+const prefs = (over: Record<string, unknown>) => PreferencesSchema.parse(over);
 
 const emptyGoals = {
   startupMinutes: null,
@@ -82,7 +85,7 @@ test('fixed class blocks are excluded from study unless classesCountTowardStudy'
   add(ctx, { category: 'study', courseId: a.id }, '2026-10-12', '09:00', 60, 'done', 60);
   add(ctx, { category: 'study', courseId: a.id }, '2026-10-13', '10:00', 120, 'done', 120, 'fixed');
   expect(getWeekProgress(ctx, WEEK).study[0]).toMatchObject({ planned: 60, actual: 60 });
-  expect(getWeekProgress(ctx, WEEK, { classesCountTowardStudy: true }).study[0]).toMatchObject({ planned: 180, actual: 180 });
+  expect(getWeekProgress(ctx, WEEK, { prefs: prefs({ classesCountTowardStudy: true }) }).study[0]).toMatchObject({ planned: 180, actual: 180 });
 });
 
 test('workouts actual includes standalone sessions; byType split', () => {
@@ -112,7 +115,7 @@ test('free evenings: work block 19:30 Tue makes Tue not free; social block does 
   expect(p.planned).toBe(5);
   expect(p.actual).toBe(2);
   expect(p.freeDates).toEqual(['2026-10-12', '2026-10-14']);
-  expect(getWeekProgress(ctx, WEEK, { eveningStart: '20:00' }).freeEvenings.planned).toBe(6);
+  expect(getWeekProgress(ctx, WEEK, { prefs: prefs({ eveningStart: '20:00' }) }).freeEvenings.planned).toBe(6);
 });
 
 test('nutrition ok flags with tolerance; future days null', () => {
@@ -157,4 +160,26 @@ test('weekStart that is not a Monday → 400', async () => {
   expect(ok.status).toBe(200);
   expect(ok.body.weekStart).toBe(WEEK);
   expect(ok.body.nutrition).toHaveLength(7);
+});
+
+test('includeProposed counts proposed blocks in planned', () => {
+  const ctx = createTestCtx();
+  const a = createCourse(ctx, { name: 'A', color: '#3f51b5', weeklyGoalMinutes: 300 });
+  add(ctx, { category: 'study', courseId: a.id }, '2026-10-15', '09:00', 60, 'committed');
+  add(ctx, { category: 'study', courseId: a.id }, '2026-10-16', '12:00', 90, 'proposed');
+  add(ctx, { category: 'startup' }, '2026-10-16', '14:00', 45, 'proposed');
+  expect(getWeekProgress(ctx, WEEK).study[0]).toMatchObject({ planned: 60 });
+  const p = getWeekProgress(ctx, WEEK, { includeProposed: true });
+  expect(p.study[0]).toMatchObject({ planned: 150, actual: 0 });
+  expect(p.startup.planned).toBe(45);
+});
+
+test('sleep.start 00:30 makes a late startup block spoil that evening', () => {
+  const ctx = createTestCtx();
+  // Tue 23:45 -> Wed 00:15 local.
+  add(ctx, { category: 'startup' }, '2026-10-13', '23:45', 30, 'committed');
+  const late = prefs({ sleep: { start: '00:30', end: '07:30' } });
+  expect(getWeekProgress(ctx, WEEK, { prefs: late }).freeEvenings.freeDates).not.toContain('2026-10-13');
+  // With the default 23:30 bedtime the block starts after the evening window ends.
+  expect(getWeekProgress(ctx, WEEK).freeEvenings.freeDates).toContain('2026-10-13');
 });
