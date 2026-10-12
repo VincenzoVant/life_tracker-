@@ -1,9 +1,8 @@
+import { dismissConflict, listConflicts, markConflictReplanned } from '../../calendar/conflicts.js';
 import type { Ctx } from '../../ctx.js';
+import { notFound } from '../../lib/errors.js';
 
-/**
- * TODO: replace with the Stage 3 module (server/src/calendar/conflicts.ts) at merge.
- * Only the slice of `Conflict` the replan flow needs.
- */
+/** Only the slice of `Conflict` the replan flow needs. */
 export interface ConflictRef {
   id: string;
   title: string;
@@ -18,13 +17,16 @@ export interface ConflictsPort {
   markConflictReplanned(ctx: Ctx, id: string): unknown;
 }
 
-const unavailable = (): never => {
-  throw new Error('conflicts module not available');
-};
+function numericId(id: string): number {
+  const n = Number(id);
+  if (!Number.isInteger(n)) throw notFound('Conflict');
+  return n;
+}
 
-/** Default until the controller wires the real calendar/conflicts module. */
+/** Adapter over the Stage 3 conflicts module (numeric ids there, string ids in the replan flow). */
 export const defaultConflictsPort: ConflictsPort = {
-  listConflicts: unavailable,
-  dismissConflict: unavailable,
-  markConflictReplanned: unavailable,
+  listConflicts: (ctx, status) =>
+    listConflicts(ctx, status).map((c) => ({ id: String(c.id), title: c.title, start: c.start, end: c.end, status: c.status })),
+  dismissConflict: (ctx, id) => dismissConflict(ctx, numericId(id)),
+  markConflictReplanned: (ctx, id) => markConflictReplanned(ctx, numericId(id)),
 };

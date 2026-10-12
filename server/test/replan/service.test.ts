@@ -177,8 +177,3 @@ test('replanFromConflict uses conflict interval; apply marks conflict replanned;
   keepAsIs(ctx, second.plan.id, port);
   expect(calls).toEqual(['replanned:c1', 'dismiss:c1']);
 });
-
-test('default conflicts port throws when the module is not wired', () => {
-  const { ctx } = setup();
-  expect(() => replanFromConflict(ctx, 'x')).toThrow('conflicts module not available');
-});
