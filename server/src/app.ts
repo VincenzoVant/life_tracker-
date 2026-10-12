@@ -1,4 +1,6 @@
 import { Hono } from 'hono';
+import type { Logger } from 'pino';
+import { requestLogger } from './logger.js';
 import type { ErrorBody } from '@life-tracker/shared';
 import type { Ctx } from './ctx.js';
 import { AppError } from './lib/errors.js';
@@ -14,8 +16,10 @@ import { goalRoutes, progressRoutes } from './domains/goals/routes.js';
 import { reviewRoutes } from './domains/review/routes.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
-export function createApp(ctx: Ctx): Hono {
+export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
   const app = new Hono();
+
+  if (opts.log) app.use('/api/*', requestLogger(opts.log));
 
   app.use('/api/*', requireOrigin(ctx.config));
   app.use('/api/*', requireSession(ctx));
@@ -49,7 +53,8 @@ export function createApp(ctx: Ctx): Hono {
       };
       return c.json(body, err.status);
     }
-    console.error(err);
+    if (opts.log) opts.log.error({ err, path: c.req.path }, 'unhandled error');
+    else console.error(err);
     const body: ErrorBody = { error: { code: 'INTERNAL', message: 'Internal server error' } };
     return c.json(body, 500);
   });

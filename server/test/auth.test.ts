@@ -122,3 +122,20 @@ test('concurrent wrong logins cannot bypass the lockout, and a late correct pin 
   expect(results[20]!.status).toBe(429);
   expect(results[20]!.headers.get('set-cookie')).toBeNull();
 });
+
+const setupWith = (extra: Record<string, string>) =>
+  createApp(createTestCtx()).request('/api/auth/setup', {
+    method: 'POST',
+    headers: { Origin: 'http://127.0.0.1:4280', Host: '127.0.0.1:4280', 'Content-Type': 'application/json', ...extra },
+    body: JSON.stringify({ pin: '1234' }),
+  });
+
+test('cookie Secure when X-Forwarded-Proto https even on 127.0.0.1 host', async () => {
+  const res = await setupWith({ 'X-Forwarded-Proto': 'https' });
+  expect(res.headers.get('set-cookie')).toContain('; Secure');
+});
+
+test('cookie not Secure on loopback host without forwarded proto', async () => {
+  const res = await setupWith({});
+  expect(res.headers.get('set-cookie')).not.toContain('Secure');
+});
