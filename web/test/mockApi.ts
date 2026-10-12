@@ -8,6 +8,13 @@ export interface Call {
   body: unknown;
 }
 
+const unmatched: string[] = [];
+
+/** Returns and clears the unmatched calls recorded since the last drain. The global afterEach in setup.ts fails the test if any remain. */
+export function takeUnmatchedCalls(): string[] {
+  return unmatched.splice(0);
+}
+
 function isStatusResult(r: unknown): r is { status: number; body: unknown } {
   return typeof r === 'object' && r !== null && 'status' in r && 'body' in r && Object.keys(r).length === 2;
 }
@@ -23,7 +30,10 @@ export function mockApi(handlers: Record<string, Handler>): { calls: Call[] } {
       const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
       calls.push({ method, path: url.pathname, body });
       const handler = handlers[`${method} ${url.pathname}`];
-      if (!handler) throw new Error(`Unmocked API call: ${method} ${url.pathname}`);
+      if (!handler) {
+        unmatched.push(`${method} ${url.pathname}`);
+        throw new Error(`Unmocked API call: ${method} ${url.pathname}`);
+      }
       const result = handler(body, url);
       const { status, payload } = isStatusResult(result) ? { status: result.status, payload: result.body } : { status: 200, payload: result };
       return new Response(status === 204 ? null : JSON.stringify(payload), {
