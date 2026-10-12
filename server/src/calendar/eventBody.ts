@@ -5,6 +5,7 @@ import type { EventBody } from './client.js';
 
 export type SyncOp = 'create' | 'update' | 'delete';
 
+const PAST_GRACE_MS = 24 * 3_600_000;
 const MIRRORED = new Set(['committed', 'done', 'partial', 'skipped']);
 
 export function appOrigin(ctx: Ctx): string {
@@ -45,8 +46,10 @@ export function eventHash(body: EventBody): string {
 }
 
 /** Single source of truth for what the queue should do with a block. */
-export function deriveOp(b: Block): SyncOp | null {
+export function deriveOp(b: Block, now: Date): SyncOp | null {
   if (b.status === 'removed') return b.gcalEventId ? 'delete' : null;
   if (!shouldMirror(b)) return null;
-  return b.gcalEventId ? 'update' : 'create';
+  if (b.gcalEventId) return 'update';
+  // Don't back-fill long-past blocks (e.g. reviewed after the calendar was recreated).
+  return new Date(b.end).getTime() < now.getTime() - PAST_GRACE_MS ? null : 'create';
 }

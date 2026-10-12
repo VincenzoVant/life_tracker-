@@ -41,9 +41,11 @@ describe('B1 runSync order', () => {
 describe('B2 recreate calendar', () => {
   test('past reviewed/committed blocks survive a recreate; second recreate is 409', async () => {
     const { c, ctx, fake, calId } = await setup();
+    ctx.clock.set('2026-10-13T12:00:00.000Z');
     const past = createBlock(ctx, { category: 'study', title: 'Past', start: '2026-10-13T10:00:00.000Z', end: '2026-10-13T11:00:00.000Z' });
     await runSync(ctx);
     expect(getBlock(ctx, past.id).gcalEventId).toBeTruthy();
+    ctx.clock.set('2026-10-14T19:00:00.000Z'); // the past block is now more than 24h old
     fake.deleteCalendar(calId());
     createBlock(ctx, { category: 'study', title: 'Future', ...FUTURE });
     await runSync(ctx); // 404 on create → calendar missing
@@ -120,5 +122,23 @@ describe('enqueue failures are logged', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+describe('reviewing a long-past block after a recreate', () => {
+  test('does not create a past event in the new calendar', async () => {
+    const { c, ctx, fake, calId } = await setup();
+    ctx.clock.set('2026-10-13T12:00:00.000Z');
+    const past = createBlock(ctx, { category: 'study', title: 'Past', start: '2026-10-13T10:00:00.000Z', end: '2026-10-13T11:00:00.000Z' });
+    await runSync(ctx);
+    ctx.clock.set('2026-10-14T19:00:00.000Z');
+    fake.deleteCalendar(calId());
+    createBlock(ctx, { category: 'study', title: 'Future', ...FUTURE });
+    await runSync(ctx);
+    expect((await c.post('/api/google/recreate-calendar')).status).toBe(200);
+    setBlockStatus(ctx, past.id, 'done');
+    await runSync(ctx);
+    expect(getBlock(ctx, past.id).gcalEventId).toBeNull();
+    expect(fake.events(calId())).toHaveLength(1);
   });
 });

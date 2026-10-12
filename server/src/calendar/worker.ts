@@ -66,7 +66,7 @@ export async function processQueue(
       dropRow(ctx, row);
       continue;
     }
-    const op = deriveOp(block);
+    const op = deriveOp(block, ctx.clock.now());
     if (!op) {
       dropRow(ctx, row);
       result.done++;

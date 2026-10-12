@@ -9,7 +9,7 @@ import { appOrigin, deriveOp, eventHash, toGoogleEvent } from './eventBody.js';
 export function enqueueBlock(ctx: Ctx, blockId: string): void {
   const exists = ctx.db.select({ id: blocks.id }).from(blocks).where(eq(blocks.id, blockId)).get();
   const block = exists ? getBlock(ctx, blockId) : null;
-  const op = block ? deriveOp(block) : null;
+  const op = block ? deriveOp(block, ctx.clock.now()) : null;
   // A change that leaves the event body as Google has it (e.g. status only) needs no push.
   const unchanged =
     block && op === 'update' && (block as { gcalHash?: string | null }).gcalHash === eventHash(toGoogleEvent(block, { tz: getTimezone(ctx), appOrigin: appOrigin(ctx) }));

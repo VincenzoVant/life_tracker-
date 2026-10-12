@@ -8,6 +8,7 @@ const base: Block = {
   workoutType: null, mealSlot: null, fixedEventId: null, planId: null, gcalEventId: null, gcalEtag: null,
   gcalSyncedAt: null, notes: null, createdAt: 'x', updatedAt: 'x',
 };
+const now = new Date('2026-10-15T12:00:00.000Z');
 const opts = { tz: 'America/Los_Angeles', appOrigin: 'http://127.0.0.1:4280' };
 
 describe('eventBody', () => {
@@ -32,10 +33,20 @@ describe('eventBody', () => {
     expect(shouldMirror({ ...base, status: 'proposed' })).toBe(false);
     expect(shouldMirror({ ...base, source: 'unplanned', status: 'done' })).toBe(false);
     expect(shouldMirror({ ...base, status: 'skipped' })).toBe(true);
-    expect(deriveOp(base)).toBe('create');
-    expect(deriveOp({ ...base, gcalEventId: 'e' })).toBe('update');
-    expect(deriveOp({ ...base, status: 'removed', gcalEventId: 'e' })).toBe('delete');
-    expect(deriveOp({ ...base, status: 'removed' })).toBeNull();
-    expect(deriveOp({ ...base, status: 'proposed' })).toBeNull();
+    expect(deriveOp(base, now)).toBe('create');
+    expect(deriveOp({ ...base, gcalEventId: 'e' }, now)).toBe('update');
+    expect(deriveOp({ ...base, status: 'removed', gcalEventId: 'e' }, now)).toBe('delete');
+    expect(deriveOp({ ...base, status: 'removed' }, now)).toBeNull();
+    expect(deriveOp({ ...base, status: 'proposed' }, now)).toBeNull();
+  });
+
+  test('deriveOp does not create events for blocks that ended more than 24h ago', () => {
+    const old = { ...base, status: 'done' as const };
+    const dayAfter = (h: number) => new Date(new Date(base.end).getTime() + h * 3_600_000);
+    expect(deriveOp(old, dayAfter(25))).toBeNull();
+    expect(deriveOp(old, dayAfter(23))).toBe('create');
+    // existing events keep syncing and deleting
+    expect(deriveOp({ ...old, gcalEventId: 'e' }, dayAfter(48))).toBe('update');
+    expect(deriveOp({ ...old, status: 'removed', gcalEventId: 'e' }, dayAfter(48))).toBe('delete');
   });
 });
