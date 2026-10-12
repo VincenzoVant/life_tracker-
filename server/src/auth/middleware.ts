@@ -15,9 +15,10 @@ function hostname(host: string): string {
   return host.split(':')[0]!;
 }
 
-/** Secure is set unless the request Host is a loopback host (any port). */
-export function sessionCookie(token: string, host: string): string {
-  const secure = LOCAL_HOSTS.has(hostname(host).toLowerCase()) ? '' : '; Secure';
+/** Secure is set unless the request Host is a loopback host (any port); X-Forwarded-Proto: https forces it. */
+export function sessionCookie(token: string, host: string, forwardedProto?: string | null): string {
+  const https = forwardedProto?.split(',')[0]?.trim().toLowerCase() === 'https';
+  const secure = !https && LOCAL_HOSTS.has(hostname(host).toLowerCase()) ? '' : '; Secure';
   return `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}${secure}`;
 }
 

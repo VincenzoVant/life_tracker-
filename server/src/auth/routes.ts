@@ -21,7 +21,7 @@ export function authRoutes(ctx: Ctx, lockout: Lockout): Hono {
   };
   const startSession = (c: Context): void => {
     const { token } = createSession(ctx);
-    c.header('Set-Cookie', sessionCookie(token, c.req.header('host') ?? ''));
+    c.header('Set-Cookie', sessionCookie(token, c.req.header('host') ?? '', c.req.header('x-forwarded-proto')));
   };
   // Serialize check -> verify -> record so concurrent attempts cannot all pass check()
   // before any failure is recorded, and a late success cannot clear an active lock.

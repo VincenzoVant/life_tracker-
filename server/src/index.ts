@@ -7,6 +7,7 @@ import { loadConfig } from './config.js';
 import { createCtx } from './ctx.js';
 import { openDb } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
+import { createLogger } from './logger.js';
 import { mountStatic } from './static.js';
 
 export async function main(): Promise<void> {
@@ -15,17 +16,18 @@ export async function main(): Promise<void> {
   mkdirSync(dataDir, { recursive: true });
   mkdirSync(join(dataDir, 'secrets'), { recursive: true, mode: 0o700 });
   mkdirSync(join(dataDir, 'logs'), { recursive: true });
+  const log = createLogger({ dataDir, toFile: true });
   const backupDir = join(dataDir, 'backups');
   mkdirSync(backupDir, { recursive: true });
 
   const handle = openDb(join(dataDir, 'data.db'));
   runMigrations(handle, { backupDir });
 
-  const app = createApp(createCtx(handle, config));
+  const app = createApp(createCtx(handle, config), { log });
   if (config.webDist) mountStatic(app, config.webDist);
 
   serve({ fetch: app.fetch, port: config.port, hostname: '127.0.0.1' }, () => {
-    console.log(`Life Tracker listening on http://127.0.0.1:${config.port}`);
+    log.info({ port: config.port }, `Life Tracker listening on http://127.0.0.1:${config.port}`);
   });
 }
 
