@@ -2,6 +2,8 @@ import type { ReactElement } from 'react';
 import { Route, Routes } from 'react-router';
 import { Layout } from './components/Layout';
 import { AuthGate } from './features/auth/AuthGate';
+import { DashboardPage } from './features/dashboard/DashboardPage';
+import { SettingsPage } from './features/settings/SettingsPage';
 
 function Placeholder({ title }: { title: string }) {
   return <h1>{title}</h1>;
@@ -12,8 +14,8 @@ export const routes: Array<{ path: string; element: ReactElement }> = [
   { path: '/', element: <Placeholder title="Today" /> },
   { path: '/review', element: <Placeholder title="Review" /> },
   { path: '/areas', element: <Placeholder title="Areas" /> },
-  { path: '/dashboard', element: <Placeholder title="Dashboard" /> },
-  { path: '/settings', element: <Placeholder title="Settings" /> },
+  { path: '/dashboard', element: <DashboardPage /> },
+  { path: '/settings', element: <SettingsPage /> },
 ];
 
 export function App() {
