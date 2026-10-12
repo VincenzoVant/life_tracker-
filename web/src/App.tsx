@@ -11,6 +11,7 @@ import { ReviewPage } from "./features/review/ReviewPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { StartupPage } from "./features/areas/startup/StartupPage";
 import { StudiesPage } from "./features/areas/studies/StudiesPage";
+import { WeekPage } from './features/week/WeekPage';
 import { TodayPage } from "./features/today/TodayPage";
 import { TopLiftsPage } from "./features/areas/workouts/TopLiftsPage";
 import { WorkPage } from "./features/areas/work/WorkPage";
