@@ -21,6 +21,7 @@ import { preferencesRoutes } from './domains/preferences/routes.js';
 import { planRoutes } from './domains/plans/routes.js';
 import { replanRoutes } from './domains/replan/routes.js';
 import type { ConflictsPort } from './domains/replan/conflictsPort.js';
+import { calendarRoutes } from './calendar/routes.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
 export function createApp(ctx: Ctx, opts: { log?: Logger; conflicts?: ConflictsPort } = {}): Hono {
@@ -51,6 +52,7 @@ export function createApp(ctx: Ctx, opts: { log?: Logger; conflicts?: ConflictsP
   app.route('/api/review', reviewRoutes(ctx));
   app.route('/api/plans', planRoutes(ctx));
   app.route('/api', replanRoutes(ctx, opts.conflicts));
+  app.route('/api', calendarRoutes(ctx));
 
   app.notFound((c) => {
     if (c.req.path.startsWith('/api/')) {

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
@@ -246,3 +246,34 @@ export const googleChanges = sqliteTable('google_changes', {
   createdAt: text('created_at').notNull(),
   seen: integer('seen', { mode: 'boolean' }).notNull().default(false),
 });
+
+export const busyEvents = sqliteTable(
+  'busy_events',
+  {
+    calendarId: text('calendar_id').notNull(),
+    eventId: text('event_id').notNull(),
+    title: text('title').notNull(),
+    start: text('start').notNull(),
+    end: text('end').notNull(),
+    updated: text('updated').notNull(),
+    fetchedAt: text('fetched_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.calendarId, t.eventId] })],
+);
+
+export const conflicts = sqliteTable(
+  'conflicts',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    calendarId: text('calendar_id').notNull(),
+    externalEventId: text('external_event_id').notNull(),
+    title: text('title').notNull(),
+    start: text('start').notNull(),
+    end: text('end').notNull(),
+    blockIds: text('block_ids').notNull().default('[]'), // JSON string[]
+    status: text('status').notNull(), // open | replanned | dismissed
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [uniqueIndex('conflicts_event_unique').on(t.calendarId, t.externalEventId)],
+);
