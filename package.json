@@ -2,8 +2,13 @@
   "name": "life-tracker",
   "private": true,
   "type": "module",
-  "workspaces": ["shared"],
-  "engines": { "node": ">=22" },
+  "workspaces": [
+    "shared",
+    "server"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -b shared server web",
