@@ -1,6 +1,6 @@
-import { eveningWindowUtc, isoWeekday, localDateOf } from '@life-tracker/shared';
+import { eveningWindowUtc, isoWeekday, localDateOf, localTimeOf } from '@life-tracker/shared';
 import { buildDayWindows } from '../../src/planner/days.js';
-import type { Interval, PlannerInput, PlannerOutput, ProposedBlock } from '../../src/planner/types.js';
+import type { Interval, PlannerGoal, PlannerInput, PlannerOutput, ProposedBlock } from '../../src/planner/types.js';
 
 const MIN = 60_000;
 const STEP = 15 * MIN;
@@ -14,9 +14,16 @@ function configuredMinutes(input: PlannerInput, b: ProposedBlock): number | null
   return null;
 }
 
+const toMin = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
 const label = (b: ProposedBlock, tz: string) => `${b.title}@${localDateOf(new Date(b.start), tz)}`;
 
-/** Returns a list of violated planner invariants; an empty array means the output is valid. */
+/**
+ * Alignment rule: every block STARTS on a 15-minute boundary. Ends are start + duration, so they are aligned too,
+ * except for blocks whose duration comes straight from the preferences (meals, meal prep, workouts) and need not be
+ * a multiple of 15. Those are exempt from the end check.
+ *
+ * Returns a list of violated planner invariants; an empty array means the output is valid. */
 export function checkInvariants(input: PlannerInput, output: PlannerOutput): string[] {
   const errs: string[] = [];
   const { prefs, timezone: tz, range } = input;
@@ -37,6 +44,68 @@ export function checkInvariants(input: PlannerInput, output: PlannerOutput): str
     if (b.category === 'workout' && b.workoutType && !prefs.allowedWorkoutDays.includes(isoWeekday(localDateOf(new Date(b.start), tz)))) {
       errs.push(`${name}: workout on a day that is not allowed`);
     }
+  }
+
+  // Independent day-bound check: plain local HH:mm arithmetic, not buildDayWindows/dayBoundsUtc.
+  const earliest = toMin(prefs.earliestBlock);
+  const latest = toMin(prefs.latestBlockEnd);
+  const sleepStart = toMin(prefs.sleep.start);
+  const sleepEnd = toMin(prefs.sleep.end);
+  const wraps = sleepStart > sleepEnd;
+  const lo = wraps ? Math.max(earliest, sleepEnd) : earliest;
+  const hi = wraps ? Math.min(latest, sleepStart) : latest;
+  for (const b of blocks) {
+    const name = label(b, tz);
+    const sameDay = localDateOf(new Date(b.start), tz) === localDateOf(new Date(b.end - 1), tz);
+    const startMin = toMin(localTimeOf(new Date(b.start), tz));
+    const endMin = toMin(localTimeOf(new Date(b.end), tz));
+    if (!sameDay || startMin < lo || endMin > hi || endMin <= startMin) errs.push(`${name}: outside local day bounds ${lo}-${hi}`);
+  }
+
+  // Block lengths and meal placement.
+  const mealsSeen = new Set<string>();
+  for (const b of blocks) {
+    const name = label(b, tz);
+    const len = (b.end - b.start) / MIN;
+    if (b.category === 'study' && (len < prefs.studyBlock.min || len > prefs.studyBlock.max)) errs.push(`${name}: study block length ${len} outside min..max`);
+    if (b.category === 'startup' && (len < prefs.startupBlock.min || len > prefs.startupBlock.max)) errs.push(`${name}: startup block length ${len} outside min..max`);
+    if (b.category === 'workout' && b.workoutType && len !== prefs.workoutDurations[b.workoutType]) errs.push(`${name}: workout duration ${len} is not the configured one`);
+    if (b.category === 'meal' && b.mealSlot && b.mealSlot !== 'snack') {
+      const target = prefs.meals[b.mealSlot];
+      if (len !== target.minutes) errs.push(`${name}: meal duration ${len} is not the configured one`);
+      if (Math.abs(toMin(localTimeOf(new Date(b.start), tz)) - toMin(target.time)) > prefs.mealFlexMinutes) errs.push(`${name}: meal more than ${prefs.mealFlexMinutes} min from its target time`);
+      const key = `${localDateOf(new Date(b.start), tz)}|${b.mealSlot}`;
+      if (mealsSeen.has(key)) errs.push(`${name}: more than one ${b.mealSlot} on the same day`);
+      mealsSeen.add(key);
+    }
+  }
+
+  // Shortfall accounting per goal: placed + missing = goal when short, placed >= goal otherwise.
+  const missingFor = (match: (g: PlannerGoal) => boolean): number =>
+    output.shortfalls.filter((s) => match(s.goal)).reduce((n, s) => n + s.missing, 0);
+  const placedMinutes = (pred: (b: ProposedBlock) => boolean) => blocks.filter(pred).reduce((n, b) => n + (b.end - b.start) / MIN, 0);
+  const account = (what: string, placed: number, goal: number, missing: number) => {
+    if (missing > 0 ? placed + missing !== goal : placed < goal) {
+      errs.push(`${what}: placed ${placed} + missing ${missing} does not account for goal ${goal}`);
+    }
+  };
+  const sumGoals = (pred: (g: PlannerGoal) => boolean, amount: (g: PlannerGoal) => number) =>
+    input.goals.filter(pred).reduce((n, g) => n + amount(g), 0);
+  for (const courseId of new Set(input.goals.flatMap((g) => (g.kind === 'study' ? [g.courseId] : [])))) {
+    const is = (g: PlannerGoal) => g.kind === 'study' && g.courseId === courseId;
+    account(`study ${courseId}`, placedMinutes((b) => b.category === 'study' && b.courseId === courseId), sumGoals(is, (g) => (g.kind === 'study' ? g.minutes : 0)), missingFor(is));
+  }
+  if (input.goals.some((g) => g.kind === 'startup')) {
+    const is = (g: PlannerGoal) => g.kind === 'startup';
+    account('startup', placedMinutes((b) => b.category === 'startup'), sumGoals(is, (g) => (g.kind === 'startup' ? g.minutes : 0)), missingFor(is));
+  }
+  for (const type of new Set(input.goals.flatMap((g) => (g.kind === 'workout' ? [g.workoutType] : [])))) {
+    const is = (g: PlannerGoal) => g.kind === 'workout' && g.workoutType === type;
+    account(`workout ${type}`, blocks.filter((b) => b.category === 'workout' && b.workoutType === type).length, sumGoals(is, (g) => (g.kind === 'workout' ? g.count : 0)), missingFor(is));
+  }
+  if (input.goals.some((g) => g.kind === 'free_evenings')) {
+    const is = (g: PlannerGoal) => g.kind === 'free_evenings';
+    account('free evenings', output.reservedEvenings.length, sumGoals(is, (g) => (g.kind === 'free_evenings' ? g.count : 0)), missingFor(is));
   }
 
   const gap = (a: Interval, b: Interval) => a.start < b.end + buf && b.start < a.end + buf;

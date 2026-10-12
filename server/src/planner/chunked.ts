@@ -39,15 +39,16 @@ function placeItems(
   const { block } = hooks;
   const blocks: ProposedBlock[] = [];
   const shortfalls = new Map<string, Shortfall>();
+  const hasPreferred = t.days.some((d) => hooks.preferred(d.date).length > 0);
   const active = new Map(items.filter((i) => i.remaining > 0).map((i) => [i.key, i]));
 
   while (active.size > 0) {
     const item = [...active.values()].sort((a, b) => b.remaining - a.remaining || a.key.localeCompare(b.key))[0]!;
     const chunk = Math.max(nextChunk(item.remaining, block.min, block.max), block.min);
 
-    let placed = false;
-    for (let minutes = chunk; minutes >= block.min && !placed; minutes -= STEP_MIN) {
-      type Option = Interval & { date: string; preferred: Interval[]; load: DayLoad };
+    type Option = Interval & { date: string; preferred: Interval[]; load: DayLoad };
+    const inPreferred = (c: Interval, preferred: Interval[]) => preferred.some((p) => c.start >= p.start && c.end <= p.end);
+    const bestAt = (minutes: number): { best: Interval; preferred: boolean } | null => {
       const options: Option[] = [];
       for (const day of t.days) {
         const load = t.load(day.date);
@@ -64,13 +65,27 @@ function placeItems(
           minGap: block.min,
           tz: input.timezone,
         });
-      });
-      if (!best) continue;
-      const made = hooks.make(item, { start: best.start, end: best.end }, blocks.length);
+      }) as Option | null;
+      return best ? { best: { start: best.start, end: best.end }, preferred: inPreferred(best, best.preferred) } : null;
+    };
+
+    // Largest size that fits wins, unless a smaller size (down to min, 15-minute steps) fits inside a preferred window.
+    let choice: Interval | null = null;
+    for (let minutes = chunk; minutes >= block.min; minutes -= STEP_MIN) {
+      const found = bestAt(minutes);
+      if (!found) continue;
+      if (found.preferred || !hasPreferred) {
+        choice = found.best;
+        break;
+      }
+      choice ??= found.best;
+    }
+    const placed = choice !== null;
+    if (choice) {
+      const made = hooks.make(item, choice, blocks.length);
       t.occupy(made);
       blocks.push(made);
-      item.remaining -= (best.end - best.start) / 60_000;
-      placed = true;
+      item.remaining -= (choice.end - choice.start) / 60_000;
     }
 
     if (!placed) {
