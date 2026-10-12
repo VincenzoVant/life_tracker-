@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { localDateOf, type LiftSummary } from '@life-tracker/shared';
+import { epley1rm, localDateOf, type LiftSummary } from '@life-tracker/shared';
 import { ApiError } from '../../../api/client';
 import { useTimezone } from '../../../api/hooks/settings';
 import {
@@ -15,7 +15,7 @@ import {
 import { Field } from '../../../components/Field';
 import { Modal } from '../../../components/Modal';
 import { useToast } from '../../../components/Toast';
-import { LiftHistoryChart, e1rm } from './LiftHistoryChart';
+import { LiftHistoryChart } from './LiftHistoryChart';
 import './workouts.css';
 
 type LiftInfo = LiftSummary['lift'];
@@ -80,6 +80,7 @@ function AddSetModal({ lift, today, onClose }: { lift: LiftInfo; today: string; 
 function History({ lift }: { lift: LiftInfo }) {
   const history = useLiftHistory(lift.id);
   const del = useDeleteTopSet();
+  const toast = useToast();
   const sets = [...(history.data ?? [])].sort((a, b) => b.date.localeCompare(a.date));
   return (
     <div className="card" style={{ marginTop: 'var(--space-4)' }}>
@@ -95,9 +96,16 @@ function History({ lift }: { lift: LiftInfo }) {
             {sets.map((s) => (
               <li key={s.id} className="wk-row">
                 <span>
-                  {s.date} · {s.weightKg} kg × {s.reps} <span className="muted">(e1RM {e1rm(s).toFixed(1)} kg)</span>
+                  {s.date} · {s.weightKg} kg × {s.reps} <span className="muted">(e1RM {epley1rm(s.weightKg, s.reps).toFixed(1)} kg)</span>
                 </span>
-                <button onClick={() => del.mutate({ liftId: lift.id, setId: s.id })} aria-label={`Delete set ${s.date}`}>
+                <button onClick={() => {
+                    if (!window.confirm(`Delete the ${s.date} set (${s.weightKg} kg × ${s.reps})?`)) return;
+                    del.mutate(
+                      { liftId: lift.id, setId: s.id },
+                      { onError: (err) => toast.show(err instanceof Error ? err.message : 'Could not delete set', 'error') },
+                    );
+                  }}
+                  aria-label={`Delete set ${s.date}`}>
                   Delete
                 </button>
               </li>

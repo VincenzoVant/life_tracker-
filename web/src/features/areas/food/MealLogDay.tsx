@@ -91,6 +91,9 @@ export function MealLogDay() {
   const { data: logs = [], isPending } = useMealLogs(date);
   const { data: goals } = useGoals();
   const del = useDeleteMealLog();
+  const toast = useToast();
+  const { data: allMeals = [] } = useMeals({ includeArchived: true });
+  const mealNames = new Map(allMeals.map((m) => [m.id, m.name]));
   const [adding, setAdding] = useState<MealSlot | null>(null);
 
   const totals = logs.reduce((t, l) => ({ kcal: t.kcal + l.kcal, protein: t.protein + l.proteinG }), { kcal: 0, protein: 0 });
@@ -132,12 +135,14 @@ export function MealLogDay() {
           {logs.filter((l) => l.slot === slot).map((l) => (
             <div key={l.id} className="food-row">
               <span>
-                {l.freeText ?? 'Saved meal'}
+                {l.freeText ?? (l.mealId && mealNames.get(l.mealId)) ?? 'Saved meal'}
                 {l.mealId && l.servings !== 1 ? ` × ${l.servings}` : ''}
               </span>
               <span className="food-actions">
                 <span className="muted">{l.kcal} kcal · {l.proteinG} g</span>
-                <button aria-label={`Delete log ${l.id}`} onClick={() => del.mutate(l.id)}>✕</button>
+                <button aria-label={`Delete log ${l.id}`} onClick={() =>
+                    del.mutate(l.id, { onError: (err) => toast.show(err instanceof Error ? err.message : 'Could not delete log', 'error') })
+                  }>✕</button>
               </span>
             </div>
           ))}

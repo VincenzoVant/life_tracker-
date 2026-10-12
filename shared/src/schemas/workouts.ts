@@ -81,3 +81,8 @@ export interface LiftSummary {
   prs: PRs;
   lastSet: TopSet | null;
 }
+
+/** Epley one-rep-max estimate, rounded to one decimal. Shared so server PRs and web charts agree. */
+export function epley1rm(weightKg: number, reps: number): number {
+  return Math.round(weightKg * (1 + reps / 30) * 10) / 10;
+}

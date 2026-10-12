@@ -14,7 +14,7 @@ import {
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../../api/client';
 import { useCreateBlock, useUpdateBlock } from '../../api/hooks/blocks';
-import { useTimezone } from '../../api/hooks/settings';
+import { useSettings } from '../../api/hooks/settings';
 import { Field } from '../../components/Field';
 import { CourseField, MealSlotField, StartupTaskField, WorkoutTypeField } from './BlockFields';
 
@@ -24,6 +24,8 @@ export interface BlockFormProps {
   initial?: Partial<Block>;
   onDone: () => void;
 }
+
+const FIELD_KEYS = new Set(['category', 'title', 'date', 'start', 'end', 'courseId', 'startupTaskId', 'workoutType', 'mealSlot']);
 
 function defaults(initial: Partial<Block> | undefined, tz: string) {
   const start = initial?.start ? new Date(initial.start) : new Date();
@@ -36,8 +38,15 @@ function defaults(initial: Partial<Block> | undefined, tz: string) {
 }
 
 /** Create (no `initial.id`) or edit (`initial.id`) a block. Times are entered in the configured timezone. */
-export function BlockForm({ initial, onDone }: BlockFormProps) {
-  const tz = useTimezone();
+export function BlockForm(props: BlockFormProps) {
+  const settings = useSettings();
+  // Wait for settings so the seeded date/time use the configured timezone, not the browser's.
+  if (settings.isPending) return <p className="muted">Loading…</p>;
+  const tz = settings.data?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return <BlockFormInner {...props} tz={tz} />;
+}
+
+function BlockFormInner({ initial, onDone, tz }: BlockFormProps & { tz: string }) {
   const create = useCreateBlock();
   const update = useUpdateBlock();
   const d = defaults(initial, tz);
@@ -87,8 +96,11 @@ export function BlockForm({ initial, onDone }: BlockFormProps) {
       onDone();
     } catch (err) {
       if (err instanceof ApiError) {
-        setErrors(err.fields ?? {});
-        if (!err.fields) setFormError(err.message);
+        const fields = err.fields ?? {};
+        setErrors(fields);
+        const unmatched = Object.entries(fields).filter(([k]) => !FIELD_KEYS.has(k));
+        if (unmatched.length) setFormError(unmatched.map(([k, m]) => `${k}: ${m}`).join('; '));
+        else if (!err.fields) setFormError(err.message);
       } else {
         setFormError('Something went wrong');
       }

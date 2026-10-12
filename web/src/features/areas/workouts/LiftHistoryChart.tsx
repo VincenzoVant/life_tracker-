@@ -1,7 +1,5 @@
-import type { TopSet } from '@life-tracker/shared';
+import { epley1rm, type TopSet } from '@life-tracker/shared';
 import './workouts.css';
-
-export const e1rm = (s: Pick<TopSet, 'weightKg' | 'reps'>): number => Math.round(s.weightKg * (1 + s.reps / 30) * 10) / 10;
 
 const W = 320;
 const H = 160;
@@ -9,7 +7,7 @@ const PAD = { l: 36, r: 12, t: 12, b: 24 };
 
 /** Inline SVG line of e1RM over time (oldest to newest, evenly spaced). */
 export function LiftHistoryChart({ sets, name }: { sets: TopSet[]; name: string }) {
-  const pts = [...sets].sort((a, b) => a.date.localeCompare(b.date)).map((s) => ({ date: s.date, v: e1rm(s) }));
+  const pts = [...sets].sort((a, b) => a.date.localeCompare(b.date)).map((s) => ({ date: s.date, v: epley1rm(s.weightKg, s.reps) }));
   if (pts.length === 0) return null;
   const first = pts[0]!;
   const last = pts[pts.length - 1]!;

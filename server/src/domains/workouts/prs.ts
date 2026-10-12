@@ -1,10 +1,4 @@
-import type { PRs, TopSet } from '@life-tracker/shared';
-
-const round1 = (n: number): number => Math.round(n * 10) / 10;
-
-export function epley1rm(weightKg: number, reps: number): number {
-  return round1(weightKg * (1 + reps / 30));
-}
+import { epley1rm, type PRs, type TopSet } from '@life-tracker/shared';
 
 /** Heaviest: higher weight, then more reps, then earlier date. Best e1RM: highest estimate, ties to the earlier date. */
 export function computePRs(sets: TopSet[]): PRs {

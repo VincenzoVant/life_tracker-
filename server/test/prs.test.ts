@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import type { TopSet } from '@life-tracker/shared';
-import { computePRs, epley1rm } from '../src/domains/workouts/prs.js';
+import { epley1rm } from '@life-tracker/shared';
+import { computePRs } from '../src/domains/workouts/prs.js';
 
 let n = 0;
 const set = (weightKg: number, reps: number, date: string): TopSet => ({

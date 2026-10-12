@@ -10,7 +10,7 @@ interface Entry {
   value: string;
 }
 const entry = (n: number | null, scale = 1): Entry => ({ off: n === null, value: n === null ? '' : String(n / scale) });
-const num = (e: Entry, scale = 1): number | null => (e.off || e.value.trim() === '' ? null : Number(e.value) * scale);
+const num = (e: Entry, scale = 1): number | null => (e.off || e.value.trim() === '' ? null : scale === 1 ? Number(e.value) : Math.round(Number(e.value) * scale));
 
 interface State {
   startupHours: Entry;
@@ -41,7 +41,7 @@ function toGoals(s: State): GoalSet {
     workoutsTotal: num(s.workoutsTotal),
     workoutsByType: { gym: num(s.byType.gym), cardio: num(s.byType.cardio), sport: num(s.byType.sport) },
     freeEvenings: num(s.freeEvenings),
-    dailyKcal: kcal === null ? null : { target: kcal, tolerancePct: Number(s.tolerance) || 0 },
+    dailyKcal: kcal === null ? null : { target: kcal, tolerancePct: s.tolerance.trim() === '' ? 10 : Number(s.tolerance) },
     dailyProteinG: num(s.protein),
   };
 }

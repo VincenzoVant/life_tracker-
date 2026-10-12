@@ -8,6 +8,8 @@ export interface RowValue {
   outcome: ReviewOutcome;
   minutes: string;
   workout: WorkoutDraft;
+  /** True once the user changed a workout field; untouched rows send no workout payload. */
+  workoutEdited: boolean;
   completeTask: boolean;
 }
 
@@ -25,6 +27,7 @@ export function initialRowValue(block: Block): RowValue | undefined {
     outcome,
     minutes: String(block.actualMinutes ?? Math.round(blockMinutes(block) / 2)),
     workout: emptyWorkoutDraft,
+    workoutEdited: false,
     completeTask: false,
   };
 }
@@ -33,17 +36,18 @@ export function ReviewRow({
   block,
   tz,
   value,
-  error,
+  errors = {},
   onChange,
 }: {
   block: Block;
   tz: string;
   value: RowValue | undefined;
-  error?: string;
+  /** Server messages for this row keyed by the part after `entries.N.` (e.g. `actualMinutes`). */
+  errors?: Record<string, string>;
   onChange: (next: RowValue) => void;
 }) {
   const duration = blockMinutes(block);
-  const base: RowValue = value ?? { outcome: 'done', minutes: '', workout: emptyWorkoutDraft, completeTask: false };
+  const base: RowValue = value ?? { outcome: 'done', minutes: '', workout: emptyWorkoutDraft, workoutEdited: false, completeTask: false };
   const choose = (outcome: ReviewOutcome) =>
     onChange({
       ...base,
@@ -51,6 +55,8 @@ export function ReviewRow({
       minutes: outcome === 'partial' && !base.minutes ? String(Math.round(duration / 2)) : base.minutes,
     });
   const outcome = value?.outcome;
+  const minutesError = outcome === 'partial' ? errors.actualMinutes : undefined;
+  const otherErrors = Object.entries(errors).filter(([k]) => k !== 'actualMinutes' || outcome !== 'partial');
 
   return (
     <li className="review-row" role="group" aria-label={block.title}>
@@ -69,12 +75,12 @@ export function ReviewRow({
         ))}
       </div>
       {outcome === 'partial' && (
-        <Field label="Minutes done" error={error}>
+        <Field label="Minutes done" error={minutesError}>
           <input type="number" inputMode="numeric" min="1" value={value!.minutes} onChange={(e) => onChange({ ...value!, minutes: e.target.value })} />
         </Field>
       )}
       {block.category === 'workout' && (outcome === 'done' || outcome === 'partial') && (
-        <WorkoutDetailsFields workoutType={block.workoutType} value={value!.workout} onChange={(workout) => onChange({ ...value!, workout })} />
+        <WorkoutDetailsFields workoutType={block.workoutType} value={value!.workout} onChange={(workout) => onChange({ ...value!, workout, workoutEdited: true })} />
       )}
       {block.category === 'startup' && block.startupTaskId && outcome && outcome !== 'skipped' && (
         <label className="review-check">
@@ -82,11 +88,11 @@ export function ReviewRow({
           Mark task done
         </label>
       )}
-      {outcome !== 'partial' && error && (
-        <p className="error" role="alert">
-          {error}
+      {otherErrors.map(([k, m]) => (
+        <p key={k} className="error" role="alert">
+          {m}
         </p>
-      )}
+      ))}
     </li>
   );
 }
