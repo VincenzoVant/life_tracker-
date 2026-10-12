@@ -114,3 +114,14 @@ test('saved-meal log rows show the meal name (including archived) and failed del
   await userEvent.click(screen.getByRole('button', { name: 'Delete log l1' }));
   expect(await screen.findByText('Delete failed')).toBeInTheDocument();
 });
+
+test('emptying carbs/fat when editing a meal sends null to clear them', async () => {
+  const { calls } = mockApi(base({ 'PATCH /api/meals/m1': (b: any) => ({ ...oats, ...b }) }));
+  renderWithProviders(<FoodPage />);
+  await userEvent.click(screen.getByRole('tab', { name: 'Library' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Edit Oats' }));
+  await userEvent.clear(screen.getByLabelText('Carbs (g)'));
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')!.body).toMatchObject({ carbsG: null, fatG: null });
+});

@@ -76,3 +76,15 @@ test('rejects reps 0 and weight 0', async () => {
   expect(w0.body.error.fields.weightKg).toBeTruthy();
   expect((await c.post('/api/workouts/sessions', { type: 'gym', date: '2026-10-14', durationMinutes: 0 })).status).toBe(400);
 });
+
+test('PATCH with null clears optional session fields', async () => {
+  const c = await createTestClient();
+  const r = await c.post('/api/workouts/sessions', {
+    type: 'cardio', date: '2026-10-14', durationMinutes: 30, distanceKm: 5, intensity: 3, notes: 'easy', cardioKind: 'run',
+  });
+  const upd = await c.patch(`/api/workouts/sessions/${r.body.id}`, { intensity: null, notes: null, cardioKind: null, distanceKm: null });
+  expect(upd.status).toBe(200);
+  expect(upd.body).toMatchObject({ intensity: null, notes: null, cardioKind: null, distanceKm: null, paceSecPerKm: null, durationMinutes: 30 });
+  const keep = await c.patch(`/api/workouts/sessions/${r.body.id}`, { durationMinutes: 40 });
+  expect(keep.body.durationMinutes).toBe(40);
+});

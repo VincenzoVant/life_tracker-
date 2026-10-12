@@ -39,7 +39,15 @@ export const SessionInput = z
   .extend(WorkoutDetails.shape);
 export type SessionInput = z.infer<typeof SessionInput>;
 
-export const SessionUpdateInput = SessionInput.partial();
+/** Partial update; `null` clears an optional detail field. */
+export const SessionUpdateInput = SessionInput.partial().extend({
+  intensity: WorkoutDetails.shape.intensity.nullable(),
+  notes: WorkoutDetails.shape.notes.nullable(),
+  gymFocus: WorkoutDetails.shape.gymFocus.nullable(),
+  cardioKind: WorkoutDetails.shape.cardioKind.nullable(),
+  distanceKm: WorkoutDetails.shape.distanceKm.nullable(),
+  sportName: WorkoutDetails.shape.sportName.nullable(),
+});
 export type SessionUpdateInput = z.infer<typeof SessionUpdateInput>;
 
 export const SessionListQuery = z.object({ from: localDate, to: localDate });

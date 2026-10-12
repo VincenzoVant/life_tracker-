@@ -102,12 +102,12 @@ export function updateSession(ctx: Ctx, id: string, input: SessionUpdateInput): 
     type: patch.type ?? cur.type,
     date: patch.date ?? cur.date,
     durationMinutes: patch.durationMinutes ?? cur.durationMinutes,
-    intensity: patch.intensity ?? cur.intensity,
-    notes: patch.notes ?? cur.notes,
-    gymFocus: patch.gymFocus ?? cur.gymFocus,
-    cardioKind: patch.cardioKind ?? cur.cardioKind,
-    distanceKm: patch.distanceKm ?? cur.distanceKm,
-    sportName: patch.sportName ?? cur.sportName,
+    intensity: patch.intensity === undefined ? cur.intensity : patch.intensity,
+    notes: patch.notes === undefined ? cur.notes : patch.notes,
+    gymFocus: patch.gymFocus === undefined ? cur.gymFocus : patch.gymFocus,
+    cardioKind: patch.cardioKind === undefined ? cur.cardioKind : patch.cardioKind,
+    distanceKm: patch.distanceKm === undefined ? cur.distanceKm : patch.distanceKm,
+    sportName: patch.sportName === undefined ? cur.sportName : patch.sportName,
     updatedAt: ctx.clock.now().toISOString(),
   };
   ctx.db.update(workoutSessions).set(next).where(eq(workoutSessions.id, id)).run();

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { Meal, MealInput } from '@life-tracker/shared';
+import type { Meal, MealInput, MealUpdateInput } from '@life-tracker/shared';
 import { Field } from '../../../components/Field';
 import { Modal } from '../../../components/Modal';
 import { useCreateMeal, useUpdateMeal } from '../../../api/hooks/food';
@@ -24,14 +24,12 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
     const p = num(protein);
     if (!name.trim()) return setError('Name is required');
     if (k === undefined || p === undefined) return setError('Calories and protein are required');
-    const input: MealInput = { name: name.trim(), kcal: k, proteinG: p };
-    const c = num(carbs);
-    const f = num(fat);
-    if (c !== undefined) input.carbsG = c;
-    if (f !== undefined) input.fatG = f;
+    // When editing, an emptied field is sent as null so the server clears it; when creating it is omitted.
+    const empty = meal ? null : undefined;
+    const input: MealUpdateInput = { name: name.trim(), kcal: k, proteinG: p, carbsG: num(carbs) ?? empty, fatG: num(fat) ?? empty };
     try {
       if (meal) await update.mutateAsync({ id: meal.id, ...input });
-      else await create.mutateAsync(input);
+      else await create.mutateAsync(input as MealInput);
       onClose();
     } catch (err) {
       toast.showError(err, 'Could not save meal');

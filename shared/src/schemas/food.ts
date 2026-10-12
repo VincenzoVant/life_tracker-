@@ -25,7 +25,12 @@ export const MealInput = z.object({
 });
 export type MealInput = z.infer<typeof MealInput>;
 
-export const MealUpdateInput = MealInput.partial();
+/** Partial update; `null` clears an optional field. */
+export const MealUpdateInput = MealInput.partial().extend({
+  carbsG: MealInput.shape.carbsG.nullable(),
+  fatG: MealInput.shape.fatG.nullable(),
+  notes: MealInput.shape.notes.nullable(),
+});
 export type MealUpdateInput = z.infer<typeof MealUpdateInput>;
 
 export const MealListQuery = z.object({

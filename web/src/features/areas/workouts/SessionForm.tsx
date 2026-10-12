@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { WORKOUT_TYPES, type SessionInput, type WorkoutSession, type WorkoutType } from '@life-tracker/shared';
+import { WORKOUT_TYPES, type SessionInput, type SessionUpdateInput, type WorkoutSession, type WorkoutType } from '@life-tracker/shared';
 import { ApiError } from '../../../api/client';
 import { useCreateSession, useUpdateSession } from '../../../api/hooks/workouts';
 import { Field } from '../../../components/Field';
@@ -24,18 +24,24 @@ export function SessionForm({ today, session, onClose }: { today: string; sessio
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const input: SessionInput = { type, date, durationMinutes: Number(duration) };
-    if (intensity) input.intensity = Number(intensity);
-    if (notes.trim()) input.notes = notes.trim();
-    if (type === 'gym' && gymFocus.trim()) input.gymFocus = gymFocus.trim();
+    // When editing, an emptied field is sent as null so the server clears it; when creating it is simply omitted.
+    const empty = session ? null : undefined;
+    const input: SessionUpdateInput = {
+      type,
+      date,
+      durationMinutes: Number(duration),
+      intensity: intensity ? Number(intensity) : empty,
+      notes: notes.trim() || empty,
+    };
+    if (type === 'gym') input.gymFocus = gymFocus.trim() || empty;
     if (type === 'cardio') {
-      if (cardioKind.trim()) input.cardioKind = cardioKind.trim();
-      if (distance) input.distanceKm = Number(distance);
+      input.cardioKind = cardioKind.trim() || empty;
+      input.distanceKm = distance ? Number(distance) : empty;
     }
-    if (type === 'sport' && sportName.trim()) input.sportName = sportName.trim();
+    if (type === 'sport') input.sportName = sportName.trim() || empty;
     try {
       if (session) await update.mutateAsync({ id: session.id, ...input });
-      else await create.mutateAsync(input);
+      else await create.mutateAsync(input as SessionInput);
       onClose();
     } catch (err) {
       setErrors(err instanceof ApiError ? (err.fields ?? { _form: err.message }) : { _form: 'Could not save' });

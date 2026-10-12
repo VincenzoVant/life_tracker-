@@ -64,6 +64,21 @@ test('edit a logged session patches it with the changed values', async () => {
   expect(calls.find((c) => c.method === 'PATCH')!.body).toMatchObject({ type: 'cardio', date: '2026-10-13', durationMinutes: 35, distanceKm: 5 });
 });
 
+test('emptying optional fields in the edit form sends null to clear them', async () => {
+  const withDetails = { ...sessions[1], intensity: 3, notes: 'easy', cardioKind: 'run' };
+  const { calls } = mockApi({ ...handlers(), 'GET /api/workouts/sessions': () => [sessions[0], withDetails], 'PATCH /api/workouts/sessions/s2': (b) => ({ ...withDetails, ...b }) });
+  renderWithProviders(<WorkoutsPage />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Edit Cardio session 2026-10-13' }));
+  const dialog = screen.getByRole('dialog', { name: 'Edit session' });
+  await userEvent.clear(within(dialog).getByLabelText('Distance (km)'));
+  await userEvent.clear(within(dialog).getByLabelText('Intensity (1-5)'));
+  await userEvent.clear(within(dialog).getByLabelText('Notes'));
+  await userEvent.clear(within(dialog).getByLabelText('Kind'));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+  await vi.waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')!.body).toMatchObject({ distanceKm: null, intensity: null, notes: null, cardioKind: null });
+});
+
 test('delete a logged session asks for confirmation first', async () => {
   const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
   const { calls } = mockApi({ ...handlers(), 'DELETE /api/workouts/sessions/s1': () => ({ status: 204, body: null }) });

@@ -58,3 +58,11 @@ test('dailyTotals returns zeros for empty days', () => {
   expect(t['2026-10-14']).toEqual({ kcal: 500, proteinG: 30, carbsG: 5, fatG: 0 });
   expect(listMealLogs(ctx, '2026-10-14')).toHaveLength(2);
 });
+
+test('PATCH with null clears optional meal fields', async () => {
+  const c = await createTestClient();
+  const m = await c.post('/api/meals', { ...meal, notes: 'tasty' });
+  const upd = await c.patch(`/api/meals/${m.body.id}`, { carbsG: null, fatG: null, notes: null });
+  expect(upd.status).toBe(200);
+  expect(upd.body).toMatchObject({ carbsG: null, fatG: null, notes: null, kcal: 600 });
+});
