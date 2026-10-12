@@ -1,23 +1,25 @@
 import { useState, type FormEvent } from 'react';
-import { WORKOUT_TYPES, type SessionInput, type WorkoutType } from '@life-tracker/shared';
+import { WORKOUT_TYPES, type SessionInput, type WorkoutSession, type WorkoutType } from '@life-tracker/shared';
 import { ApiError } from '../../../api/client';
-import { useCreateSession } from '../../../api/hooks/workouts';
+import { useCreateSession, useUpdateSession } from '../../../api/hooks/workouts';
 import { Field } from '../../../components/Field';
 import { Modal } from '../../../components/Modal';
 
 export const TYPE_LABEL: Record<WorkoutType, string> = { gym: 'Gym', cardio: 'Cardio', sport: 'Sport' };
 
-export function SessionForm({ today, onClose }: { today: string; onClose: () => void }) {
+/** Log a new session, or edit `session` when given (its type stays fixed). */
+export function SessionForm({ today, session, onClose }: { today: string; session?: WorkoutSession; onClose: () => void }) {
   const create = useCreateSession();
-  const [type, setType] = useState<WorkoutType>('gym');
-  const [date, setDate] = useState(today);
-  const [duration, setDuration] = useState('');
-  const [intensity, setIntensity] = useState('');
-  const [gymFocus, setGymFocus] = useState('');
-  const [cardioKind, setCardioKind] = useState('');
-  const [distance, setDistance] = useState('');
-  const [sportName, setSportName] = useState('');
-  const [notes, setNotes] = useState('');
+  const update = useUpdateSession();
+  const [type, setType] = useState<WorkoutType>(session?.type ?? 'gym');
+  const [date, setDate] = useState(session?.date ?? today);
+  const [duration, setDuration] = useState(session ? String(session.durationMinutes) : '');
+  const [intensity, setIntensity] = useState(session?.intensity != null ? String(session.intensity) : '');
+  const [gymFocus, setGymFocus] = useState(session?.gymFocus ?? '');
+  const [cardioKind, setCardioKind] = useState(session?.cardioKind ?? '');
+  const [distance, setDistance] = useState(session?.distanceKm != null ? String(session.distanceKm) : '');
+  const [sportName, setSportName] = useState(session?.sportName ?? '');
+  const [notes, setNotes] = useState(session?.notes ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   async function submit(e: FormEvent) {
@@ -32,7 +34,8 @@ export function SessionForm({ today, onClose }: { today: string; onClose: () => 
     }
     if (type === 'sport' && sportName.trim()) input.sportName = sportName.trim();
     try {
-      await create.mutateAsync(input);
+      if (session) await update.mutateAsync({ id: session.id, ...input });
+      else await create.mutateAsync(input);
       onClose();
     } catch (err) {
       setErrors(err instanceof ApiError ? (err.fields ?? { _form: err.message }) : { _form: 'Could not save' });
@@ -40,10 +43,10 @@ export function SessionForm({ today, onClose }: { today: string; onClose: () => 
   }
 
   return (
-    <Modal title="Log session" onClose={onClose}>
+    <Modal title={session ? 'Edit session' : 'Log session'} onClose={onClose}>
       <form onSubmit={submit}>
         <Field label="Type" error={errors.type}>
-          <select value={type} onChange={(e) => setType(e.target.value as WorkoutType)}>
+          <select value={type} disabled={!!session} onChange={(e) => setType(e.target.value as WorkoutType)}>
             {WORKOUT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {TYPE_LABEL[t]}
@@ -89,7 +92,7 @@ export function SessionForm({ today, onClose }: { today: string; onClose: () => 
           </p>
         )}
         <div className="wk-actions">
-          <button type="submit" className="primary" disabled={create.isPending}>
+          <button type="submit" className="primary" disabled={create.isPending || update.isPending}>
             Save
           </button>
           <button type="button" onClick={onClose}>

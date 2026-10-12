@@ -48,6 +48,34 @@ test('filter chips filter sessions by type', async () => {
   expect(screen.queryByText(/6:00 \/km/)).not.toBeInTheDocument();
 });
 
+test('edit a logged session patches it with the changed values', async () => {
+  const { calls } = mockApi({ ...handlers(), 'PATCH /api/workouts/sessions/s2': (b) => ({ ...sessions[1], ...b }) });
+  renderWithProviders(<WorkoutsPage />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Edit Cardio session 2026-10-13' }));
+  const dialog = screen.getByRole('dialog', { name: 'Edit session' });
+  const duration = within(dialog).getByLabelText('Duration (min)');
+  expect(duration).toHaveValue(30);
+  expect(within(dialog).getByLabelText('Distance (km)')).toHaveValue(5);
+  await userEvent.clear(duration);
+  await userEvent.type(duration, '35');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+  await vi.waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')!.path).toBe('/api/workouts/sessions/s2');
+  expect(calls.find((c) => c.method === 'PATCH')!.body).toMatchObject({ type: 'cardio', date: '2026-10-13', durationMinutes: 35, distanceKm: 5 });
+});
+
+test('delete a logged session asks for confirmation first', async () => {
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+  const { calls } = mockApi({ ...handlers(), 'DELETE /api/workouts/sessions/s1': () => ({ status: 204, body: null }) });
+  renderWithProviders(<WorkoutsPage />);
+  const del = await screen.findByRole('button', { name: 'Delete Gym session 2026-10-12' });
+  await userEvent.click(del);
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+  await userEvent.click(del);
+  await vi.waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === '/api/workouts/sessions/s1')).toBe(true));
+  confirm.mockRestore();
+});
+
 test('log session posts type-specific fields', async () => {
   const { calls } = mockApi({ ...handlers(), 'POST /api/workouts/sessions': (b) => ({ ...base, id: 'n', ...b }) });
   renderWithProviders(<WorkoutsPage />);

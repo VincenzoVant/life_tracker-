@@ -49,6 +49,25 @@ test('startup task status change to done calls PATCH', async () => {
   await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ status: 'done' }));
 });
 
+test('startup deletes a task and a milestone only after confirmation', async () => {
+  const user = userEvent.setup();
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValue(true);
+  const { calls } = mockApi({
+    ...base(),
+    'DELETE /api/startup/tasks/t1': () => ({ status: 204, body: null }),
+    'DELETE /api/startup/milestones/m1': () => ({ status: 204, body: null }),
+  });
+  renderWithProviders(<StartupPage />);
+  const del = await screen.findByRole('button', { name: 'Delete Landing page' });
+  await user.click(del);
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+  await user.click(del);
+  await waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === '/api/startup/tasks/t1')).toBe(true));
+  await user.click(screen.getByRole('button', { name: 'Delete milestone Launch' }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === '/api/startup/milestones/m1')).toBe(true));
+  confirm.mockRestore();
+});
+
 test('startup adds a task under a milestone', async () => {
   const user = userEvent.setup();
   const { calls } = mockApi({ ...base(), 'POST /api/startup/tasks': () => ({ status: 201, body: tasks[0] }) });

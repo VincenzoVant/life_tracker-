@@ -48,6 +48,19 @@ test('delete lift disabled when it has sets', async () => {
   expect(within(bench).getByRole('button', { name: 'Delete' })).toBeEnabled();
 });
 
+test('deleting a lift asks for confirmation', async () => {
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+  const { calls } = mockApi({ ...handlers(), 'DELETE /api/lifts/l2': () => ({ status: 204, body: null }) });
+  renderWithProviders(<TopLiftsPage />);
+  const bench = await screen.findByRole('article', { name: 'Bench' });
+  await userEvent.click(within(bench).getByRole('button', { name: 'Delete' }));
+  expect(confirm).toHaveBeenCalledTimes(1);
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+  await userEvent.click(within(bench).getByRole('button', { name: 'Delete' }));
+  await vi.waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === '/api/lifts/l2')).toBe(true));
+  confirm.mockRestore();
+});
+
 test('selecting a lift shows newest-first history and an accessible chart', async () => {
   const older = { ...set, id: 't0', date: '2026-09-01', weightKg: 90, reps: 5 };
   mockApi({ ...handlers(), 'GET /api/lifts/l1/sets': () => [older, set] });
