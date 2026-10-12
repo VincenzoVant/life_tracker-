@@ -60,3 +60,22 @@ test('selecting a lift shows newest-first history and an accessible chart', asyn
   expect(items[0]).toHaveTextContent('2026-10-10');
   expect(items[1]).toHaveTextContent('2026-09-01');
 });
+
+test('deleting a set asks for confirmation and toasts on failure', async () => {
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+  const { calls } = mockApi({
+    ...handlers(),
+    'GET /api/lifts/l1/sets': () => [set],
+    'DELETE /api/lifts/l1/sets/t1': () => ({ status: 500, body: { error: { code: 'INTERNAL', message: 'Server exploded' } } }),
+  });
+  renderWithProviders(<TopLiftsPage />);
+  const card = await screen.findByRole('article', { name: 'Squat' });
+  await userEvent.click(within(card).getByRole('button', { name: 'History' }));
+  const del = await screen.findByRole('button', { name: 'Delete set 2026-10-10' });
+  await userEvent.click(del);
+  expect(confirm).toHaveBeenCalledTimes(1);
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+  await userEvent.click(del);
+  expect(await screen.findByText('Server exploded')).toBeInTheDocument();
+  confirm.mockRestore();
+});
