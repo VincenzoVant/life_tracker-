@@ -58,17 +58,26 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
   const tz = useTimezone();
   const wide = useIsWide();
   const today = localDateOf(new Date(), tz);
-  const [weekStart, setWeekStart] = useState(() => weekStartOf(new Date(), tz));
-  const [day, setDay] = useState(today);
-  const [selected, setSelected] = useState<Block>();
+  // `?week=<date>` opens that week (e.g. after applying a replan); any date in the week works.
+  const [params, setParams] = useSearchParams();
+  const [initialWeek] = useState(() => {
+    const w = params.get('week');
+    return w && /^\d{4}-\d{2}-\d{2}$/.test(w) ? addDays(w, 1 - isoWeekday(w)) : null;
+  });
+  const [weekStart, setWeekStart] = useState(() => initialWeek ?? weekStartOf(new Date(), tz));
+  const [day, setDay] = useState(() => (initialWeek && initialWeek !== weekStartOf(new Date(), tz) ? initialWeek : today));
+  // Store the id, not the block, so the details dialog follows refetches. `linkedBlock` covers a deep link whose week hasn't loaded yet.
+  const [selectedId, setSelectedId] = useState<string>();
+  const [linkedBlock, setLinkedBlock] = useState<Block>();
   const prefs = usePreferences().data ?? DEFAULT_PREFERENCES;
   const editing = useBlockEditing(tz);
   const thisWeek = weekStartOf(new Date(), tz);
   // Past weeks cannot be planned, so they have no draft to look up.
-  const draft = useDraft(weekStart, { enabled: weekStart >= thisWeek }).data ?? undefined;
+  const draftQuery = useDraft(weekStart, { enabled: weekStart >= thisWeek });
+  // Only a full-week draft is the weekly draft; replan drafts live on their own page.
+  const draft = draftQuery.data?.plan.mode === 'full' ? draftQuery.data : undefined;
 
   // Deep link from Google events: /week?block=<id> jumps to that block's week and opens its details.
-  const [params, setParams] = useSearchParams();
   const linkedId = params.get('block');
   const linked = useBlockById(linkedId);
   const toast = useToast();
@@ -78,7 +87,8 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
       const date = localDateOf(new Date(linked.data.start), tz);
       setWeekStart(weekStartOf(new Date(linked.data.start), tz));
       setDay(date);
-      setSelected(linked.data);
+      setLinkedBlock(linked.data);
+      setSelectedId(linked.data.id);
     } else {
       toast.show('That block no longer exists', 'error');
     }
@@ -97,6 +107,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
   }, [weekStart, tz]);
   const { data, isPending, isError } = useBlocks(range);
   const blocks = useMemo(() => data ?? [], [data]);
+  const selected = selectedId ? (blocks.find((b) => b.id === selectedId) ?? (linkedBlock?.id === selectedId && isPending ? linkedBlock : undefined)) : undefined;
   const dates = weekDates(weekStart);
   const overlaps = useMemo(() => overlapWarnings(blocks), [blocks]);
   const plan = useMealPlan(weekStart).data;
@@ -138,7 +149,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
           </button>
         </div>
       </div>
-      <PlanBar weekStart={weekStart} thisWeek={thisWeek} hasDraft={!!draft} />
+      {draftQuery.isSuccess && <PlanBar weekStart={weekStart} thisWeek={thisWeek} hasDraft={!!draft} />}
       {header?.({ weekStart, tz })}
       <div className="week-body">
         <div className="week-main">
@@ -156,7 +167,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
             blocks={blocks}
             prefs={prefs}
             tz={tz}
-            onSelect={setSelected}
+            onSelect={(b) => setSelectedId(b.id)}
             onMove={editing.onMove}
             onResize={editing.onResize}
             renderBlock={renderBlock}
@@ -167,7 +178,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
             date={day}
             blocks={blocks}
             tz={tz}
-            onSelect={setSelected}
+            onSelect={(b) => setSelectedId(b.id)}
             onPrev={() => shiftDay(-1)}
             onNext={() => shiftDay(1)}
             renderBlock={renderBlock}
@@ -178,7 +189,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
         {draft && <DraftPanel draft={draft} weekStart={weekStart} />}
       </div>
       {selected && (
-        <BlockDetails block={selected} tz={tz} onClose={() => setSelected(undefined)} actions={detailsActions?.(selected)} />
+        <BlockDetails block={selected} tz={tz} onClose={() => setSelectedId(undefined)} actions={detailsActions?.(selected)} />
       )}
     </div>
     </MealNamesContext.Provider>

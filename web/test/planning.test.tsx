@@ -166,4 +166,46 @@ describe('planning flow', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: /^Plan / })).not.toBeInTheDocument());
     expect(calls.filter((c) => c.path === '/api/plans/draft')).toHaveLength(1);
   });
+
+  test('ignores a replan-mode draft returned for the week', async () => {
+    api({ 'GET /api/plans/draft': () => ({ ...draft, plan: { ...draft.plan, mode: 'replan' } }) });
+    renderWithProviders(<WeekPage />);
+    await waitFor(() => expect(calls.some((c) => c.path === '/api/plans/draft')).toBe(true));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByRole('button', { name: 'Plan this week' })).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Draft plan' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Draft — review and commit')).not.toBeInTheDocument();
+  });
+
+  test('no Plan button while the draft lookup is loading, nor when it failed', async () => {
+    api();
+    const { unmount } = renderWithProviders(<WeekPage />);
+    await screen.findByText('Week');
+    expect(screen.queryByRole('button', { name: 'Plan this week' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Plan this week' })).toBeInTheDocument();
+    unmount();
+
+    api({ 'GET /api/plans/draft': () => ({ status: 500, body: { error: { code: 'INTERNAL', message: 'boom' } } }) });
+    renderWithProviders(<WeekPage />);
+    await waitFor(() => expect(calls.some((c) => c.path === '/api/plans/draft')).toBe(true));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByRole('button', { name: 'Plan this week' })).not.toBeInTheDocument();
+  });
+
+  test('Add block in a next-week draft defaults to that Monday 09:00', async () => {
+    hasDraft = true;
+    api();
+    renderWithProviders(<WeekPage />);
+    await goNextWeek();
+    await userEvent.click(await screen.findByRole('button', { name: 'Add block' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add block to draft' });
+    await waitFor(() => expect(within(dialog).getByLabelText('Date')).toHaveValue('2026-10-19'));
+    expect(within(dialog).getByLabelText('Start')).toHaveValue('09:00');
+  });
+
+  test('honors ?week= to open that week', async () => {
+    api();
+    renderWithProviders(<WeekPage />, { route: '/week?week=2026-10-19' });
+    expect(await screen.findByText('2026-10-19 – 2026-10-25')).toBeInTheDocument();
+  });
 });

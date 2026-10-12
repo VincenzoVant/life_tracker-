@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Route, Routes } from 'react-router';
+import { Route, Routes, useLocation } from 'react-router';
 import type { ReplanDraft } from '@life-tracker/shared';
 import { useConflicts } from '../src/api/hooks/google';
 import { describe, expect, test } from 'vitest';
@@ -43,11 +43,15 @@ describe('ChangeSummary', () => {
   });
 });
 
+function WeekProbe() {
+  return <p>week page {useLocation().search}</p>;
+}
+
 function replanPage(route = '/replan/p1') {
   return renderWithProviders(
     <Routes>
       <Route path="/replan/:planId" element={<ReplanPage />} />
-      <Route path="/week" element={<p>week page</p>} />
+      <Route path="/week" element={<WeekProbe />} />
       <Route path="/" element={<p>today page</p>} />
     </Routes>,
     { route },
@@ -63,7 +67,7 @@ describe('ReplanPage', () => {
     });
     replanPage();
     await userEvent.click(await screen.findByRole('button', { name: 'Apply' }));
-    expect(await screen.findByText('week page')).toBeInTheDocument();
+    expect(await screen.findByText('week page ?week=2026-10-12')).toBeInTheDocument();
   });
 
   test('409 shows the message and Replan again triggers retry onto the new draft', async () => {

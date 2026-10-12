@@ -22,13 +22,13 @@ function ReplanView({ planId }: { planId: string }) {
   const [stale, setStale] = useState<string>();
   const [nothingToMove, setNothingToMove] = useState(false);
 
-  const fail = (e: unknown) => toast.show(e instanceof Error ? e.message : 'Something went wrong', 'error');
+  const fail = (e: unknown) => toast.showError(e, 'Something went wrong');
   const busy = apply.isPending || keep.isPending || retry.isPending;
 
   async function onApply() {
     try {
-      await apply.mutateAsync(planId);
-      navigate('/week');
+      const { plan } = await apply.mutateAsync(planId);
+      navigate(`/week?week=${plan?.weekStart ?? draft.data?.plan.weekStart ?? ''}`);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) setStale(e.message);
       else fail(e);
