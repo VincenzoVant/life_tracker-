@@ -259,3 +259,20 @@ export const busyEvents = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.calendarId, t.eventId] })],
 );
+
+export const conflicts = sqliteTable(
+  'conflicts',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    calendarId: text('calendar_id').notNull(),
+    externalEventId: text('external_event_id').notNull(),
+    title: text('title').notNull(),
+    start: text('start').notNull(),
+    end: text('end').notNull(),
+    blockIds: text('block_ids').notNull().default('[]'), // JSON string[]
+    status: text('status').notNull(), // open | replanned | dismissed
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [uniqueIndex('conflicts_event_unique').on(t.calendarId, t.externalEventId)],
+);
