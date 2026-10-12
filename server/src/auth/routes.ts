@@ -23,6 +23,24 @@ export function authRoutes(ctx: Ctx, lockout: Lockout): Hono {
     const { token } = createSession(ctx);
     c.header('Set-Cookie', sessionCookie(token, c.req.header('host') ?? ''));
   };
+  // Serialize check -> verify -> record so concurrent attempts cannot all pass check()
+  // before any failure is recorded, and a late success cannot clear an active lock.
+  let chain: Promise<unknown> = Promise.resolve();
+  const serialized = <T>(fn: () => Promise<T>): Promise<T> => {
+    const run = chain.then(fn, fn);
+    chain = run.catch(() => undefined);
+    return run;
+  };
+  const attemptPin = (pin: string): Promise<void> =>
+    serialized(async () => {
+      lockout.check();
+      const stored = pinHash();
+      if (!stored || !(await verifyPin(stored, pin))) {
+        lockout.recordFailure();
+        throw new AppError('UNAUTHORIZED', 'Wrong PIN');
+      }
+      lockout.reset();
+    });
   const body = (c: Context) => c.req.json().catch(() => undefined);
 
   app.get('/status', (c) => {
@@ -40,13 +58,7 @@ export function authRoutes(ctx: Ctx, lockout: Lockout): Hono {
 
   app.post('/login', async (c) => {
     const input = parse(LoginInput, await body(c));
-    lockout.check();
-    const stored = pinHash();
-    if (!stored || !(await verifyPin(stored, input.pin))) {
-      lockout.recordFailure();
-      throw new AppError('UNAUTHORIZED', 'Wrong PIN');
-    }
-    lockout.reset();
+    await attemptPin(input.pin);
     startSession(c);
     return c.json({ pinSet: true, authenticated: true } satisfies AuthStatus);
   });
@@ -61,13 +73,7 @@ export function authRoutes(ctx: Ctx, lockout: Lockout): Hono {
   app.post('/change-pin', async (c) => {
     if (!authenticated(c)) throw new AppError('UNAUTHORIZED', 'Login required');
     const input = parse(ChangePinInput, await body(c));
-    lockout.check();
-    const stored = pinHash();
-    if (!stored || !(await verifyPin(stored, input.currentPin))) {
-      lockout.recordFailure();
-      throw new AppError('UNAUTHORIZED', 'Wrong PIN');
-    }
-    lockout.reset();
+    await attemptPin(input.currentPin);
     setSetting(ctx, 'pin_hash', await hashPin(input.newPin));
     deleteAllSessions(ctx);
     startSession(c);

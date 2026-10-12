@@ -110,3 +110,15 @@ test('change-pin requires session, checks current pin, ends other sessions', asy
   expect((await request(client.app, 'POST', '/api/auth/login', { pin: '1234' })).status).toBe(401);
   expect((await request(client.app, 'POST', '/api/auth/login', { pin: '5678' })).status).toBe(200);
 });
+
+test('concurrent wrong logins cannot bypass the lockout, and a late correct pin gets no session', async () => {
+  const app = createApp(createTestCtx());
+  await request(app, 'POST', '/api/auth/setup', { pin: '1234' });
+  const wrong = Array.from({ length: 20 }, () => request(app, 'POST', '/api/auth/login', { pin: '0000' }));
+  const right = request(app, 'POST', '/api/auth/login', { pin: '1234' });
+  const results = await Promise.all([...wrong, right]);
+  expect(results.slice(0, 20).filter((r) => r.status === 401)).toHaveLength(5);
+  expect(results.slice(0, 20).filter((r) => r.status === 429)).toHaveLength(15);
+  expect(results[20]!.status).toBe(429);
+  expect(results[20]!.headers.get('set-cookie')).toBeNull();
+});
