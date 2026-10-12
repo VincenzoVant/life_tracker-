@@ -32,7 +32,7 @@ describe('BlockForm', () => {
     const onDone = vi.fn();
     renderWithProviders(<BlockForm onDone={onDone} />);
 
-    await user.selectOptions(screen.getByLabelText('Category'), 'study');
+    await user.selectOptions(await screen.findByLabelText('Category'), 'study');
     await user.selectOptions(await screen.findByRole('combobox', { name: 'Course' }), 'c1');
     await fill(user, '19:00', '20:00');
     await user.click(screen.getByRole('button', { name: 'Add block' }));
@@ -62,12 +62,39 @@ describe('BlockForm', () => {
     });
     const onDone = vi.fn();
     renderWithProviders(<BlockForm onDone={onDone} />);
+    await screen.findByLabelText('End');
     await fill(user, '10:00', '11:00');
     await user.click(screen.getByRole('button', { name: 'Add block' }));
 
-    const end = screen.getByLabelText('End');
+    const end = await screen.findByLabelText('End');
     expect(await screen.findByText('End must be after start')).toBeInTheDocument();
     expect(end).toHaveAccessibleDescription('End must be after start');
     expect(onDone).not.toHaveBeenCalled();
+  });
+
+  test('seeds default date/time in the configured timezone once settings load', async () => {
+    mockApi({ 'GET /api/settings': () => ({ timezone: 'Pacific/Kiritimati' }) });
+    renderWithProviders(<BlockForm onDone={vi.fn()} />);
+    // 2026-10-14T19:00Z is 09:00 on 2026-10-15 in UTC+14
+    expect(await screen.findByLabelText('Date')).toHaveValue('2026-10-15');
+    expect(screen.getByLabelText('Start')).toHaveValue('09:00');
+    expect(screen.getByLabelText('End')).toHaveValue('10:00');
+  });
+
+  test('shows server fields without a matching input in the form-level error', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      ...settings,
+      'POST /api/blocks': () => ({
+        status: 400,
+        body: { error: { code: 'VALIDATION', message: 'Invalid', fields: { overlap: 'Overlaps another block', end: 'bad end' } } },
+      }),
+    });
+    renderWithProviders(<BlockForm onDone={vi.fn()} />);
+    await screen.findByLabelText('End');
+    await fill(user, '10:00', '11:00');
+    await user.click(screen.getByRole('button', { name: 'Add block' }));
+    expect(await screen.findByText(/Overlaps another block/)).toBeInTheDocument();
+    expect(screen.getByText('bad end')).toBeInTheDocument();
   });
 });
