@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import {
   ReviewSubmission,
   addDays,
@@ -12,7 +12,7 @@ import {
   type WorkoutDetails,
 } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
-import { blocks, dailyReviews, meals, workoutSessions } from '../../db/schema.js';
+import { blocks, dailyReviews, mealLogs, meals, workoutSessions } from '../../db/schema.js';
 import { AppError } from '../../lib/errors.js';
 import { parse } from '../../lib/validate.js';
 import { createBlock, getBlock, listBlocks, setBlockStatus } from '../blocks/service.js';
@@ -26,19 +26,23 @@ import { deleteSessionForBlock, upsertSessionForBlock } from '../workouts/servic
 
 const REVIEWED = new Set(['done', 'partial', 'skipped']);
 
+/** Unreviewed blocks older than this many days are no longer offered (they count as not reviewed). */
+const PENDING_WINDOW_DAYS = 14;
+
 export function getPendingReview(ctx: Ctx, date: string): PendingReview {
   const { start, end } = dayRangeUtc(date, getTimezone(ctx));
   // A block belongs to the local date its start falls on, so only blocks starting before the day's end count.
   const all = listBlocks(ctx, { from: new Date(0), to: end }).filter((b) => new Date(b.start) < end);
-  const pending = all.filter((b) => b.status === 'committed');
+  const cutoff = dayRangeUtc(addDays(date, -PENDING_WINDOW_DAYS), getTimezone(ctx)).start;
+  const pending = all.filter((b) => b.status === 'committed' && new Date(b.start) >= cutoff);
   const reviewed = all.filter((b) => REVIEWED.has(b.status) && new Date(b.start) >= start);
   const row = ctx.db.select().from(dailyReviews).where(eq(dailyReviews.date, date)).get();
   const tz = getTimezone(ctx);
   const withPlan: PendingBlock[] = pending.map((b) => {
     if (b.category !== 'meal' || !b.mealSlot) return b;
     const plan = getMealPlanEntry(ctx, localDateOf(new Date(b.start), tz), b.mealSlot);
-    const meal = plan && ctx.db.select({ name: meals.name }).from(meals).where(eq(meals.id, plan.mealId)).get();
-    return meal && plan ? { ...b, plannedMeal: { mealId: plan.mealId, name: meal.name, servings: plan.servings } } : b;
+    const meal = plan && ctx.db.select({ name: meals.name, archived: meals.archived }).from(meals).where(eq(meals.id, plan.mealId)).get();
+    return meal && plan && !meal.archived ? { ...b, plannedMeal: { mealId: plan.mealId, name: meal.name, servings: plan.servings } } : b;
   });
   return { date, pending: withPlan, reviewed, completedAt: row?.completedAt ?? null };
 }
@@ -103,11 +107,23 @@ export function submitReview(ctx: Ctx, input: ReviewSubmission): ReviewResult {
         if (e.outcome === 'skipped') deleteSessionForBlock(ctx, block.id);
         else upsertSessionForBlock(ctx, updated, minutes, e.workout ?? existingDetails(ctx, block.id));
       }
+      if (e.outcome === 'skipped' && block.category === 'meal' && block.mealSlot && (block.status === 'done' || block.status === 'partial')) {
+        // Un-eating a meal removes the log an earlier "ate as planned" review created.
+        const date = localDateOf(new Date(block.start), getTimezone(ctx));
+        const plan = getMealPlanEntry(ctx, date, block.mealSlot);
+        if (plan) {
+          ctx.db
+            .delete(mealLogs)
+            .where(and(eq(mealLogs.date, date), eq(mealLogs.slot, block.mealSlot), eq(mealLogs.mealId, plan.mealId)))
+            .run();
+        }
+      }
       if (e.ateAsPlanned && e.outcome !== 'skipped' && block.category === 'meal' && block.mealSlot) {
         const date = localDateOf(new Date(block.start), getTimezone(ctx));
         const plan = getMealPlanEntry(ctx, date, block.mealSlot)!;
+        const planned = ctx.db.select({ archived: meals.archived }).from(meals).where(eq(meals.id, plan.mealId)).get();
         const logged = listMealLogs(ctx, date).some((l) => l.slot === block.mealSlot && l.mealId === plan.mealId);
-        if (!logged) logMeal(ctx, { date, slot: block.mealSlot, mealId: plan.mealId, servings: plan.servings });
+        if (!logged && planned && !planned.archived) logMeal(ctx, { date, slot: block.mealSlot, mealId: plan.mealId, servings: plan.servings });
       }
       if (e.completeStartupTask && e.outcome !== 'skipped' && block.startupTaskId) {
         updateTask(ctx, block.startupTaskId, { status: 'done' });

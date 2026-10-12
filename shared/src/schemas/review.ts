@@ -29,7 +29,7 @@ export type UnplannedEntry = z.infer<typeof UnplannedEntry>;
 
 export const ReviewSubmission = z.object({
   date: localDate,
-  entries: z.array(ReviewEntry).max(200),
+  entries: z.array(ReviewEntry).max(2000),
   unplanned: z.array(UnplannedEntry).max(50).default([]),
 });
 export type ReviewSubmission = z.input<typeof ReviewSubmission>;
