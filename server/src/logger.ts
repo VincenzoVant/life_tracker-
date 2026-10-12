@@ -2,6 +2,9 @@ import { join } from 'node:path';
 import type { MiddlewareHandler } from 'hono';
 import pino from 'pino';
 
+/** Symlink in <dataDir>/logs that always points at the active pino-roll file (server.N.log). */
+export const LOG_CURRENT_PATH_NAME = 'current.log';
+
 export function createLogger(opts: { dataDir: string; toFile: boolean }): pino.Logger {
   if (!opts.toFile) return pino();
   return pino(
@@ -12,6 +15,7 @@ export function createLogger(opts: { dataDir: string; toFile: boolean }): pino.L
         size: '5m',
         limit: { count: 5 },
         mkdir: true,
+        symlink: true,
       },
     }),
   );

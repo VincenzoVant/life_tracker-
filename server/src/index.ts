@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import type { Logger } from 'pino';
 import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
@@ -9,6 +10,14 @@ import { openDb } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
 import { createLogger } from './logger.js';
 import { mountStatic } from './static.js';
+
+function flushThenExit(log: Logger, code: number): void {
+  const timer = setTimeout(() => process.exit(code), 1000);
+  log.flush(() => {
+    clearTimeout(timer);
+    process.exit(code);
+  });
+}
 
 export async function main(): Promise<void> {
   const config = loadConfig(process.env);
@@ -25,6 +34,19 @@ export async function main(): Promise<void> {
 
   const app = createApp(createCtx(handle, config), { log });
   if (config.webDist) mountStatic(app, config.webDist);
+
+  const fatal = (kind: string) => (err: unknown) => {
+    log.fatal({ err }, kind);
+    flushThenExit(log, 1);
+  };
+  process.on('uncaughtException', fatal('uncaughtException'));
+  process.on('unhandledRejection', fatal('unhandledRejection'));
+  for (const sig of ['SIGINT', 'SIGTERM'] as const) {
+    process.on(sig, () => {
+      log.info({ sig }, 'shutting down');
+      flushThenExit(log, 0);
+    });
+  }
 
   serve({ fetch: app.fetch, port: config.port, hostname: '127.0.0.1' }, () => {
     log.info({ port: config.port }, `Life Tracker listening on http://127.0.0.1:${config.port}`);
