@@ -37,6 +37,8 @@ describe('DashboardPage', () => {
   test('renders course rows with actual/planned/goal hours and nutrition dots', async () => {
     mockApi({
       'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
+      'GET /api/streaks': () => ({ reviewDays: 0, workoutWeeks: 0 }),
+      'GET /api/progress/trends': () => [],
       'GET /api/progress/week': (_b, url) => progress(url.searchParams.get('weekStart')!),
     });
     renderWithProviders(<DashboardPage />);
@@ -59,6 +61,8 @@ describe('DashboardPage', () => {
     const weeks: string[] = [];
     mockApi({
       'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
+      'GET /api/streaks': () => ({ reviewDays: 0, workoutWeeks: 0 }),
+      'GET /api/progress/trends': () => [],
       'GET /api/progress/week': (_b, url) => {
         weeks.push(url.searchParams.get('weekStart')!);
         return progress(url.searchParams.get('weekStart')!);

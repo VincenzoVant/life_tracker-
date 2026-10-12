@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useLogout } from '../../api/hooks/auth';
+import { BackupsSection } from './BackupsSection';
 import { ChangePinForm } from './ChangePinForm';
 import { FixedScheduleSection } from './FixedScheduleSection';
 import { GoalsForm } from './GoalsForm';
@@ -38,6 +39,7 @@ const SECTIONS: Array<{ id: string; title: string; render: () => ReactNode }> = 
   { id: 'timezone', title: 'Timezone', render: () => <TimezoneForm /> },
   { id: 'schedule', title: 'Fixed schedule', render: () => <FixedScheduleSection /> },
   { id: 'preferences', title: 'Planner preferences', render: () => <PreferencesSection /> },
+  { id: 'backups', title: 'Backups', render: () => <BackupsSection /> },
   { id: 'security', title: 'Security', render: () => <Security /> },
   { id: 'about', title: 'About', render: () => <About /> },
 ];

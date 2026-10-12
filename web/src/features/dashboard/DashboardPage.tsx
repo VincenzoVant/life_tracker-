@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { CATEGORY_META, WORKOUT_TYPES, addDays, weekStartOf } from '@life-tracker/shared';
 import { useWeekProgress } from '../../api/hooks/progress';
 import { useTimezone } from '../../api/hooks/settings';
+import { StreakTiles } from './StreakTiles';
+import { TrendsSection } from './TrendsSection';
 import { AreaProgressRow, formatCount } from './AreaProgressRow';
 import './dashboard.css';
 
@@ -18,6 +20,7 @@ export function DashboardPage() {
   return (
     <div>
       <h1>Dashboard</h1>
+      <StreakTiles />
       <div className="week-switcher">
         <button type="button" aria-label="Previous week" onClick={() => setWeekStart(addDays(current, -7))}>
           ◀
@@ -75,6 +78,7 @@ export function DashboardPage() {
           </li>
         </ul>
       )}
+      <TrendsSection />
     </div>
   );
 }

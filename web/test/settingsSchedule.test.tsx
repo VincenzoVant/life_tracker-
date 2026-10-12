@@ -26,6 +26,7 @@ const base = {
   }),
   'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
   'GET /api/courses': () => [{ id: 'c1', name: 'Algorithms' }],
+  'GET /api/backups': () => ({ dir: '/b', files: [], lastBackupAt: null, lastError: null }),
   'GET /api/preferences': () => DEFAULT_PREFERENCES,
 };
 

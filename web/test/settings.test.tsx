@@ -20,6 +20,7 @@ const base = {
   'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
   'GET /api/schedule': () => [],
   'GET /api/courses': () => [],
+  'GET /api/backups': () => ({ dir: '/b', files: [], lastBackupAt: null, lastError: null }),
   'GET /api/preferences': () => DEFAULT_PREFERENCES,
 };
 

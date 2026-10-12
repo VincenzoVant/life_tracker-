@@ -16,3 +16,11 @@
 .nutrition-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--border); display: inline-block; }
 .nutrition-dot.ok { background: #2e7d32; }
 .nutrition-dot.bad { background: var(--danger); }
+.streak-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-4); }
+.streak-tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); font-weight: 600; }
+.trends { margin-top: var(--space-5); }
+.trends-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.trends-head h2 { margin: 0; }
+.trends-tabs { display: flex; gap: var(--space-2); }
+.trend-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.sparkline { flex: none; }
