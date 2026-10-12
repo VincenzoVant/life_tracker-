@@ -19,6 +19,7 @@ import { reviewRoutes } from './domains/review/routes.js';
 import { backupRoutes } from './domains/backups/routes.js';
 import { preferencesRoutes } from './domains/preferences/routes.js';
 import { planRoutes } from './domains/plans/routes.js';
+import { calendarRoutes } from './calendar/routes.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
 export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
@@ -48,6 +49,7 @@ export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
   app.route('/api/streaks', streakRoutes(ctx));
   app.route('/api/review', reviewRoutes(ctx));
   app.route('/api/plans', planRoutes(ctx));
+  app.route('/api', calendarRoutes(ctx));
 
   app.notFound((c) => {
     if (c.req.path.startsWith('/api/')) {

@@ -8,6 +8,7 @@ import { loadConfig } from './config.js';
 import { createCtx } from './ctx.js';
 import { openDb } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
+import { runSync } from './calendar/runSync.js';
 import { runBackup } from './domains/backups/service.js';
 import { materializeFixedEvents } from './domains/schedule/materialize.js';
 import { getTimezone } from './domains/settings/service.js';
@@ -45,6 +46,9 @@ export async function main(): Promise<void> {
   });
   scheduler.dailyAt('materialize-fixed', '00:05', () => getTimezone(ctx), () => {
     materializeFixedEvents(ctx);
+  });
+  scheduler.every('google-sync', 5 * 60_000, async () => {
+    await runSync(ctx);
   });
   void scheduler.runNow('materialize-fixed');
   for (const sig of ['SIGINT', 'SIGTERM'] as const) {
