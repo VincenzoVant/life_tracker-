@@ -1,14 +1,14 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt, lt } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import type {
   ApiPlanChange, Block, Plan, PlanSummary, QuickAddInput, QuickAddResult, ReplanDraft,
 } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
-import { plans } from '../../db/schema.js';
+import { blocks, plans } from '../../db/schema.js';
 import { AppError, notFound } from '../../lib/errors.js';
 import { replan, type PlanChangeCore } from '../../planner/replan.js';
 import type { Interval } from '../../planner/types.js';
-import { createBlock, getBlock, setBlockStatus, updateBlock } from '../blocks/service.js';
+import { createBlock, deleteProposedBlocks, getBlock, setBlockStatus, updateBlock } from '../blocks/service.js';
 import { getPreferences } from '../preferences/service.js';
 import { getPlanRow, toApiShortfall, toPlan } from '../plans/service.js';
 import { getTimezone } from '../settings/service.js';
@@ -94,6 +94,23 @@ export function createReplanDraft(
   return toDraft(toPlan(getPlanRow(ctx, id)));
 }
 
+/** A quick-add supersedes any proposed block of an open full-week draft that it overlaps. */
+function dropOverlappedDraftBlocks(ctx: Ctx, block: Block): void {
+  const ids = ctx.db
+    .select({ id: blocks.id })
+    .from(blocks)
+    .innerJoin(plans, eq(blocks.planId, plans.id))
+    .where(
+      and(
+        eq(blocks.status, 'proposed'), eq(plans.mode, 'full'), eq(plans.status, 'draft'),
+        lt(blocks.start, block.end), gt(blocks.end, block.start),
+      ),
+    )
+    .all()
+    .map((r) => r.id);
+  deleteProposedBlocks(ctx, ids);
+}
+
 export function quickAdd(ctx: Ctx, input: QuickAddInput): QuickAddResult {
   const now = ctx.clock.now();
   const { start, end } = resolveQuickAddWhen(input.when, now, getPreferences(ctx), getTimezone(ctx));
@@ -111,6 +128,7 @@ export function quickAdd(ctx: Ctx, input: QuickAddInput): QuickAddResult {
       },
       { source: 'quick_add', status: 'committed', locked: true },
     );
+    dropOverlappedDraftBlocks(ctx, block);
     draft = createReplanDraft(ctx, { trigger: { start, end, title: block.title }, triggerBlockId: block.id });
   });
   return { block, draft };

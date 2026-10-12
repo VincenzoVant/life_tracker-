@@ -6,7 +6,7 @@ import { blocks, plans } from '../../db/schema.js';
 import { AppError, notFound } from '../../lib/errors.js';
 import { planWeek } from '../../planner/index.js';
 import type { Shortfall } from '../../planner/types.js';
-import { createBlock, deleteProposedBlocks, setBlockStatus } from '../blocks/service.js';
+import { createBlock, deleteProposedBlocks, listBlocks, setBlockStatus } from '../blocks/service.js';
 import { buildPlannerInput } from './inputs.js';
 
 type Row = typeof plans.$inferSelect;
@@ -52,6 +52,7 @@ function proposedBlocks(ctx: Ctx, planId: string): Block[] {
 
 function requireDraft(ctx: Ctx, id: string): Row {
   const row = getPlanRow(ctx, id);
+  if (row.mode !== 'full') throw notFound('Plan');
   if (row.status !== 'draft') throw new AppError('CONFLICT', `Plan is already ${row.status}`);
   return row;
 }
@@ -69,7 +70,7 @@ export function createWeekPlan(ctx: Ctx, weekStart: string): PlanDraft {
     const olds = ctx.db
       .select({ id: plans.id })
       .from(plans)
-      .where(and(eq(plans.weekStart, weekStart), eq(plans.status, 'draft')))
+      .where(and(eq(plans.weekStart, weekStart), eq(plans.status, 'draft'), eq(plans.mode, 'full')))
       .all();
     for (const old of olds) discardRow(ctx, old.id);
     const summary: PlanSummary = { shortfalls: out.shortfalls.map(toApiShortfall), reservedEvenings: out.reservedEvenings };
@@ -101,7 +102,7 @@ export function getDraft(ctx: Ctx, weekStart: string): PlanDraft | null {
   const row = ctx.db
     .select()
     .from(plans)
-    .where(and(eq(plans.weekStart, weekStart), eq(plans.status, 'draft')))
+    .where(and(eq(plans.weekStart, weekStart), eq(plans.status, 'draft'), eq(plans.mode, 'full')))
     .orderBy(desc(plans.createdAt), desc(plans.id))
     .get();
   return row ? { plan: toPlan(row), blocks: proposedBlocks(ctx, row.id) } : null;
@@ -112,13 +113,38 @@ export function addDraftBlock(ctx: Ctx, planId: string, input: BlockCreateInput)
   return createBlock(ctx, input, { status: 'proposed', source: 'manual', planId });
 }
 
-export function commitPlan(ctx: Ctx, planId: string): Plan {
-  requireDraft(ctx, planId);
+const LIVE_STATUSES = new Set(['committed', 'done', 'partial', 'skipped']);
+
+/** Commits a full-week draft, dropping proposed blocks that are now in the past or collide with newer commitments. */
+export function commitPlan(ctx: Ctx, planId: string): Plan & { skipped: number } {
+  const row = requireDraft(ctx, planId);
+  let skipped = 0;
   ctx.db.transaction(() => {
-    for (const b of proposedBlocks(ctx, planId)) setBlockStatus(ctx, b.id, 'committed');
-    ctx.db.update(plans).set({ status: 'applied' }).where(eq(plans.id, planId)).run();
+    const now = ctx.clock.now().getTime();
+    const proposed = proposedBlocks(ctx, planId);
+    const from = new Date(Math.min(...proposed.map((b) => new Date(b.start).getTime()), now));
+    const to = new Date(Math.max(...proposed.map((b) => new Date(b.end).getTime()), now));
+    const live = proposed.length
+      ? listBlocks(ctx, { from, to })
+          .filter((b) => LIVE_STATUSES.has(b.status))
+          .map((b) => ({ start: new Date(b.start).getTime(), end: new Date(b.end).getTime() }))
+      : [];
+    const busy = proposed.length
+      ? ctx.busy.busyIntervals(from, to).map((i) => ({ start: new Date(i.start).getTime(), end: new Date(i.end).getTime() }))
+      : [];
+    const obstacles = [...live, ...busy];
+    const drop: string[] = [];
+    for (const b of proposed) {
+      const s = new Date(b.start).getTime();
+      const e = new Date(b.end).getTime();
+      if (s < now || obstacles.some((o) => o.start < e && o.end > s)) drop.push(b.id);
+      else setBlockStatus(ctx, b.id, 'committed');
+    }
+    skipped = drop.length;
+    deleteProposedBlocks(ctx, drop);
+    ctx.db.update(plans).set({ status: 'applied' }).where(eq(plans.id, row.id)).run();
   });
-  return toPlan(getPlanRow(ctx, planId));
+  return { ...toPlan(getPlanRow(ctx, planId)), skipped };
 }
 
 export function discardPlan(ctx: Ctx, planId: string): Plan {
