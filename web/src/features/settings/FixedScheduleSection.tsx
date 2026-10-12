@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
-import { addDays, type FixedEvent } from '@life-tracker/shared';
+import { useEffect, useState, type FormEvent } from 'react';
+import { addDays, localDateOf, type FixedEvent } from '@life-tracker/shared';
 import { ApiError } from '../../api/client';
 import { useCourses } from '../../api/hooks/courses';
+import { useTimezone } from '../../api/hooks/settings';
 import { useDeleteFixedEvent, useFixedEvents, useSaveFixedEvent } from '../../api/hooks/schedule';
 import { Field } from '../../components/Field';
 import { useToast } from '../../components/Toast';
@@ -20,8 +21,8 @@ interface Draft {
   validTo: string;
 }
 
-function emptyDraft(): Draft {
-  const today = new Date().toLocaleDateString('en-CA');
+function emptyDraft(tz: string): Draft {
+  const today = localDateOf(new Date(), tz);
   return { kind: 'class', title: '', courseId: '', weekday: 1, startTime: '09:00', endTime: '10:00', validFrom: today, validTo: addDays(today, 120) };
 }
 
@@ -31,7 +32,12 @@ export function FixedScheduleSection() {
   const save = useSaveFixedEvent();
   const del = useDeleteFixedEvent();
   const toast = useToast();
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const tz = useTimezone();
+  const [draft, setDraft] = useState<Draft>(() => emptyDraft(tz));
+  // Settings load after first render: re-derive the default dates for the configured timezone while the form is untouched.
+  useEffect(() => {
+    setDraft((d) => (d.id === undefined && d.title === '' ? { ...d, validFrom: emptyDraft(tz).validFrom, validTo: emptyDraft(tz).validTo } : d));
+  }, [tz]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
   const courseName = (id: string | null) => courses.data?.find((c) => c.id === id)?.name ?? null;
@@ -46,7 +52,7 @@ export function FixedScheduleSection() {
     const { id, courseId, ...rest } = draft;
     try {
       await save.mutateAsync({ id, ...rest, courseId: draft.kind === 'class' ? courseId : null, active: true } as Parameters<typeof save.mutateAsync>[0]);
-      setDraft(emptyDraft());
+      setDraft(emptyDraft(tz));
       toast.show(id ? 'Fixed event updated' : 'Fixed event added');
     } catch (err) {
       if (err instanceof ApiError && err.fields) setErrors(err.fields);
@@ -140,7 +146,7 @@ export function FixedScheduleSection() {
           {draft.id ? 'Save changes' : 'Add to schedule'}
         </button>
         {draft.id && (
-          <button type="button" onClick={() => { setDraft(emptyDraft()); setErrors({}); }}>
+          <button type="button" onClick={() => { setDraft(emptyDraft(tz)); setErrors({}); }}>
             Cancel edit
           </button>
         )}

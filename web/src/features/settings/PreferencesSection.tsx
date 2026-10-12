@@ -9,9 +9,9 @@ import { Field } from '../../components/Field';
 import { useToast } from '../../components/Toast';
 import { WEEKDAYS } from './FixedScheduleSection';
 
-function DayChips({ label, days, onChange }: { label: string; days: Weekday[]; onChange: (d: Weekday[]) => void }) {
+function DayChips({ label, days, onChange, error }: { label: string; days: Weekday[]; onChange: (d: Weekday[]) => void; error?: string }) {
   return (
-    <div className="day-chips" role="group" aria-label={label}>
+    <div className="day-chips" role="group" aria-label={label} aria-invalid={error ? true : undefined}>
       {WEEKDAYS.map((name, i) => {
         const d = (i + 1) as Weekday;
         const on = days.includes(d);
@@ -28,6 +28,11 @@ function DayChips({ label, days, onChange }: { label: string; days: Weekday[]; o
           </button>
         );
       })}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -40,7 +45,7 @@ export function TimeWindowEditor({ label, windows, onChange, errors }: { label: 
       <h4>{label}s</h4>
       {windows.map((w, i) => (
         <div key={i} className="window-row">
-          <DayChips label={`${label} ${i + 1} days`} days={w.days} onChange={(days) => update(i, { days })} />
+          <DayChips label={`${label} ${i + 1} days`} days={w.days} onChange={(days) => update(i, { days })} error={errors[`${i}.days`]} />
           <Field label={`${label} ${i + 1} start`} error={errors[`${i}.start`]}>
             <input type="time" value={w.start} onChange={(e) => update(i, { start: e.target.value })} />
           </Field>
@@ -72,11 +77,30 @@ function sub(errors: Record<string, string>, prefix: string): Record<string, str
   return out;
 }
 
+const RENDERED_KEYS = new Set([
+  'sleep.start', 'sleep.end', 'earliestBlock', 'latestBlockEnd', 'bufferMinutes',
+  'maxPlannedMinutesPerDay', 'maxStudyMinutesPerDay', 'maxMinutesPerCoursePerDay',
+  'studyBlock.min', 'studyBlock.max', 'startupBlock.min', 'startupBlock.max',
+  'workoutDurations.gym', 'workoutDurations.cardio', 'workoutDurations.sport',
+  'allowedWorkoutDays', 'minHoursBetweenGym', 'mealFlexMinutes',
+  'mealPrep.day', 'mealPrep.preferredStart', 'mealPrep.minutes',
+  'eveningStart', 'protectedEvenings', 'reviewPromptTime',
+  ...(['breakfast', 'lunch', 'dinner'] as const).flatMap((m) => [`meals.${m}.time`, `meals.${m}.minutes`]),
+]);
+
+/** True when the error key is shown next to a rendered control (a Field, or the error line of a day-chip group). */
+function isRendered(key: string): boolean {
+  return RENDERED_KEYS.has(key) || /^preferred(Startup|Workout)Windows\.\d+\.(start|end|days)$/.test(key);
+}
+
 function PreferencesForm({ initial }: { initial: Preferences }) {
   const [p, setP] = useState<Preferences>(() => structuredClone(initial));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const save = useSavePreferences();
   const toast = useToast();
+  // Raw text of numeric inputs, so a cleared input stays empty instead of becoming 0.
+  const [raw, setRaw] = useState<Record<string, string>>({});
+  const unmatched = Object.entries(errors).filter(([k]) => !isRendered(k));
   const patch = (x: Partial<Preferences>) => setP((cur) => ({ ...cur, ...x }));
 
   const time = (label: string, key: string, value: string, set: (v: string) => void) => (
@@ -86,7 +110,19 @@ function PreferencesForm({ initial }: { initial: Preferences }) {
   );
   const num = (label: string, key: string, value: number, set: (v: number) => void, step = '1'): ReactElement => (
     <Field label={label} error={errors[key]}>
-      <input type="number" inputMode="decimal" min={0} step={step} value={value} onChange={(e) => set(Number(e.target.value))} />
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step={step}
+        value={raw[key] ?? String(value)}
+        onChange={(e) => {
+          const text = e.target.value;
+          setRaw((r) => ({ ...r, [key]: text }));
+          // NaN serialises to null, which the server rejects with a field error rather than saving 0.
+          set(text.trim() === '' ? Number.NaN : Number(text));
+        }}
+      />
     </Field>
   );
 
@@ -142,7 +178,7 @@ function PreferencesForm({ initial }: { initial: Preferences }) {
         {num('Sport duration (min)', 'workoutDurations.sport', p.workoutDurations.sport, (v) => patch({ workoutDurations: { ...p.workoutDurations, sport: v } }))}
         <TimeWindowEditor label="Workout window" windows={p.preferredWorkoutWindows} onChange={(w) => patch({ preferredWorkoutWindows: w })} errors={sub(errors, 'preferredWorkoutWindows')} />
         <h4>Allowed workout days</h4>
-        <DayChips label="Allowed workout days" days={p.allowedWorkoutDays} onChange={(d) => patch({ allowedWorkoutDays: d })} />
+        <DayChips label="Allowed workout days" days={p.allowedWorkoutDays} error={errors.allowedWorkoutDays} onChange={(d) => patch({ allowedWorkoutDays: d })} />
         {num('Hours between gym sessions', 'minHoursBetweenGym', p.minHoursBetweenGym, (v) => patch({ minHoursBetweenGym: v }))}
       </fieldset>
       <fieldset>
@@ -171,7 +207,7 @@ function PreferencesForm({ initial }: { initial: Preferences }) {
         <legend>Evenings</legend>
         {time('Evening start', 'eveningStart', p.eveningStart, (v) => patch({ eveningStart: v }))}
         <h4>Protected evenings</h4>
-        <DayChips label="Protected evenings" days={p.protectedEvenings} onChange={(d) => patch({ protectedEvenings: d })} />
+        <DayChips label="Protected evenings" days={p.protectedEvenings} error={errors.protectedEvenings} onChange={(d) => patch({ protectedEvenings: d })} />
       </fieldset>
       <fieldset>
         <legend>Review</legend>
@@ -181,6 +217,15 @@ function PreferencesForm({ initial }: { initial: Preferences }) {
           Classes count toward study
         </label>
       </fieldset>
+      {unmatched.length > 0 && (
+        <ul className="error" role="alert" aria-label="Other problems">
+          {unmatched.map(([k, v]) => (
+            <li key={k}>
+              {k}: {v}
+            </li>
+          ))}
+        </ul>
+      )}
       <button className="primary" type="submit" disabled={save.isPending}>
         Save preferences
       </button>
