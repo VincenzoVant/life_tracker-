@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { MealLibrary } from './MealLibrary';
 import { MealLogDay } from './MealLogDay';
+import { MealPlanTab } from './MealPlanTab';
 import './food.css';
 
 interface FoodTab {
@@ -9,10 +10,10 @@ interface FoodTab {
   render: () => ReactNode;
 }
 
-// Stage 2 adds a { key: 'plan', label: 'Plan', render: ... } entry here.
 const TABS: FoodTab[] = [
   { key: 'log', label: 'Log', render: () => <MealLogDay /> },
   { key: 'library', label: 'Library', render: () => <MealLibrary /> },
+  { key: 'plan', label: 'Plan', render: () => <MealPlanTab /> },
 ];
 
 export function FoodPage() {

@@ -29,6 +29,7 @@ function api() {
     'GET /api/preferences': () => DEFAULT_PREFERENCES,
     'GET /api/blocks': () => blocks,
     'GET /api/plans/draft': () => null,
+    'GET /api/meal-plan': () => [],
     'DELETE /api/blocks/lec': () => block({ id: 'lec', status: 'removed' }),
   }));
 }

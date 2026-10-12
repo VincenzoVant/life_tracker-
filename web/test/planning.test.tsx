@@ -50,6 +50,7 @@ function api(extra: Record<string, Handler> = {}) {
     'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
     'GET /api/preferences': () => DEFAULT_PREFERENCES,
     'GET /api/blocks': () => (hasDraft ? [proposed()] : []),
+    'GET /api/meal-plan': () => [],
     'GET /api/plans/draft': () => (hasDraft ? draft : null),
     'GET /api/progress/week': (_b, url) => {
       progressUrls.push(url.search);
