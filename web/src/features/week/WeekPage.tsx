@@ -15,6 +15,7 @@ import { useSettings, useTimezone } from '../../api/hooks/settings';
 import { BlockDetails } from './BlockDetails';
 import { DayView } from './DayView';
 import { WeekGrid } from './WeekGrid';
+import { useBlockEditing } from './useBlockEditing';
 import './week.css';
 
 export const WIDE_BREAKPOINT = 768;
@@ -53,6 +54,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
   const [day, setDay] = useState(today);
   const [selected, setSelected] = useState<Block>();
   const prefs = usePreferences().data ?? DEFAULT_PREFERENCES;
+  const editing = useBlockEditing(tz);
 
   const range = useMemo(() => {
     const r = weekRangeUtc(weekStart, tz);
@@ -107,7 +109,16 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
       {!isPending &&
         !isError &&
         (wide ? (
-          <WeekGrid dates={dates} blocks={blocks} prefs={prefs} tz={tz} onSelect={setSelected} renderBlock={renderBlock} />
+          <WeekGrid
+            dates={dates}
+            blocks={blocks}
+            prefs={prefs}
+            tz={tz}
+            onSelect={setSelected}
+            onMove={editing.onMove}
+            onResize={editing.onResize}
+            renderBlock={renderBlock}
+          />
         ) : (
           <DayView
             date={day}

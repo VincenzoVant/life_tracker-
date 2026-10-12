@@ -15,3 +15,17 @@
 .day-view-nav { display: flex; align-items: center; justify-content: space-between; }
 .block-details { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); }
 .block-details dd { margin: 0; }
+.block-card-resize { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; touch-action: none; background: rgba(255, 255, 255, 0.35); }
+.block-card.is-dragging { opacity: 0.8; z-index: 5; }
+.week-col.is-over { background-color: rgba(127, 127, 127, 0.12); }
+.week-body { display: flex; gap: var(--space-3); align-items: flex-start; }
+.week-main { flex: 1; min-width: 0; }
+.draft-panel { width: 300px; flex: none; box-sizing: border-box; padding: var(--space-3); border: 1px solid var(--border); border-radius: 8px; background: var(--surface, transparent); }
+.draft-panel h2 { margin-top: 0; font-size: 1.1rem; }
+.draft-panel ul { padding-left: var(--space-4, 1rem); }
+.draft-panel .form-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.draft-banner { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-2) 0; }
+@media (max-width: 767px) {
+  .week-body { display: block; }
+  .draft-panel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; width: auto; max-height: 60vh; overflow-y: auto; border-radius: 12px 12px 0 0; background: var(--bg, #fff); }
+}
