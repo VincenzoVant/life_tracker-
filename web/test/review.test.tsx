@@ -158,4 +158,46 @@ describe('ReviewPage', () => {
       unplanned: [{ category: 'other', title: 'Walk', start: '2026-10-14T19:00:00.000Z', end: '2026-10-14T20:00:00.000Z' }],
     }));
   });
+
+  test('renders any entries.N.* server error on the row', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      'GET /api/settings': settings,
+      'GET /api/review': () => ({ date: '2026-10-14', pending: [block({ id: 'b1' })], reviewed: [], completedAt: null }),
+      'POST /api/review': () => ({
+        status: 400,
+        body: { error: { code: 'VALIDATION', message: 'Invalid', fields: { 'entries.0.blockId': 'Block not found', 'entries.0.workout': 'Bad workout' } } },
+      }),
+    });
+    renderWithProviders(<ReviewPage />);
+    const row = await screen.findByRole('group', { name: 'b1' });
+    await user.click(within(row).getByRole('button', { name: /done/i }));
+    await user.click(screen.getByRole('button', { name: 'Submit review' }));
+    expect(await within(row).findByText('Block not found')).toBeInTheDocument();
+    expect(within(row).getByText('Bad workout')).toBeInTheDocument();
+  });
+
+  test('re-editing a reviewed workout row only sends workout when its fields were edited', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({
+      'GET /api/settings': settings,
+      'GET /api/review': () => ({
+        date: '2026-10-14',
+        pending: [],
+        reviewed: [block({ id: 'run', category: 'workout', workoutType: 'cardio', status: 'done' })],
+        completedAt: null,
+      }),
+      'POST /api/review': () => ({ date: '2026-10-14', progress }),
+    });
+    renderWithProviders(<ReviewPage />);
+    const run = await screen.findByRole('group', { name: 'run' });
+    await user.click(within(run).getByRole('button', { name: /partly/i }));
+    await user.click(screen.getByRole('button', { name: 'Submit review' }));
+    await waitFor(() => expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1));
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+      date: '2026-10-14',
+      entries: [{ blockId: 'run', outcome: 'partial', actualMinutes: 30 }],
+      unplanned: [],
+    });
+  });
 });

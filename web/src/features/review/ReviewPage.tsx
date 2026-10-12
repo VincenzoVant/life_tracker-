@@ -74,7 +74,7 @@ export function ReviewPage() {
       const v = rows[b.id]!;
       const entry: ReviewEntry = { blockId: b.id, outcome: v.outcome };
       if (v.outcome === 'partial') entry.actualMinutes = Number(v.minutes);
-      if (b.category === 'workout' && v.outcome !== 'skipped') {
+      if (b.category === 'workout' && v.outcome !== 'skipped' && v.workoutEdited) {
         const w = toWorkoutDetails(b.workoutType, v.workout);
         if (w) entry.workout = w;
       }
@@ -103,6 +103,10 @@ export function ReviewPage() {
     Object.entries(fieldErrors)
       .filter(([k]) => k.startsWith(`unplanned.${i}.`) || k === `unplanned.${i}`)
       .map(([, m]) => m);
+  const rowErrors = (idx: number) => {
+    const prefix = `entries.${idx}.`;
+    return Object.fromEntries(Object.entries(fieldErrors).filter(([k]) => k.startsWith(prefix)).map(([k, m]) => [k.slice(prefix.length), m]));
+  };
   const otherErrors = Object.entries(fieldErrors).filter(([k]) => !/^(entries|unplanned)\.\d+/.test(k));
 
   return (
@@ -125,7 +129,7 @@ export function ReviewPage() {
             <ul className="review-list">
               {pending.map((b) => {
                 const idx = entryBlocks.indexOf(b);
-                return <ReviewRow key={b.id} block={b} tz={tz} value={valueFor(b.id, b, false)} error={fieldErrors[`entries.${idx}.actualMinutes`]} onChange={(v) => setRow(b.id, v)} />;
+                return <ReviewRow key={b.id} block={b} tz={tz} value={valueFor(b.id, b, false)} errors={rowErrors(idx)} onChange={(v) => setRow(b.id, v)} />;
               })}
             </ul>
           )}
@@ -172,7 +176,7 @@ export function ReviewPage() {
               <ul className="review-list">
                 {reviewed.map((b) => {
                   const idx = entryBlocks.indexOf(b);
-                  return <ReviewRow key={b.id} block={b} tz={tz} value={valueFor(b.id, b, true)} error={fieldErrors[`entries.${idx}.actualMinutes`]} onChange={(v) => setRow(b.id, v)} />;
+                  return <ReviewRow key={b.id} block={b} tz={tz} value={valueFor(b.id, b, true)} errors={rowErrors(idx)} onChange={(v) => setRow(b.id, v)} />;
                 })}
               </ul>
             </>
