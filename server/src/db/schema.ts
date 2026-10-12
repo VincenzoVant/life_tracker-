@@ -190,3 +190,17 @@ export const calendarState = sqliteTable('calendar_state', {
   lastError: text('last_error'),
   calendarMissing: integer('calendar_missing', { mode: 'boolean' }).notNull().default(false),
 });
+
+export const syncQueue = sqliteTable('sync_queue', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  blockId: text('block_id')
+    .notNull()
+    .unique()
+    .references(() => blocks.id, { onDelete: 'cascade' }),
+  op: text('op').notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  nextAttemptAt: text('next_attempt_at').notNull(),
+  lastError: text('last_error'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
