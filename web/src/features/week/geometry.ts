@@ -1,4 +1,37 @@
-import { zonedToUtc, type Block, type Preferences } from '@life-tracker/shared';
+import { addDays, localDateOf, localTimeOf, zonedToUtc, type Block, type Preferences } from '@life-tracker/shared';
+
+export const MIN_BLOCK_MINUTES = 15;
+
+export function canDrag(block: Pick<Block, 'locked' | 'status'>): boolean {
+  return !block.locked && (block.status === 'proposed' || block.status === 'committed');
+}
+
+/**
+ * Shifts a block by whole days and minutes, keeping its duration. With `tz`, a day shift keeps the local clock
+ * time (so it survives a DST change); without it a day is 24 hours.
+ */
+export function applyMove(
+  block: Pick<Block, 'start' | 'end'>,
+  deltaMinutes: number,
+  dayDelta: number,
+  tz?: string,
+): { start: string; end: string } {
+  const oldStart = new Date(block.start);
+  const duration = new Date(block.end).getTime() - oldStart.getTime();
+  let dayStart = oldStart.getTime() + dayDelta * 86_400_000;
+  if (tz && dayDelta !== 0) {
+    dayStart = zonedToUtc(addDays(localDateOf(oldStart, tz), dayDelta), localTimeOf(oldStart, tz), tz).getTime();
+  }
+  const start = dayStart + deltaMinutes * 60_000;
+  return { start: new Date(start).toISOString(), end: new Date(start + duration).toISOString() };
+}
+
+/** Moves the end by `deltaMinutes`. Returns null when the block would become shorter than 15 minutes. */
+export function applyResize(block: Pick<Block, 'start' | 'end'>, deltaMinutes: number): { start: string; end: string } | null {
+  const end = new Date(block.end).getTime() + deltaMinutes * 60_000;
+  if (end - new Date(block.start).getTime() < MIN_BLOCK_MINUTES * 60_000) return null;
+  return { start: block.start, end: new Date(end).toISOString() };
+}
 
 export const PX_PER_HOUR = 48;
 

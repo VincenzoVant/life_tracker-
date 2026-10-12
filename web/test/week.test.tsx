@@ -28,6 +28,7 @@ function api() {
     'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
     'GET /api/preferences': () => DEFAULT_PREFERENCES,
     'GET /api/blocks': () => blocks,
+    'GET /api/plans/draft': () => null,
     'DELETE /api/blocks/lec': () => block({ id: 'lec', status: 'removed' }),
   }));
 }

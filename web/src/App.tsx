@@ -24,6 +24,7 @@ function Placeholder({ title }: { title: string }) {
 // Single routes list: later tasks replace the placeholder elements (and Stage 2 adds '/week').
 export const routes: Array<{ path: string; element: ReactElement }> = [
   { path: "/", element: <TodayPage /> },
+  { path: "/week", element: <WeekPage /> },
   { path: "/review", element: <ReviewPage /> },
   { path: "/areas", element: <AreasPage /> },
   { path: "/areas/studies", element: <StudiesPage /> },

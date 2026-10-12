@@ -11,8 +11,9 @@ export const qk = {
   liftHistory: (liftId: string) => ['workouts', 'lift', liftId] as const,
   meals: (includeArchived: boolean) => ['food', 'meals', includeArchived] as const,
   mealLogs: (date: string) => ['food', 'logs', date] as const,
+  planDraft: (weekStart: string) => ['plans', 'draft', weekStart] as const,
   goals: () => ['goals'] as const,
   preferences: () => ['preferences'] as const,
 } as const;
 
-export type QueryFamily = 'blocks' | 'progress' | 'review' | 'courses' | 'startup' | 'workouts' | 'food' | 'goals' | 'preferences';
+export type QueryFamily = 'blocks' | 'progress' | 'review' | 'courses' | 'startup' | 'workouts' | 'food' | 'goals' | 'preferences' | 'plans';

@@ -1,8 +1,9 @@
-import type { Block, Preferences } from '@life-tracker/shared';
-import type { ReactNode } from 'react';
+import { DndContext, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { localDateOf, type Block, type Preferences } from '@life-tracker/shared';
+import type { CSSProperties, ReactNode } from 'react';
 import { BlockCard } from './BlockCard';
 import { blocksOnDate, dayLabel } from './days';
-import { PX_PER_HOUR, blockHeight, blockTop, gridHours, layoutOverlaps } from './geometry';
+import { PX_PER_HOUR, blockHeight, blockTop, canDrag, gridHours, layoutOverlaps, minutesFromPixels } from './geometry';
 
 export interface WeekGridProps {
   dates: string[];
@@ -10,70 +11,154 @@ export interface WeekGridProps {
   prefs: Pick<Preferences, 'earliestBlock' | 'latestBlockEnd'>;
   tz: string;
   onSelect: (block: Block) => void;
-  /** Lets Task 13 wrap a card with drag/resize behaviour. Receives the default card. */
+  /** Drag a card: vertical distance as minutes (snapped to 15) and the number of day columns crossed. */
+  onMove?: (block: Block, deltaMinutes: number, dayDelta: number) => void;
+  /** Drag a card's bottom handle: change of the end time in minutes. */
+  onResize?: (block: Block, deltaMinutes: number) => void;
+  /** Lets other features wrap a card. Receives the default card. */
   renderBlock?: (block: Block, card: ReactNode, ctx: { date: string }) => ReactNode;
 }
 
+/** The subset of dnd-kit's DragEndEvent that the handler reads. */
+export interface DragEndLike {
+  active: { id: string | number; data?: { current?: { date?: string } } };
+  delta: { x?: number; y: number };
+  over: { id: string | number } | null;
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000);
+}
+
+/** Turns a finished drag into `onMove(block, deltaMinutes, dayDelta)`. Ignores drops outside a day column and undraggable blocks. */
+export function handleDragEnd(
+  event: DragEndLike,
+  blocks: Block[],
+  onMove: (block: Block, deltaMinutes: number, dayDelta: number) => void,
+  tz = 'UTC',
+): void {
+  const { active, delta, over } = event;
+  if (!over) return;
+  const block = blocks.find((b) => b.id === active.id);
+  if (!block || !canDrag(block)) return;
+  const from = active.data?.current?.date ?? localDateOf(new Date(block.start), tz);
+  const dayDelta = daysBetween(from, String(over.id));
+  const deltaMinutes = minutesFromPixels(delta.y);
+  if (deltaMinutes === 0 && dayDelta === 0) return;
+  onMove(block, deltaMinutes, dayDelta);
+}
+
+function DayColumn({ date, height, from, children }: { date: string; height: number; from: number; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: date });
+  return (
+    <div
+      ref={setNodeRef}
+      className={isOver ? 'week-col is-over' : 'week-col'}
+      role="group"
+      aria-label={`Day ${date}`}
+      data-date={date}
+      data-px-per-hour={PX_PER_HOUR}
+      data-grid-from={from}
+      style={{ height }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function DraggableCard({
+  block,
+  date,
+  tz,
+  onSelect,
+  onResize,
+  style,
+}: {
+  block: Block;
+  date: string;
+  tz: string;
+  onSelect: (block: Block) => void;
+  onResize?: (block: Block, deltaMinutes: number) => void;
+  style: CSSProperties;
+}) {
+  const draggable = canDrag(block);
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: block.id,
+    data: { date },
+    disabled: !draggable,
+  });
+  return (
+    <BlockCard
+      block={block}
+      tz={tz}
+      onSelect={onSelect}
+      cardRef={setNodeRef}
+      onResize={draggable ? onResize : undefined}
+      className={isDragging ? 'is-dragging' : undefined}
+      {...(draggable ? attributes : {})}
+      {...(draggable ? listeners : {})}
+      style={{
+        ...style,
+        ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : {}),
+      }}
+    />
+  );
+}
+
 /** Seven day columns with an hour gutter. Each column carries `data-date`, `data-px-per-hour` and `data-grid-from` for hit-testing. */
-export function WeekGrid({ dates, blocks, prefs, tz, onSelect, renderBlock }: WeekGridProps) {
+export function WeekGrid({ dates, blocks, prefs, tz, onSelect, onMove, onResize, renderBlock }: WeekGridProps) {
   const hours = gridHours(prefs);
   const height = (hours.to - hours.from) * PX_PER_HOUR;
   const labels = Array.from({ length: hours.to - hours.from }, (_, i) => hours.from + i);
+  // A small activation distance keeps a plain click opening the details dialog.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   return (
-    <div className="week-grid" role="group" aria-label="Week grid">
-      <div className="week-grid-head">
-        <div className="week-gutter" />
-        {dates.map((d) => (
-          <div key={d} className="week-colhead">
-            {dayLabel(d)}
-          </div>
-        ))}
-      </div>
-      <div className="week-grid-body">
-        <div className="week-gutter" style={{ height }}>
-          {labels.map((h) => (
-            <div key={h} className="week-hour-label" style={{ height: PX_PER_HOUR }}>
-              {String(h).padStart(2, '0')}:00
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragEnd={(e) => onMove && handleDragEnd(e, blocks, onMove, tz)}
+    >
+      <div className="week-grid" role="group" aria-label="Week grid">
+        <div className="week-grid-head">
+          <div className="week-gutter" />
+          {dates.map((d) => (
+            <div key={d} className="week-colhead">
+              {dayLabel(d)}
             </div>
           ))}
         </div>
-        {dates.map((date) => {
-          const dayBlocks = blocksOnDate(blocks, date, tz);
-          const layout = layoutOverlaps(dayBlocks);
-          return (
-            <div
-              key={date}
-              className="week-col"
-              role="group"
-              aria-label={`Day ${date}`}
-              data-date={date}
-              data-px-per-hour={PX_PER_HOUR}
-              data-grid-from={hours.from}
-              style={{ height }}
-            >
-              {dayBlocks.map((b) => {
-                const l = layout.get(b.id) ?? { col: 0, cols: 1 };
-                const card = (
-                  <BlockCard
-                    key={b.id}
-                    block={b}
-                    tz={tz}
-                    onSelect={onSelect}
-                    style={{
-                      position: 'absolute',
-                      top: blockTop(b, date, tz, hours),
-                      height: blockHeight(b),
-                      left: `${(l.col / l.cols) * 100}%`,
-                      width: `${100 / l.cols}%`,
-                    }}
-                  />
-                );
-                return renderBlock ? <span key={b.id}>{renderBlock(b, card, { date })}</span> : card;
-              })}
-            </div>
-          );
-        })}
+        <div className="week-grid-body">
+          <div className="week-gutter" style={{ height }}>
+            {labels.map((h) => (
+              <div key={h} className="week-hour-label" style={{ height: PX_PER_HOUR }}>
+                {String(h).padStart(2, '0')}:00
+              </div>
+            ))}
+          </div>
+          {dates.map((date) => {
+            const dayBlocks = blocksOnDate(blocks, date, tz);
+            const layout = layoutOverlaps(dayBlocks);
+            return (
+              <DayColumn key={date} date={date} height={height} from={hours.from}>
+                {dayBlocks.map((b) => {
+                  const l = layout.get(b.id) ?? { col: 0, cols: 1 };
+                  const style = {
+                    position: 'absolute' as const,
+                    top: blockTop(b, date, tz, hours),
+                    height: blockHeight(b),
+                    left: `${(l.col / l.cols) * 100}%`,
+                    width: `${100 / l.cols}%`,
+                  };
+                  const card = (
+                    <DraggableCard key={b.id} block={b} date={date} tz={tz} onSelect={onSelect} onResize={onResize} style={style} />
+                  );
+                  return renderBlock ? <span key={b.id}>{renderBlock(b, card, { date })}</span> : card;
+                })}
+              </DayColumn>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </DndContext>
   );
 }

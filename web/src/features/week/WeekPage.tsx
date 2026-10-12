@@ -12,9 +12,12 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useBlocks } from '../../api/hooks/blocks';
 import { usePreferences } from '../../api/hooks/preferences';
 import { useSettings, useTimezone } from '../../api/hooks/settings';
+import { useDraft } from '../../api/hooks/plans';
 import { BlockDetails } from './BlockDetails';
+import { DraftPanel, PlanBar } from './DraftPanel';
 import { DayView } from './DayView';
 import { WeekGrid } from './WeekGrid';
+import { useBlockEditing } from './useBlockEditing';
 import './week.css';
 
 export const WIDE_BREAKPOINT = 768;
@@ -53,6 +56,10 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
   const [day, setDay] = useState(today);
   const [selected, setSelected] = useState<Block>();
   const prefs = usePreferences().data ?? DEFAULT_PREFERENCES;
+  const editing = useBlockEditing(tz);
+  const thisWeek = weekStartOf(new Date(), tz);
+  // Past weeks cannot be planned, so they have no draft to look up.
+  const draft = useDraft(weekStart, { enabled: weekStart >= thisWeek }).data ?? undefined;
 
   const range = useMemo(() => {
     const r = weekRangeUtc(weekStart, tz);
@@ -97,7 +104,10 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
           </button>
         </div>
       </div>
+      <PlanBar weekStart={weekStart} thisWeek={thisWeek} hasDraft={!!draft} />
       {header?.({ weekStart, tz })}
+      <div className="week-body">
+        <div className="week-main">
       {isPending && <p className="muted">Loading…</p>}
       {isError && (
         <p className="error" role="alert">
@@ -107,7 +117,16 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
       {!isPending &&
         !isError &&
         (wide ? (
-          <WeekGrid dates={dates} blocks={blocks} prefs={prefs} tz={tz} onSelect={setSelected} renderBlock={renderBlock} />
+          <WeekGrid
+            dates={dates}
+            blocks={blocks}
+            prefs={prefs}
+            tz={tz}
+            onSelect={setSelected}
+            onMove={editing.onMove}
+            onResize={editing.onResize}
+            renderBlock={renderBlock}
+          />
         ) : (
           <DayView
             date={day}
@@ -119,6 +138,9 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
             renderBlock={renderBlock}
           />
         ))}
+        </div>
+        {draft && <DraftPanel draft={draft} weekStart={weekStart} />}
+      </div>
       {selected && (
         <BlockDetails block={selected} tz={tz} onClose={() => setSelected(undefined)} actions={detailsActions?.(selected)} />
       )}

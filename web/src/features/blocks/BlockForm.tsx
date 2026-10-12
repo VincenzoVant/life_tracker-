@@ -23,6 +23,8 @@ export { CourseField, MealSlotField, StartupTaskField, WorkoutTypeField } from '
 export interface BlockFormProps {
   initial?: Partial<Block>;
   onDone: () => void;
+  /** Replaces the default create call (e.g. adding to a draft plan). Not used when editing. */
+  onCreate?: (input: BlockCreateInput) => Promise<unknown>;
 }
 
 const FIELD_KEYS = new Set(['category', 'title', 'date', 'start', 'end', 'courseId', 'startupTaskId', 'workoutType', 'mealSlot']);
@@ -46,7 +48,7 @@ export function BlockForm(props: BlockFormProps) {
   return <BlockFormInner {...props} tz={tz} />;
 }
 
-function BlockFormInner({ initial, onDone, tz }: BlockFormProps & { tz: string }) {
+function BlockFormInner({ initial, onDone, onCreate, tz }: BlockFormProps & { tz: string }) {
   const create = useCreateBlock();
   const update = useUpdateBlock();
   const d = defaults(initial, tz);
@@ -92,6 +94,7 @@ function BlockFormInner({ initial, onDone, tz }: BlockFormProps & { tz: string }
     };
     try {
       if (initial?.id) await update.mutateAsync({ id: initial.id, ...input });
+      else if (onCreate) await onCreate(input);
       else await create.mutateAsync(input);
       onDone();
     } catch (err) {
