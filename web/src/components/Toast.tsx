@@ -1,4 +1,4 @@
-import { NETWORK_ERROR_MESSAGE } from '../api/client';
+import { isNetworkError } from '../api/client';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 interface ToastItem {
@@ -8,20 +8,28 @@ interface ToastItem {
 }
 interface ToastApi {
   show: (message: string, kind?: 'info' | 'error') => void;
+  /** Error toast for a caught error: shows its message (or `fallback`), and stays silent for network errors. */
+  showError: (err: unknown, fallback: string) => void;
 }
 
-const ToastContext = createContext<ToastApi>({ show: () => {} });
+const ToastContext = createContext<ToastApi>({ show: () => {}, showError: () => {} });
 let nextId = 1;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const show = useCallback((message: string, kind: 'info' | 'error' = 'info') => {
-    if (message === NETWORK_ERROR_MESSAGE) return;
     const id = nextId++;
     setItems((cur) => [...cur, { id, message, kind }]);
     setTimeout(() => setItems((cur) => cur.filter((t) => t.id !== id)), 4000);
   }, []);
-  const api = useMemo(() => ({ show }), [show]);
+  const showError = useCallback(
+    (err: unknown, fallback: string) => {
+      if (isNetworkError(err)) return;
+      show(err instanceof Error ? err.message : fallback, 'error');
+    },
+    [show],
+  );
+  const api = useMemo(() => ({ show, showError }), [show, showError]);
   return (
     <ToastContext.Provider value={api}>
       {children}

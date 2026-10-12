@@ -93,7 +93,7 @@ export function ReviewPage() {
         },
         onError: (e) => {
           if (e instanceof ApiError && e.fields) setFieldErrors(e.fields);
-          else toast.show(e instanceof Error ? e.message : 'Could not save review', 'error');
+          else toast.showError(e, 'Could not save review');
         },
       },
     );

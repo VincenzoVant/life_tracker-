@@ -20,7 +20,7 @@ export function TimezoneForm() {
       await save.mutateAsync({ timezone: value });
       toast.show('Timezone saved');
     } catch (err) {
-      toast.show(err instanceof ApiError ? err.message : 'Could not save timezone', 'error');
+      toast.showError(err, 'Could not save timezone');
     }
   }
 

@@ -37,7 +37,7 @@ function AddLogModal({ date, slot, onClose }: { date: string; slot: MealSlot; on
       await logMeal.mutateAsync(input);
       onClose();
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : 'Could not log meal', 'error');
+      toast.showError(err, 'Could not log meal');
     }
   };
 
@@ -141,7 +141,7 @@ export function MealLogDay() {
               <span className="food-actions">
                 <span className="muted">{l.kcal} kcal · {l.proteinG} g</span>
                 <button aria-label={`Delete log ${l.id}`} onClick={() =>
-                    del.mutate(l.id, { onError: (err) => toast.show(err instanceof Error ? err.message : 'Could not delete log', 'error') })
+                    del.mutate(l.id, { onError: (err) => toast.showError(err, 'Could not delete log') })
                   }>✕</button>
               </span>
             </div>

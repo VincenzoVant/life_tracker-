@@ -56,7 +56,7 @@ export function FixedScheduleSection() {
       toast.show(id ? 'Fixed event updated' : 'Fixed event added');
     } catch (err) {
       if (err instanceof ApiError && err.fields) setErrors(err.fields);
-      toast.show(err instanceof ApiError ? err.message : 'Could not save fixed event', 'error');
+      toast.showError(err, 'Could not save fixed event');
     }
   }
 
@@ -66,7 +66,7 @@ export function FixedScheduleSection() {
       await del.mutateAsync(ev.id);
       toast.show('Fixed event removed');
     } catch (err) {
-      toast.show(err instanceof ApiError ? err.message : 'Could not remove fixed event', 'error');
+      toast.showError(err, 'Could not remove fixed event');
     }
   }
 

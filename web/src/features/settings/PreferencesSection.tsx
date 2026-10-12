@@ -133,7 +133,7 @@ function PreferencesForm({ initial }: { initial: Preferences }) {
       toast.show(ok);
     } catch (err) {
       if (err instanceof ApiError && err.fields) setErrors(err.fields);
-      toast.show(err instanceof ApiError ? err.message : 'Could not save preferences', 'error');
+      toast.showError(err, 'Could not save preferences');
     }
   }
 
