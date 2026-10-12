@@ -13,3 +13,4 @@ export * from './schemas/review.js';
 export * from './schemas/schedule.js';
 export * from './schemas/google.js';
 export * from './schemas/preferences.js';
+export * from './schemas/replan.js';
