@@ -12,3 +12,4 @@ export * from './schemas/goals.js';
 export * from './schemas/review.js';
 export * from './schemas/schedule.js';
 export * from './schemas/google.js';
+export * from './schemas/preferences.js';
