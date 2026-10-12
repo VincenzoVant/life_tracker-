@@ -71,6 +71,7 @@ export const blocks = sqliteTable(
     gcalEventId: text('gcal_event_id'),
     gcalEtag: text('gcal_etag'),
     gcalSyncedAt: text('gcal_synced_at'),
+    gcalHash: text('gcal_hash'),
     notes: text('notes'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -179,4 +180,40 @@ export const mealLogs =sqliteTable(
 export const dailyReviews = sqliteTable('daily_reviews', {
   date: text('date').primaryKey(),
   completedAt: text('completed_at').notNull(),
+});
+
+export const calendarState = sqliteTable('calendar_state', {
+  id: integer('id').primaryKey(),
+  lifeTrackerCalendarId: text('life_tracker_calendar_id'),
+  busyCalendarIds: text('busy_calendar_ids').notNull().default('[]'),
+  includeAllDay: integer('include_all_day', { mode: 'boolean' }).notNull().default(false),
+  ltSyncToken: text('lt_sync_token'),
+  lastSyncAt: text('last_sync_at'),
+  lastError: text('last_error'),
+  calendarMissing: integer('calendar_missing', { mode: 'boolean' }).notNull().default(false),
+});
+
+export const syncQueue = sqliteTable('sync_queue', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  blockId: text('block_id')
+    .notNull()
+    .unique()
+    .references(() => blocks.id, { onDelete: 'cascade' }),
+  op: text('op').notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  nextAttemptAt: text('next_attempt_at').notNull(),
+  lastError: text('last_error'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+export const googleChanges = sqliteTable('google_changes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  blockId: text('block_id').notNull(),
+  kind: text('kind').notNull(), // 'moved' | 'deleted'
+  beforeStart: text('before_start'),
+  beforeEnd: text('before_end'),
+  afterStart: text('after_start'),
+  afterEnd: text('after_end'),
+  createdAt: text('created_at').notNull(),
+  seen: integer('seen', { mode: 'boolean' }).notNull().default(false),
 });

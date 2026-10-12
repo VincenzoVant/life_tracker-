@@ -97,4 +97,46 @@ describe('FakeCalendarClient', () => {
     expect(moved.start?.dateTime).toBe('2026-10-15T12:00:00Z');
     expect(moved.updated).toBe('2026-10-14T20:00:00.000Z');
   });
+
+  test('addExternalEvent honors a supplied updated timestamp', async () => {
+    const fake = new FakeCalendarClient();
+    const { id } = await fake.createCalendar('Life Tracker', 'UTC');
+    const ev = fake.addExternalEvent(id, { ...body(1), updated: '2026-01-01T00:00:00.000Z' });
+    expect(ev.updated).toBe('2026-01-01T00:00:00.000Z');
+    expect(fake.events(id)[0]!.updated).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  test('deleting an already-deleted event is 410, unknown id is 404', async () => {
+    const fake = new FakeCalendarClient();
+    const { id } = await fake.createCalendar('Life Tracker', 'UTC');
+    const ev = await fake.insertEvent(id, body(1));
+    await fake.deleteEvent(id, ev.id);
+    await expect(fake.deleteEvent(id, ev.id)).rejects.toMatchObject({ status: 410 });
+    await expect(fake.deleteEvent(id, 'nope')).rejects.toMatchObject({ status: 404 });
+  });
+
+  test('syncToken combined with timeMin/timeMax is rejected with 400', async () => {
+    const fake = new FakeCalendarClient();
+    const { id } = await fake.createCalendar('Life Tracker', 'UTC');
+    const { nextSyncToken } = await listAll(fake, id);
+    await expect(fake.listEvents(id, { syncToken: nextSyncToken!, timeMin: '2026-10-15T00:00:00Z' })).rejects.toMatchObject({ status: 400 });
+  });
+
+  test('failNext queues multiple errors per method in order', async () => {
+    const fake = new FakeCalendarClient();
+    const { id } = await fake.createCalendar('Life Tracker', 'UTC');
+    fake.failNext('insertEvent', new CalendarApiError(429));
+    fake.failNext('insertEvent', new CalendarApiError(500));
+    await expect(fake.insertEvent(id, body(1))).rejects.toMatchObject({ status: 429 });
+    await expect(fake.insertEvent(id, body(1))).rejects.toMatchObject({ status: 500 });
+    await expect(fake.insertEvent(id, body(1))).resolves.toBeTruthy();
+  });
+
+  test('returned and stored events are deep copies', async () => {
+    const fake = new FakeCalendarClient();
+    const { id } = await fake.createCalendar('Life Tracker', 'UTC');
+    const ev = await fake.insertEvent(id, { ...body(1), extendedProperties: { private: { a: '1' } } });
+    ev.extendedProperties!.private!.a = 'changed';
+    expect(fake.events(id)[0]!.extendedProperties!.private!.a).toBe('1');
+  });
 });

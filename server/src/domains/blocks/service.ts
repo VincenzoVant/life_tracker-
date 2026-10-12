@@ -90,6 +90,7 @@ export function createBlock(ctx: Ctx, input: BlockCreateInput, opts: CreateBlock
     gcalEventId: null,
     gcalEtag: null,
     gcalSyncedAt: null,
+    gcalHash: null,
     notes: v.notes ?? null,
     createdAt: now,
     updatedAt: now,
@@ -232,4 +233,42 @@ export function updateFixedBlockInternal(
 export function deleteProposedBlocks(ctx: Ctx, ids: string[]): void {
   if (ids.length === 0) return;
   ctx.db.delete(blocks).where(and(inArray(blocks.id, ids), eq(blocks.status, 'proposed'))).run();
+}
+
+export interface GcalFields {
+  gcalEventId?: string | null;
+  gcalEtag?: string | null;
+  gcalHash?: string | null;
+  gcalSyncedAt?: string | null;
+}
+
+/** Records Google bookkeeping on a block. Does not emit and does not touch `updatedAt`. */
+export function setGcalFields(ctx: Ctx, blockId: string, f: GcalFields): void {
+  const set: GcalFields = {};
+  if (f.gcalEventId !== undefined) set.gcalEventId = f.gcalEventId;
+  if (f.gcalEtag !== undefined) set.gcalEtag = f.gcalEtag;
+  if (f.gcalHash !== undefined) set.gcalHash = f.gcalHash;
+  if (f.gcalSyncedAt !== undefined) set.gcalSyncedAt = f.gcalSyncedAt;
+  if (Object.keys(set).length === 0) return;
+  ctx.db.update(blocks).set(set).where(eq(blocks.id, blockId)).run();
+}
+
+/** Applies a time change that originated in Google. Does not emit, so no echo write is queued. */
+export function applyExternalTimes(
+  ctx: Ctx,
+  blockId: string,
+  f: { start: string; end: string; gcalEtag: string; gcalHash: string },
+): void {
+  ctx.db
+    .update(blocks)
+    .set({
+      start: normIso(f.start),
+      end: normIso(f.end),
+      gcalEtag: f.gcalEtag,
+      gcalHash: f.gcalHash,
+      gcalSyncedAt: ctx.clock.now().toISOString(),
+      updatedAt: ctx.clock.now().toISOString(),
+    })
+    .where(eq(blocks.id, blockId))
+    .run();
 }

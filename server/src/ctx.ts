@@ -4,6 +4,7 @@ import type { Db } from './db/client.js';
 import type Database from 'better-sqlite3';
 import { createBlockEventBus, type BlockEventBus } from './domains/blocks/events.js';
 import { createGoogleIntegration, type GoogleIntegration } from './calendar/oauth.js';
+import { registerSyncEnqueue } from './calendar/enqueue.js';
 import { systemClock, type Clock } from './lib/clock.js';
 
 export interface Ctx {
@@ -17,5 +18,7 @@ export interface Ctx {
 
 export function createCtx(handle: DbHandle, config: AppConfig, clock: Clock = systemClock): Ctx {
   const events = createBlockEventBus();
-  return { db: handle.db, sqlite: handle.sqlite, clock, config, events, google: createGoogleIntegration(config) };
+  const ctx: Ctx = { db: handle.db, sqlite: handle.sqlite, clock, config, events, google: createGoogleIntegration(config) };
+  registerSyncEnqueue(ctx);
+  return ctx;
 }
