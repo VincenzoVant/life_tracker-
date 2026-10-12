@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { OAuth2Client } from 'google-auth-library';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { loadConfig } from '../../src/config.js';
 import {
@@ -98,6 +99,81 @@ describe('google oauth', () => {
     const state = new URL(await g.beginAuth('localhost:4280')).searchParams.get('state')!;
     vi.advanceTimersByTime(10 * 60 * 1000 + 1);
     await expect(g.completeAuth('code', state)).rejects.toMatchObject({ code: 'VALIDATION' });
+  });
+
+  test('beginAuth validates the whole Host (no suffix tricks)', async () => {
+    writeClientFile();
+    for (const h of ['127.0.0.1.evil.com', 'localhost:4280@evil.com', 'localhost:abc', '127.0.0.1:4280/x']) {
+      await expect(integration().beginAuth(h)).rejects.toMatchObject({ code: 'VALIDATION' });
+    }
+    await expect(integration().beginAuth('[::1]:4280')).resolves.toContain('state=');
+  });
+
+  describe('completeAuth', () => {
+    const fullScope = GOOGLE_SCOPES.join(' ');
+    const stateOf = async (g: ReturnType<typeof integration>) =>
+      new URL(await g.beginAuth('127.0.0.1:4280')).searchParams.get('state')!;
+
+    test('happy path stores tokens, passes verifier, clears needsReconnect; replay rejected', async () => {
+      writeClientFile();
+      const spy = vi
+        .spyOn(OAuth2Client.prototype, 'getToken')
+        .mockResolvedValue({ tokens: { access_token: 'a', refresh_token: 'r', scope: fullScope }, res: null } as never);
+      const g = integration();
+      g.markNeedsReconnect();
+      const state = await stateOf(g);
+      await g.completeAuth('the-code', state);
+      const arg = spy.mock.calls[0]![0] as { code: string; codeVerifier: string };
+      expect(arg.code).toBe('the-code');
+      expect(arg.codeVerifier).toBeTruthy();
+      expect(readTokens(dir)).toMatchObject({ refresh_token: 'r', access_token: 'a' });
+      expect(g.needsReconnect()).toBe(false);
+      expect(g.client()).not.toBeNull();
+      await expect(g.completeAuth('the-code', state)).rejects.toMatchObject({ code: 'VALIDATION' });
+      spy.mockRestore();
+    });
+
+    test('missing refresh token or missing scope is rejected and nothing is stored', async () => {
+      writeClientFile();
+      const g = integration();
+      const spy = vi
+        .spyOn(OAuth2Client.prototype, 'getToken')
+        .mockResolvedValueOnce({ tokens: { access_token: 'a', scope: fullScope }, res: null } as never)
+        .mockResolvedValueOnce({
+          tokens: { access_token: 'a', refresh_token: 'r', scope: GOOGLE_SCOPES.slice(0, 2).join(' ') },
+          res: null,
+        } as never);
+      await expect(g.completeAuth('c', await stateOf(g))).rejects.toMatchObject({ code: 'VALIDATION' });
+      await expect(g.completeAuth('c', await stateOf(g))).rejects.toMatchObject({ code: 'VALIDATION' });
+      expect(readTokens(dir)).toBeNull();
+      spy.mockRestore();
+    });
+
+    test('disconnect deletes tokens', async () => {
+      writeClientFile();
+      writeTokens(dir, { refresh_token: 'r' });
+      const spy = vi.spyOn(OAuth2Client.prototype, 'revokeToken').mockResolvedValue({} as never);
+      const g = integration();
+      await g.disconnect();
+      expect(readTokens(dir)).toBeNull();
+      expect(g.isConnected()).toBe(false);
+      spy.mockRestore();
+    });
+  });
+
+  test('corrupt token file → connected but needs reconnect; atomic write leaves no temp files', () => {
+    writeClientFile();
+    mkdirSync(join(dir, 'secrets'), { recursive: true });
+    writeFileSync(join(dir, 'secrets', 'google.json'), '{not json');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const g = integration();
+    expect(() => readTokens(dir)).toThrow();
+    expect(g.isConnected()).toBe(true);
+    expect(g.client()).toBeNull();
+    expect(g.needsReconnect()).toBe(true);
+    err.mockRestore();
+    writeTokens(dir, { refresh_token: 'r' });
+    expect(readdirSync(join(dir, 'secrets')).filter((f) => f.endsWith('.tmp'))).toEqual([]);
   });
 
   test('GET /api/google/callback is exempt from the session check', async () => {

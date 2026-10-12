@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { CodeChallengeMethod, OAuth2Client, type Credentials } from 'google-auth-library';
@@ -14,7 +14,7 @@ export const GOOGLE_SCOPES = [
 ];
 
 const PENDING_TTL_MS = 10 * 60 * 1000;
-const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
+const LOOPBACK_HOST = /^(127\.0\.0\.1|localhost|\[::1\])(:\d{1,5})?$/;
 
 export type StoredTokens = Credentials;
 
@@ -35,19 +35,29 @@ export function loadClientCredentials(dataDir: string): { clientId: string; clie
   }
 }
 
+/** null when no token file exists; throws when the file exists but cannot be parsed. */
 export function readTokens(dataDir: string): StoredTokens | null {
+  let raw: string;
   try {
-    return JSON.parse(readFileSync(tokensPath(dataDir), 'utf8')) as StoredTokens;
+    raw = readFileSync(tokensPath(dataDir), 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw err;
+  }
+  try {
+    return JSON.parse(raw) as StoredTokens;
   } catch {
-    return null;
+    throw new Error('Google token file is corrupt');
   }
 }
 
 export function writeTokens(dataDir: string, t: StoredTokens): void {
   mkdirSync(secretsDir(dataDir), { recursive: true });
   const p = tokensPath(dataDir);
-  writeFileSync(p, JSON.stringify(t), { mode: 0o600 });
-  chmodSync(p, 0o600);
+  const tmp = `${p}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
+  writeFileSync(tmp, JSON.stringify(t), { mode: 0o600 });
+  chmodSync(tmp, 0o600);
+  renameSync(tmp, p);
 }
 
 export function deleteTokens(dataDir: string): void {
@@ -65,11 +75,6 @@ export interface GoogleIntegration {
   disconnect(): Promise<void>;
 }
 
-function hostname(host: string): string {
-  if (host.startsWith('[')) return host.slice(0, host.indexOf(']') + 1);
-  return host.split(':')[0]!;
-}
-
 interface Pending {
   verifier: string;
   redirectUri: string;
@@ -81,17 +86,32 @@ export function createGoogleIntegration(config: AppConfig): GoogleIntegration {
   const pending = new Map<string, Pending>();
   let reconnect = false;
   let cached: CalendarClient | null = null;
+  let generation = 0;
+
+  /** Token file state; a corrupt file counts as connected-but-needs-reconnect. */
+  function tokenState(): { present: boolean; tokens: StoredTokens | null } {
+    try {
+      const tokens = readTokens(dataDir);
+      return { present: tokens !== null, tokens };
+    } catch (err) {
+      console.error(`[google] ${(err as Error).message}; reconnect required`);
+      reconnect = true;
+      return { present: true, tokens: null };
+    }
+  }
 
   const creds = () => loadClientCredentials(dataDir);
 
   function buildClient(): CalendarClient | null {
     const c = creds();
-    const tokens = readTokens(dataDir);
+    const tokens = tokenState().tokens;
     if (!c || !tokens) return null;
+    const gen = generation;
     const auth = new OAuth2Client(c.clientId, c.clientSecret);
     auth.setCredentials(tokens);
     auth.on('tokens', (fresh) => {
-      const current = readTokens(dataDir) ?? {};
+      if (gen !== generation) return; // stale client after disconnect/reconnect
+      const current = tokenState().tokens ?? {};
       writeTokens(dataDir, { ...current, ...fresh, refresh_token: fresh.refresh_token ?? current.refresh_token });
     });
     return createGoogleCalendarClient(auth);
@@ -99,18 +119,19 @@ export function createGoogleIntegration(config: AppConfig): GoogleIntegration {
 
   return {
     isConfigured: () => creds() !== null,
-    isConnected: () => readTokens(dataDir) !== null,
+    isConnected: () => tokenState().present,
     needsReconnect: () => reconnect,
     markNeedsReconnect: () => {
       reconnect = true;
     },
     client() {
-      if (reconnect || !readTokens(dataDir)) return null;
+      const st = tokenState();
+      if (reconnect || !st.tokens) return null;
       cached ??= buildClient();
       return cached;
     },
     async beginAuth(host) {
-      if (!LOOPBACK.has(hostname(host).toLowerCase())) {
+      if (!LOOPBACK_HOST.test(host)) {
         throw new AppError('VALIDATION', 'Connect Google from the Mac (http://127.0.0.1:4280)');
       }
       const c = creds();
@@ -144,14 +165,22 @@ export function createGoogleIntegration(config: AppConfig): GoogleIntegration {
       } catch {
         throw new AppError('VALIDATION', 'Google rejected the authorization code. Try connecting again.');
       }
-      const previous = readTokens(dataDir);
-      writeTokens(dataDir, { ...tokens, refresh_token: tokens.refresh_token ?? previous?.refresh_token });
+      const refresh = tokens.refresh_token ?? tokenState().tokens?.refresh_token;
+      const granted = (tokens.scope ?? '').split(/\s+/);
+      if (!refresh || !GOOGLE_SCOPES.every((sc) => granted.includes(sc))) {
+        throw new AppError(
+          'VALIDATION',
+          "Google didn't grant offline access — please reconnect and allow all requested permissions",
+        );
+      }
+      writeTokens(dataDir, { ...tokens, refresh_token: refresh });
       reconnect = false;
+      generation++;
       cached = null;
     },
     async disconnect() {
       const c = creds();
-      const tokens = readTokens(dataDir);
+      const tokens = tokenState().tokens;
       const token = tokens?.refresh_token ?? tokens?.access_token;
       if (c && token) {
         try {
@@ -162,6 +191,7 @@ export function createGoogleIntegration(config: AppConfig): GoogleIntegration {
       }
       deleteTokens(dataDir);
       reconnect = false;
+      generation++;
       cached = null;
     },
   };
