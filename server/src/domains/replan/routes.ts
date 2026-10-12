@@ -5,7 +5,7 @@ import { parse } from '../../lib/validate.js';
 import { defaultConflictsPort, type ConflictsPort } from './conflictsPort.js';
 import { applyReplan, getReplanDraft, keepAsIs, quickAdd, replanFromConflict } from './service.js';
 
-/** Mounted at `/api`; `conflicts` is the Stage 3 module (the controller wires the real one). */
+/** Mounted at `/api`; `conflicts` defaults to the real Stage 3 module. */
 export function replanRoutes(ctx: Ctx, conflicts: ConflictsPort = defaultConflictsPort): Hono {
   const app = new Hono();
   app.post('/quick-add', async (c) => {
