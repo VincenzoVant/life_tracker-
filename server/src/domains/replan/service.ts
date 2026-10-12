@@ -176,3 +176,33 @@ export function replanFromConflict(
     conflictId,
   });
 }
+
+/** Re-runs a stale draft for the same trigger (block or conflict); the old draft is discarded. */
+export function retryReplan(
+  ctx: Ctx,
+  planId: string,
+  conflicts: ConflictsPort = defaultConflictsPort,
+): ReplanDraft | null {
+  const row = replanRow(ctx, planId);
+  if (row.status === 'applied') throw new AppError('CONFLICT', 'Plan is already applied');
+  const conflictId = (row.summary as PlanSummary).conflictId;
+
+  let trigger: Trigger;
+  if (row.triggerBlockId) {
+    const block = getBlock(ctx, row.triggerBlockId);
+    trigger = { start: new Date(block.start), end: new Date(block.end), title: block.title };
+  } else if (conflictId) {
+    const conflict = conflicts.listConflicts(ctx, 'open').find((c) => c.id === conflictId);
+    if (!conflict) throw new AppError('CONFLICT', 'This conflict is no longer open');
+    trigger = { start: new Date(conflict.start), end: new Date(conflict.end), title: conflict.title };
+  } else {
+    throw new AppError('CONFLICT', 'This replan has no trigger to retry');
+  }
+
+  ctx.db.update(plans).set({ status: 'discarded' }).where(eq(plans.id, planId)).run();
+  return createReplanDraft(ctx, {
+    trigger,
+    ...(row.triggerBlockId ? { triggerBlockId: row.triggerBlockId } : {}),
+    ...(conflictId ? { conflictId } : {}),
+  });
+}
