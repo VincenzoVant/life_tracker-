@@ -1,0 +1,18 @@
+{
+  "name": "life-tracker",
+  "private": true,
+  "type": "module",
+  "workspaces": ["shared"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b shared server web",
+    "dev": "concurrently -n server,web \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w shared && npm run build -w web && npm run build -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}
