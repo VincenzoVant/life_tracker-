@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router';
 import { Layout } from './components/Layout';
 import { FoodPage } from './features/areas/food/FoodPage';
 import { AuthGate } from './features/auth/AuthGate';
+import { ReviewPage } from './features/review/ReviewPage';
 import { TodayPage } from './features/today/TodayPage';
 
 function Placeholder({ title }: { title: string }) {
@@ -12,7 +13,7 @@ function Placeholder({ title }: { title: string }) {
 // Single routes list: later tasks replace the placeholder elements (and Stage 2 adds '/week').
 export const routes: Array<{ path: string; element: ReactElement }> = [
   { path: '/', element: <TodayPage /> },
-  { path: '/review', element: <Placeholder title="Review" /> },
+  { path: '/review', element: <ReviewPage /> },
   { path: '/areas', element: <Placeholder title="Areas" /> },
   { path: '/areas/food', element: <FoodPage /> },
   { path: '/dashboard', element: <Placeholder title="Dashboard" /> },
