@@ -257,7 +257,7 @@ export function setGcalFields(ctx: Ctx, blockId: string, f: GcalFields): void {
 export function applyExternalTimes(
   ctx: Ctx,
   blockId: string,
-  f: { start: string; end: string; gcalEtag: string; gcalHash: string },
+  f: { start: string; end: string; gcalEtag: string; gcalHash: string | null },
 ): void {
   ctx.db
     .update(blocks)

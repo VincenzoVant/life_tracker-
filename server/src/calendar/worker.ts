@@ -41,6 +41,7 @@ export async function processQueue(
   opts: { limit?: number } = {},
 ): Promise<ProcessResult> {
   const result: ProcessResult = { done: 0, failed: 0, paused: null };
+  if (ctx.google.needsReconnect()) return { ...result, paused: 'reconnect' };
   const state = getCalendarState(ctx);
   if (state.calendarMissing) return { ...result, paused: 'calendar_missing' };
   const calendarId = state.lifeTrackerCalendarId;
@@ -97,8 +98,8 @@ export async function processQueue(
       finish(ctx, row);
       result.done++;
     } catch (err) {
-      const status = err instanceof CalendarApiError ? err.status : 0;
-      const message = err instanceof Error ? err.message : String(err);
+      let status = err instanceof CalendarApiError ? err.status : 0;
+      let message = err instanceof Error ? err.message : String(err);
       if (status === 401) {
         ctx.google.markNeedsReconnect();
         return { ...result, paused: 'reconnect' };
@@ -109,11 +110,22 @@ export async function processQueue(
         continue;
       }
       if (status === 404 && op !== 'delete') {
-        if (!(await client.calendarExists(calendarId))) {
+        let exists: boolean | null = null;
+        try {
+          exists = await client.calendarExists(calendarId);
+        } catch (probeErr) {
+          status = probeErr instanceof CalendarApiError ? probeErr.status : 0;
+          message = probeErr instanceof Error ? probeErr.message : String(probeErr);
+          if (status === 401) {
+            ctx.google.markNeedsReconnect();
+            return { ...result, paused: 'reconnect' };
+          }
+        }
+        if (exists === false) {
           updateCalendarState(ctx, { calendarMissing: true });
           return { ...result, paused: 'calendar_missing' };
         }
-        if (op === 'update') {
+        if (exists === true && op === 'update') {
           // Only the event is gone: forget it so the next run recreates it.
           setGcalFields(ctx, block.id, CLEARED);
           ctx.db.update(syncQueue).set({ op: 'create' }).where(eq(syncQueue.id, row.id)).run();
