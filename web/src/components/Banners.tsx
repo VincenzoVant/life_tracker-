@@ -1,5 +1,5 @@
 import { localTimeOf, type Conflict } from '@life-tracker/shared';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import {
   useConflicts,
   useDismissConflict,
@@ -59,6 +59,8 @@ export function Banners() {
   const { data: conflicts } = useConflicts();
   const recreate = useRecreateCalendar();
   const toast = useToast();
+  // Settings already shows its own reconnect notice.
+  const onSettings = useLocation().pathname.startsWith('/settings');
 
   async function onRecreate() {
     try {
@@ -69,7 +71,7 @@ export function Banners() {
   }
 
   const items = [
-    status?.needsReconnect && (
+    status?.needsReconnect && !onSettings && (
       <div key="reconnect" className="banner" role="alert">
         <p>Google Calendar needs to be reconnected</p>
         <GoogleConnectAction label="Reconnect" hint="Reconnect" />

@@ -114,6 +114,13 @@ describe('Banners', () => {
     expect(screen.getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/google/connect');
   });
 
+  test('reconnect banner is hidden on the settings page (GoogleSection shows its own)', async () => {
+    mockApi({ ...settings, 'GET /api/google/status': () => status({ needsReconnect: true, calendarMissing: true }), 'GET /api/conflicts': () => [] });
+    renderWithProviders(<Banners />, { route: '/settings' });
+    expect(await screen.findByText('The Life Tracker calendar was deleted in Google')).toBeInTheDocument();
+    expect(screen.queryByText('Google Calendar needs to be reconnected')).not.toBeInTheDocument();
+  });
+
   test('calendar missing banner recreates the calendar', async () => {
     const user = userEvent.setup();
     const { calls } = mockApi({
