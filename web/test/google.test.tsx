@@ -58,6 +58,53 @@ describe('SyncBadge', () => {
   });
 });
 
+function onHost(hostname: string) {
+  vi.stubGlobal('location', { ...window.location, hostname });
+}
+
+describe('Reconnect and Connect on a non-loopback host (the phone)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  test('Banners shows the Mac hint as text instead of a link', async () => {
+    mockApi({ ...settings, 'GET /api/google/status': () => status({ needsReconnect: true }), 'GET /api/conflicts': () => [] });
+    onHost('mac.tail1234.ts.net');
+    renderWithProviders(<Banners />);
+    expect(await screen.findByText('Reconnect on your Mac (http://127.0.0.1:4280)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Reconnect' })).not.toBeInTheDocument();
+  });
+
+  test('GoogleSection shows the Mac hint for Connect and for Reconnect', async () => {
+    onHost('mac.tail1234.ts.net');
+    mockApi({ 'GET /api/google/status': () => status({ connected: false }) });
+    const first = renderWithProviders(<GoogleSection />);
+    expect(await screen.findByText('Connect on your Mac (http://127.0.0.1:4280)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Connect Google Calendar' })).not.toBeInTheDocument();
+    first.unmount();
+
+    mockApi({
+      'GET /api/google/status': () => status({ needsReconnect: true }),
+      'GET /api/sync/status': () => ({ pending: 0, failing: [], lastSyncAt: null, lastError: null }),
+      'GET /api/google/calendars': () => [],
+    });
+    renderWithProviders(<GoogleSection />);
+    expect(await screen.findByText('Google needs to be reconnected')).toBeInTheDocument();
+    expect(screen.getByText('Reconnect on your Mac (http://127.0.0.1:4280)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Reconnect' })).not.toBeInTheDocument();
+  });
+
+  test.each(['127.0.0.1', 'localhost', '[::1]'])('links are shown on %s', async (host) => {
+    onHost(host);
+    mockApi({
+      'GET /api/google/status': () => status({ needsReconnect: true }),
+      'GET /api/sync/status': () => ({ pending: 0, failing: [], lastSyncAt: null, lastError: null }),
+      'GET /api/google/calendars': () => [],
+    });
+    renderWithProviders(<GoogleSection />);
+    expect(await screen.findByText('Google needs to be reconnected')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/google/connect');
+  });
+});
+
 describe('Banners', () => {
   test('reconnect banner links to connect endpoint', async () => {
     mockApi({ ...settings, 'GET /api/google/status': () => status({ needsReconnect: true }), 'GET /api/conflicts': () => [] });

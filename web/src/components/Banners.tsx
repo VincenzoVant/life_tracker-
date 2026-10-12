@@ -9,6 +9,7 @@ import {
   useReplanFromConflict,
 } from '../api/hooks/google';
 import { useTimezone } from '../api/hooks/settings';
+import { GoogleConnectAction } from './GoogleConnectAction';
 import { useToast } from './Toast';
 import './banners.css';
 
@@ -72,9 +73,7 @@ export function Banners() {
     status?.needsReconnect && (
       <div key="reconnect" className="banner" role="alert">
         <p>Google Calendar needs to be reconnected</p>
-        <a className="link-button" href="/api/google/connect">
-          Reconnect
-        </a>
+        <GoogleConnectAction label="Reconnect" hint="Reconnect" />
       </div>
     ),
     status?.calendarMissing && (

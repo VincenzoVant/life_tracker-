@@ -10,6 +10,7 @@ import {
   useSyncNow,
   useSyncStatus,
 } from '../../api/hooks/google';
+import { GoogleConnectAction } from '../../components/GoogleConnectAction';
 import { useToast } from '../../components/Toast';
 import '../../components/banners.css';
 
@@ -163,17 +164,27 @@ export function GoogleSection() {
 
   if (!status) return <p className="muted">Loading…</p>;
   if (!status.configured) return <NotConfigured />;
+  const reconnect = status.needsReconnect && (
+    <div className="banner" role="alert">
+      <p>Google needs to be reconnected</p>
+      <GoogleConnectAction label="Reconnect" hint="Reconnect" />
+    </div>
+  );
   if (!status.connected) {
     return (
       <div>
+        {reconnect}
         <p>
-          <a className="link-button" href="/api/google/connect">
-            Connect Google Calendar
-          </a>
+          <GoogleConnectAction label="Connect Google Calendar" hint="Connect" />
         </p>
         <p className="muted">Do this on your Mac.</p>
       </div>
     );
   }
-  return <Connected status={status} />;
+  return (
+    <div>
+      {reconnect}
+      <Connected status={status} />
+    </div>
+  );
 }
