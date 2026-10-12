@@ -29,7 +29,10 @@ export const useAddDraftBlock = () =>
   );
 
 export const useCommitPlan = () =>
-  useInvalidatingMutation((planId: string) => apiFetch<unknown>(`/api/plans/${planId}/commit`, { method: 'POST' }), FAMILIES);
+  useInvalidatingMutation(
+    (planId: string) => apiFetch<{ skipped?: number }>(`/api/plans/${planId}/commit`, { method: 'POST' }),
+    FAMILIES,
+  );
 
 export const useDiscardPlan = () =>
   useInvalidatingMutation((planId: string) => apiFetch<unknown>(`/api/plans/${planId}/discard`, { method: 'POST' }), FAMILIES);

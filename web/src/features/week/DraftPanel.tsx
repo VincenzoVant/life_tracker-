@@ -149,7 +149,17 @@ export function DraftPanel({ draft, weekStart }: DraftPanelProps) {
             type="button"
             className="primary"
             disabled={commit.isPending}
-            onClick={() => commit.mutate(plan.id, { onSuccess: () => toast.show('Week committed'), onError: fail })}
+            onClick={() => commit.mutate(plan.id, {
+                onSuccess: (res) => {
+                  const n = res?.skipped ?? 0;
+                  toast.show(
+                    n > 0
+                      ? `Week committed — ${n} ${n === 1 ? 'block' : 'blocks'} skipped because they were in the past or clashed with something new`
+                      : 'Week committed',
+                  );
+                },
+                onError: fail,
+              })}
           >
             Commit
           </button>

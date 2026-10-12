@@ -40,6 +40,7 @@ const progress: WeekProgress = {
   nutrition: [],
 };
 
+let skipped = 0;
 let hasDraft: boolean;
 let calls: ReturnType<typeof mockApi>['calls'];
 let progressUrls: string[];
@@ -62,7 +63,7 @@ function api(extra: Record<string, Handler> = {}) {
     },
     'POST /api/plans/plan1/commit': () => {
       hasDraft = false;
-      return { ...draft.plan, status: 'applied' };
+      return { ...draft.plan, status: 'applied', skipped };
     },
     'POST /api/plans/plan1/discard': () => {
       hasDraft = false;
@@ -74,6 +75,7 @@ function api(extra: Record<string, Handler> = {}) {
 
 beforeEach(() => {
   hasDraft = false;
+  skipped = 0;
   vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-14T19:00:00Z') });
   Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1200 });
 });
@@ -129,6 +131,18 @@ describe('planning flow', () => {
     await waitFor(() => expect(calls.some((c) => c.path === '/api/plans/plan1/commit' && c.method === 'POST')).toBe(true));
     expect(await screen.findByText('Week committed')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Draft plan' })).not.toBeInTheDocument());
+  });
+
+  test('commit toast reports skipped blocks', async () => {
+    hasDraft = true;
+    skipped = 2;
+    api();
+    renderWithProviders(<WeekPage />);
+    await goNextWeek();
+    await userEvent.click(await screen.findByRole('button', { name: 'Commit' }));
+    expect(
+      await screen.findByText('Week committed — 2 blocks skipped because they were in the past or clashed with something new'),
+    ).toBeInTheDocument();
   });
 
   test('discard requires confirmation', async () => {
