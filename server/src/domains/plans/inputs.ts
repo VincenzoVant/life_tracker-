@@ -75,9 +75,20 @@ export function buildPlannerInput(ctx: Ctx, weekStart: string): PlannerInput {
     const s = ms(b.start);
     return s >= week.start.getTime() && s < week.end.getTime();
   });
-  const existing = listBlocks(ctx, { from: new Date(range.start), to: new Date(range.end) })
-    .filter((b) => EXISTING_STATUSES.has(b.status))
-    .map(toRef);
+  const inRange = listBlocks(ctx, { from: new Date(range.start), to: new Date(range.end) }).filter((b) =>
+    EXISTING_STATUSES.has(b.status),
+  );
+  // Gym blocks just outside the range still constrain gym spacing (minHoursBetweenGym).
+  const gymMargin = prefs.minHoursBetweenGym * 3_600_000;
+  const inRangeIds = new Set(inRange.map((b) => b.id));
+  const nearbyGyms = listBlocks(ctx, { from: new Date(range.start - gymMargin), to: new Date(range.end + gymMargin) }).filter(
+    (b) =>
+      !inRangeIds.has(b.id) &&
+      EXISTING_STATUSES.has(b.status) &&
+      b.category === 'workout' &&
+      b.workoutType === 'gym',
+  );
+  const existing = [...inRange, ...nearbyGyms].map(toRef);
   const busy = ctx.busy
     .busyIntervals(new Date(range.start), new Date(range.end))
     .map((i) => ({ start: ms(i.start), end: ms(i.end), title: i.title }));

@@ -246,19 +246,24 @@ test('re-review partial -> done without workout keeps stored details', () => {
 test('a failed unplanned entry rolls back the whole submission', () => {
   const ctx = createTestCtx();
   const a = add(ctx, { category: 'work' }, '2026-10-14', '09:00', 60);
-  expect(() =>
+  let error: unknown;
+  try {
     submitReview(ctx, {
       date: '2026-10-14',
       entries: [{ blockId: a.id, outcome: 'done' }],
-      // a workout block without workoutType fails to create, after the entries were applied
+      // passes schema parse; createBlock's link check throws inside the transaction, after entries were applied
       unplanned: [
-        { title: 'x', category: 'workout', start: utc('2026-10-14', '12:00'), end: utc('2026-10-14', '13:00') } as BlockCreateInput,
+        { title: 'x', category: 'study', courseId: 'no-such-course', start: utc('2026-10-14', '12:00'), end: utc('2026-10-14', '13:00') } as BlockCreateInput,
       ],
-    }),
-  ).toThrow();
+    });
+  } catch (e) {
+    error = e;
+  }
+  expect(error).toMatchObject({ code: 'VALIDATION', fields: { courseId: expect.any(String) } });
   expect(getBlock(ctx, a.id).status).toBe('committed');
   expect(getPendingReview(ctx, '2026-10-14').completedAt).toBeNull();
   expect(getPendingReview(ctx, '2026-10-14').reviewed).toHaveLength(0);
+  expect(ctx.sqlite.prepare('select count(*) as n from daily_reviews').get()).toEqual({ n: 0 });
 });
 
 test('duplicate blockId -> 400', async () => {
