@@ -10,6 +10,7 @@ import { ChangesFeed } from './ChangesFeed';
 import { MacroSummary } from './MacroSummary';
 import { NextUpCard, pickNextUp } from './NextUpCard';
 import { Timeline } from './Timeline';
+import '../quickAdd/quickAdd.css';
 import './today.css';
 
 /** Waits for settings so "today" and the review emphasis use the configured timezone, not the browser's. */
@@ -46,6 +47,9 @@ function TodayContent() {
         </button>
       </div>
       <ChangesFeed />
+      <Link to="/quick-add" className="link-button primary-link something-came-up">
+        + Something came up
+      </Link>
       <NextUpCard block={pickNextUp(blocks, now)} tz={tz} />
       <MacroSummary weekStart={weekStartOf(now, tz)} today={today} />
       {isPending ? (

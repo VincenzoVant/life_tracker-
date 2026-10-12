@@ -16,6 +16,8 @@ import { useToast } from '../../components/Toast';
 import { usePreferences } from '../../api/hooks/preferences';
 import { useSettings, useTimezone } from '../../api/hooks/settings';
 import { useDraft } from '../../api/hooks/plans';
+import { useMealPlan } from '../../api/hooks/mealPlan';
+import { MealNamesContext } from './BlockCard';
 import { BlockDetails } from './BlockDetails';
 import { DraftPanel, PlanBar } from './DraftPanel';
 import { DayView } from './DayView';
@@ -97,6 +99,8 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
   const blocks = useMemo(() => data ?? [], [data]);
   const dates = weekDates(weekStart);
   const overlaps = useMemo(() => overlapWarnings(blocks), [blocks]);
+  const plan = useMealPlan(weekStart).data;
+  const mealNames = useMemo(() => Object.fromEntries((plan ?? []).map((e) => [`${e.date}|${e.slot}`, e.meal.name])), [plan]);
 
   function shiftWeek(n: number) {
     setWeekStart((w) => addDays(w, 7 * n));
@@ -109,6 +113,7 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
   }
 
   return (
+    <MealNamesContext.Provider value={mealNames}>
     <div className="week-page">
       <div className="week-header">
         <h1>Week</h1>
@@ -176,5 +181,6 @@ function WeekContent({ header, renderBlock, detailsActions }: WeekPageProps) {
         <BlockDetails block={selected} tz={tz} onClose={() => setSelected(undefined)} actions={detailsActions?.(selected)} />
       )}
     </div>
+    </MealNamesContext.Provider>
   );
 }

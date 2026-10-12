@@ -48,11 +48,29 @@ export function gridHours(prefs: Pick<Preferences, 'earliestBlock' | 'latestBloc
   };
 }
 
-/** Pixels from the top of the grid to the block start; `date` is the local day the column represents. */
-export function blockTop(block: Pick<Block, 'start'>, date: string, tz: string, hours: { from: number }): number {
-  const dayStart = zonedToUtc(date, '00:00', tz).getTime();
-  const hoursIntoDay = (new Date(block.start).getTime() - dayStart) / 3_600_000;
-  return (hoursIntoDay - hours.from) * PX_PER_HOUR;
+/** Widens the visible range so blocks outside the preference window (wall-clock) are not clipped. */
+export function extendGridHours(
+  hours: { from: number; to: number },
+  blocks: Array<Pick<Block, 'start' | 'end'>>,
+  tz: string,
+): { from: number; to: number } {
+  let { from, to } = hours;
+  for (const b of blocks) {
+    const start = new Date(b.start);
+    const end = new Date(b.end);
+    from = Math.min(from, Math.floor(hoursOf(localTimeOf(start, tz))));
+    const endHours = localDateOf(end, tz) === localDateOf(start, tz) ? hoursOf(localTimeOf(end, tz)) : 24;
+    to = Math.max(to, Math.ceil(endHours));
+  }
+  return { from: Math.max(0, from), to: Math.min(24, to) };
+}
+
+/**
+ * Pixels from the top of the grid to the block start, by wall-clock time (so it lines up with the hour gutter on
+ * DST days); `date` is the local day the column represents.
+ */
+export function blockTop(block: Pick<Block, 'start'>, _date: string, tz: string, hours: { from: number }): number {
+  return (hoursOf(localTimeOf(new Date(block.start), tz)) - hours.from) * PX_PER_HOUR;
 }
 
 export function blockHeight(block: Pick<Block, 'start' | 'end'>): number {

@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import { zonedToUtc, type Block } from '@life-tracker/shared';
 import { createBlock, getBlock, listBlocks, updateBlock } from '../../src/domains/blocks/service.js';
+import { getPreferences, savePreferences } from '../../src/domains/preferences/service.js';
 import { createCourse } from '../../src/domains/studies/service.js';
 import type { ConflictRef, ConflictsPort } from '../../src/domains/replan/conflictsPort.js';
 import {
@@ -91,11 +92,13 @@ test('apply moves blocks, removes unplaceable ones, creates added ones, marks pl
 
 test('apply creates added blocks as committed planner blocks linked to the plan', () => {
   const { ctx, course } = setup();
-  // A 3-hour study block cut in two by the trigger: the remainder is re-placed as extra blocks when it cannot be one.
-  study(ctx, course.id, '2026-10-15', '17:00', '21:00');
-  const r = quickAdd(ctx, evening());
+  // Blocks are capped at 60 min, so the displaced 2 h of study comes back as one moved block plus one added block.
+  savePreferences(ctx, { ...getPreferences(ctx), studyBlock: { min: 45, max: 60 } });
+  study(ctx, course.id, '2026-10-15', '19:00', '21:00');
+  const r = quickAdd(ctx, { title: 'Party', category: 'social', when: { start: iso('2026-10-15', '19:00'), durationMinutes: 270 } });
   const out = applyReplan(ctx, r.draft!.plan.id);
   const added = r.draft!.changes.filter((c) => c.type === 'added');
+  expect(added.length).toBeGreaterThan(0);
   expect(out.blocks.filter((b) => b.planId === out.plan.id)).toHaveLength(added.length);
   for (const b of out.blocks.filter((x) => x.planId === out.plan.id)) {
     expect(b).toMatchObject({ source: 'planner', status: 'committed', category: 'study', courseId: course.id });
@@ -118,6 +121,18 @@ test('apply after a basis block changed → 409 with exact stale message, nothin
   expect(err).toMatchObject({ code: 'CONFLICT', status: 409, message: 'Your week changed since this replan — please replan again' });
   expect(getBlock(ctx, s.id)).toEqual(s);
   expect(getReplanDraft(ctx, r.draft!.plan.id).plan.status).toBe('draft');
+});
+
+test('a later quick-add that finds nothing to move still discards the earlier open draft', () => {
+  const { ctx, course } = setup();
+  const s = study(ctx, course.id, '2026-10-15', '18:30', '20:00');
+  const a = quickAdd(ctx, evening());
+  expect(a.draft).not.toBeNull();
+  const b = quickAdd(ctx, { title: 'Late drinks', category: 'social', when: { start: iso('2026-10-15', '21:00'), durationMinutes: 120 } });
+  expect(b.draft).toBeNull();
+  expect(getReplanDraft(ctx, a.draft!.plan.id).plan.status).toBe('discarded');
+  expect(() => applyReplan(ctx, a.draft!.plan.id)).toThrow(AppError);
+  expect(getBlock(ctx, s.id)).toEqual(s);
 });
 
 test('keepAsIs discards plan and keeps quick-add block', () => {

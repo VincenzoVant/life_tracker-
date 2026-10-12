@@ -18,7 +18,7 @@ export function MealLibrary() {
   const shown = meals.filter((m) => m.name.toLowerCase().includes(q));
 
   const onArchive = (m: Meal) =>
-    archive.mutate(m.id, { onError: (e) => toast.show(e instanceof Error ? e.message : 'Could not archive', 'error') });
+    archive.mutate(m.id, { onError: (e) => toast.showError(e, 'Could not archive') });
 
   return (
     <div className="food-stack">

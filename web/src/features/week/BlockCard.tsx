@@ -1,6 +1,9 @@
-import { CATEGORY_META, localTimeOf, type Block } from '@life-tracker/shared';
-import { useRef, type CSSProperties, type HTMLAttributes, type PointerEvent, type Ref } from 'react';
+import { CATEGORY_META, localDateOf, localTimeOf, type Block } from '@life-tracker/shared';
+import { createContext, useContext, useEffect, useRef, type CSSProperties, type HTMLAttributes, type PointerEvent, type Ref } from 'react';
 import { minutesFromPixels } from './geometry';
+
+/** Assigned meal names keyed `${date}|${slot}`, provided by the week page. */
+export const MealNamesContext = createContext<Record<string, string>>({});
 
 export interface BlockCardProps extends Omit<HTMLAttributes<HTMLButtonElement>, 'onClick' | 'onSelect'> {
   block: Block;
@@ -16,28 +19,42 @@ export interface BlockCardProps extends Omit<HTMLAttributes<HTMLButtonElement>, 
   overlap?: boolean;
 }
 
-/** Pointer-drag handle on the bottom edge of a card. Previews the new height while dragging. */
+interface ResizeDrag {
+  pointerId: number;
+  startY: number;
+  startHeight: number;
+  originalHeight: string;
+  card: HTMLElement;
+}
+
+/**
+ * Pointer-drag handle on the bottom edge of a card. Previews the new height while dragging. The handle captures the
+ * pointer, so move/up/cancel all arrive here and nothing is left listening on the window.
+ */
 function ResizeHandle({ block, onResize }: { block: Block; onResize: (block: Block, deltaMinutes: number) => void }) {
-  const startY = useRef(0);
+  const drag = useRef<ResizeDrag | null>(null);
+  const restore = () => {
+    if (drag.current) drag.current.card.style.height = drag.current.originalHeight;
+    drag.current = null;
+  };
+  useEffect(() => restore, []);
   function down(e: PointerEvent<HTMLSpanElement>) {
     e.stopPropagation(); // keep dnd-kit from starting a move
     e.preventDefault();
     const card = e.currentTarget.parentElement as HTMLElement;
-    const originalHeight = card.style.height;
-    const startHeight = card.offsetHeight;
-    startY.current = e.clientY;
-    const move = (ev: globalThis.PointerEvent) => {
-      card.style.height = `${Math.max(8, startHeight + ev.clientY - startY.current)}px`;
-    };
-    const up = (ev: globalThis.PointerEvent) => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      card.style.height = originalHeight;
-      const minutes = minutesFromPixels(ev.clientY - startY.current);
-      if (minutes !== 0) onResize(block, minutes);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drag.current = { pointerId: e.pointerId, startY: e.clientY, startHeight: card.offsetHeight, originalHeight: card.style.height, card };
+  }
+  function move(e: PointerEvent<HTMLSpanElement>) {
+    const d = drag.current;
+    if (d) d.card.style.height = `${Math.max(8, d.startHeight + e.clientY - d.startY)}px`;
+  }
+  function up(e: PointerEvent<HTMLSpanElement>) {
+    const d = drag.current;
+    if (!d) return;
+    restore();
+    const minutes = minutesFromPixels(e.clientY - d.startY);
+    if (minutes !== 0) onResize(block, minutes);
   }
   return (
     <span
@@ -47,6 +64,9 @@ function ResizeHandle({ block, onResize }: { block: Block; onResize: (block: Blo
       aria-label="Resize"
       data-testid={`resize-${block.id}`}
       onPointerDown={down}
+      onPointerMove={move}
+      onPointerUp={up}
+      onPointerCancel={restore}
       onClick={(e) => e.stopPropagation()}
     />
   );
@@ -56,6 +76,7 @@ function ResizeHandle({ block, onResize }: { block: Block; onResize: (block: Blo
 export function BlockCard({ block, tz, onSelect, style, className, children, cardRef, onResize, overlap, ...rest }: BlockCardProps) {
   const meta = CATEGORY_META[block.category];
   const proposed = block.status === 'proposed';
+  const mealName = useContext(MealNamesContext)[`${localDateOf(new Date(block.start), tz)}|${block.mealSlot}`];
   const reviewed = block.status === 'done' || block.status === 'partial';
   return (
     <button
@@ -88,6 +109,7 @@ export function BlockCard({ block, tz, onSelect, style, className, children, car
           ⚠
         </span>
       )}
+      {block.category === 'meal' && mealName && <span className="block-card-meal">{mealName}</span>}
       {proposed && <span className="block-card-proposed">Proposed</span>}
       {reviewed && (
         <span className="block-card-badge" role="img" aria-label={block.status === 'done' ? 'Done' : 'Partly done'}>

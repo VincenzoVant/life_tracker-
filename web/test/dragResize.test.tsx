@@ -70,13 +70,30 @@ describe('drag and resize', () => {
     expect(screen.queryByTestId('resize-lock')).not.toBeInTheDocument();
     const handle = screen.getByTestId('resize-run');
     fireEvent.pointerDown(handle, { clientY: 100 });
-    fireEvent(window, new MouseEvent('pointerup', { clientY: 148 })); // +48px = 60 min
+    fireEvent.pointerUp(handle, { clientY: 148 }); // +48px = 60 min
     await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
     expect(calls[0]!.body).toEqual({ start: '2026-10-14T16:00:00.000Z', end: '2026-10-14T18:00:00.000Z' });
 
     fireEvent.pointerDown(handle, { clientY: 100 });
-    fireEvent(window, new MouseEvent('pointerup', { clientY: 52 })); // -60 min → 0 length
+    fireEvent.pointerUp(handle, { clientY: 52 }); // -60 min → 0 length
     expect(await screen.findByText('Blocks must be at least 15 minutes long')).toBeInTheDocument();
     expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1);
+  });
+
+  test('pointercancel during a resize restores the height and sends no PATCH, even on a later pointerup', async () => {
+    const { calls } = mockApi({ 'PATCH /api/blocks/run': () => run });
+    renderWithProviders(<Harness blocks={[run]} />);
+    const handle = screen.getByTestId('resize-run');
+    const card = screen.getByText('Run').closest('button')!;
+    const before = card.style.height;
+    fireEvent.pointerDown(handle, { clientY: 100 });
+    fireEvent.pointerMove(handle, { clientY: 200 });
+    expect(card.style.height).not.toBe(before);
+    fireEvent.pointerCancel(handle, { clientY: 148 });
+    expect(card.style.height).toBe(before);
+    fireEvent.pointerUp(handle, { clientY: 148 });
+    fireEvent(window, new MouseEvent('pointerup', { clientY: 148 }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(0);
   });
 });

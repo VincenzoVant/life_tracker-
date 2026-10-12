@@ -4,6 +4,7 @@ import { Banners } from './Banners';
 import { Sidebar } from './Sidebar';
 import { SyncBadge } from './SyncBadge';
 import { TabBar } from './TabBar';
+import '../features/quickAdd/quickAdd.css';
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -13,6 +14,9 @@ export function Layout({ children }: { children: ReactNode }) {
         <header className="app-header">
           <span className="brand">Life Tracker</span>
           <SyncBadge />
+          <Link to="/quick-add" className="link-button header-quick-add">
+            + Something came up
+          </Link>
           <Link to="/settings" className="nav-link-gear" aria-label="Settings">
             ⚙
           </Link>

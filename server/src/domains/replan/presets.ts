@@ -1,5 +1,5 @@
 import {
-  dayBoundsUtc, localDateOf, sleepStartUtc, zonedToUtc,
+  addDays, dayBoundsUtc, localDateOf, sleepStartUtc, zonedToUtc,
   type Preferences, type QuickAddWhen,
 } from '@life-tracker/shared';
 import { AppError } from '../../lib/errors.js';
@@ -17,19 +17,26 @@ export function resolveQuickAddWhen(
     return { start, end: new Date(start.getTime() + when.durationMinutes * MINUTE_MS) };
   }
 
-  const today = localDateOf(now, tz);
+  const calendarDay = localDateOf(now, tz);
   const from = ceilTo15(now.getTime());
-  const bedtime = sleepStartUtc(today, prefs, tz).getTime();
+  // Between midnight and bedtime (or, for "tonight", wake time) the night still belongs to the previous date.
+  const beforeLateBedtime = now.getTime() < sleepStartUtc(addDays(calendarDay, -1), prefs, tz).getTime();
+  const beforeWake = now.getTime() < dayBoundsUtc(calendarDay, prefs, tz).start.getTime();
+  const prev = addDays(calendarDay, -1);
 
   let start = from;
-  let end = bedtime;
+  let end: number;
   let message = "It's already past your bedtime";
   if (when.preset === 'this_afternoon') {
-    start = Math.max(from, zonedToUtc(today, '12:00', tz).getTime());
-    end = zonedToUtc(today, '18:00', tz).getTime();
+    start = Math.max(from, zonedToUtc(calendarDay, '12:00', tz).getTime());
+    end = zonedToUtc(calendarDay, '18:00', tz).getTime();
     message = 'The afternoon is over';
   } else if (when.preset === 'all_day') {
-    start = Math.max(from, dayBoundsUtc(today, prefs, tz).start.getTime());
+    const day = beforeLateBedtime ? prev : calendarDay;
+    start = Math.max(from, dayBoundsUtc(day, prefs, tz).start.getTime());
+    end = sleepStartUtc(day, prefs, tz).getTime();
+  } else {
+    end = sleepStartUtc(beforeLateBedtime || beforeWake ? prev : calendarDay, prefs, tz).getTime();
   }
 
   if (end - start < 15 * MINUTE_MS) throw new AppError('VALIDATION', message, { when: message });

@@ -69,3 +69,53 @@ test('runNow runs a registered job and rejects unknown names', async () => {
   await expect(s.runNow('nope')).rejects.toThrow('unknown job');
   s.stop();
 });
+
+test('duplicate job names throw', () => {
+  const s = createScheduler({ clock });
+  s.every('j', 1000, vi.fn());
+  expect(() => s.every('j', 1000, vi.fn())).toThrow('duplicate job');
+  expect(() => s.dailyAt('j', '03:00', () => 'UTC', vi.fn())).toThrow('duplicate job');
+  s.stop();
+});
+
+test.each([0, -5, Number.NaN, Infinity, 2 ** 31])('every rejects invalid interval %s', (ms) => {
+  const s = createScheduler({ clock });
+  expect(() => s.every('j', ms, vi.fn())).toThrow('invalid interval');
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test('every accepts the max timer interval', () => {
+  const s = createScheduler({ clock });
+  expect(() => s.every('j', 2 ** 31 - 1, vi.fn())).not.toThrow();
+  s.stop();
+});
+
+test.each(['3:00', '24:00', '12:60', '0300', 'ab:cd', '03:00:00', ''])('dailyAt rejects invalid time %j', (t) => {
+  const s = createScheduler({ clock });
+  expect(() => s.dailyAt('d', t, () => 'UTC', vi.fn())).toThrow('invalid time');
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test('dailyAt accepts boundary times', () => {
+  const s = createScheduler({ clock });
+  expect(() => s.dailyAt('a', '00:00', () => 'UTC', vi.fn())).not.toThrow();
+  expect(() => s.dailyAt('b', '23:59', () => 'UTC', vi.fn())).not.toThrow();
+  s.stop();
+});
+
+test('an early-firing timer does not re-run the same dailyAt occurrence', async () => {
+  vi.setSystemTime(new Date('2026-10-12T02:59:00Z'));
+  // First read (registration) is accurate; afterwards the clock lags 200ms, so the timer fires "early" by the clock.
+  let reads = 0;
+  const lagging = { now: () => new Date(Date.now() - (reads++ === 0 ? 0 : 200)) };
+  const s = createScheduler({ clock: lagging });
+  const fn = vi.fn();
+  s.dailyAt('d', '03:00', () => 'UTC', fn);
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(fn).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(fn).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(24 * 3_600_000);
+  expect(fn).toHaveBeenCalledTimes(2);
+  s.stop();
+});

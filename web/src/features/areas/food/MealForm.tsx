@@ -34,7 +34,7 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
       else await create.mutateAsync(input);
       onClose();
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : 'Could not save meal', 'error');
+      toast.showError(err, 'Could not save meal');
     }
   };
 

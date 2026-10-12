@@ -189,7 +189,7 @@ describe('GoogleSection', () => {
   test('settings: not configured shows setup instructions; connected shows Sync now', async () => {
     mockApi({ 'GET /api/google/status': () => status({ configured: false, connected: false }) });
     const first = renderWithProviders(<GoogleSection />);
-    expect(await screen.findByRole('link', { name: 'docs/setup-google.md' })).toBeInTheDocument();
+    expect(await screen.findByText('docs/setup-google.md')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sync now' })).not.toBeInTheDocument();
     first.unmount();
 
@@ -230,6 +230,7 @@ describe('Week deep link', () => {
       'GET /api/preferences': () => DEFAULT_PREFERENCES,
       'GET /api/blocks': () => [],
       'GET /api/plans/draft': () => null,
+      'GET /api/meal-plan': () => [],
       ...api,
     });
 

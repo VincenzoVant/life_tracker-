@@ -63,4 +63,16 @@ describe('Fixed schedule settings', () => {
     expect(confirm).toHaveBeenCalledWith('Remove all future occurrences of Algorithms lecture? Past, reviewed ones are kept.');
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === '/api/schedule/fe1')).toBe(true));
   });
+
+  test('default valid-from date uses the configured timezone', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-12T11:00:00Z')); // 2026-10-13 01:00 in Kiritimati
+    try {
+      mockApi({ ...base, 'GET /api/settings': () => ({ timezone: 'Pacific/Kiritimati' }), 'GET /api/schedule': () => [] });
+      renderWithProviders(<SettingsPage />);
+      await waitFor(() => expect(screen.getByLabelText('Valid from')).toHaveValue('2026-10-13'));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

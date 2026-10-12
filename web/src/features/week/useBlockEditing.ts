@@ -14,7 +14,7 @@ export function useBlockEditing(tz: string) {
   function send(block: Block, range: { start: string; end: string }) {
     update.mutate(
       { id: block.id, ...range },
-      { onError: (e) => toast.show(e instanceof Error ? e.message : 'Could not update the block', 'error') },
+      { onError: (e) => toast.showError(e, 'Could not update the block') },
     );
   }
 

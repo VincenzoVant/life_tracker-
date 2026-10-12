@@ -102,7 +102,7 @@ function History({ lift }: { lift: LiftInfo }) {
                     if (!window.confirm(`Delete the ${s.date} set (${s.weightKg} kg × ${s.reps})?`)) return;
                     del.mutate(
                       { liftId: lift.id, setId: s.id },
-                      { onError: (err) => toast.show(err instanceof Error ? err.message : 'Could not delete set', 'error') },
+                      { onError: (err) => toast.showError(err, 'Could not delete set') },
                     );
                   }}
                   aria-label={`Delete set ${s.date}`}>
@@ -135,7 +135,7 @@ export function TopLiftsPage() {
     try {
       await p;
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : 'Something went wrong', 'error');
+      toast.showError(err, 'Something went wrong');
     }
   }
 

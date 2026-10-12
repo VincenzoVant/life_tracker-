@@ -1,4 +1,4 @@
-import { blockMinutes, localTimeOf, type Block, type ReviewOutcome } from '@life-tracker/shared';
+import { blockMinutes, localTimeOf, type Block, type PendingBlock, type ReviewOutcome } from '@life-tracker/shared';
 import { CategoryDot } from '../../components/CategoryDot';
 import { Field } from '../../components/Field';
 import { emptyWorkoutDraft, WorkoutDetailsFields, type WorkoutDraft } from './WorkoutDetailsFields';
@@ -11,6 +11,8 @@ export interface RowValue {
   /** True once the user changed a workout field; untouched rows send no workout payload. */
   workoutEdited: boolean;
   completeTask: boolean;
+  /** Meal rows with a planned meal: the user ate what was planned (default true). */
+  ateAsPlanned: boolean;
 }
 
 const OUTCOMES: Array<{ outcome: ReviewOutcome; label: string }> = [
@@ -29,6 +31,7 @@ export function initialRowValue(block: Block): RowValue | undefined {
     workout: emptyWorkoutDraft,
     workoutEdited: false,
     completeTask: false,
+    ateAsPlanned: false,
   };
 }
 
@@ -39,7 +42,7 @@ export function ReviewRow({
   errors = {},
   onChange,
 }: {
-  block: Block;
+  block: PendingBlock;
   tz: string;
   value: RowValue | undefined;
   /** Server messages for this row keyed by the part after `entries.N.` (e.g. `actualMinutes`). */
@@ -47,7 +50,7 @@ export function ReviewRow({
   onChange: (next: RowValue) => void;
 }) {
   const duration = blockMinutes(block);
-  const base: RowValue = value ?? { outcome: 'done', minutes: '', workout: emptyWorkoutDraft, workoutEdited: false, completeTask: false };
+  const base: RowValue = value ?? { outcome: 'done', minutes: '', workout: emptyWorkoutDraft, workoutEdited: false, completeTask: false, ateAsPlanned: true };
   const choose = (outcome: ReviewOutcome) =>
     onChange({
       ...base,
@@ -86,6 +89,12 @@ export function ReviewRow({
         <label className="review-check">
           <input type="checkbox" checked={value!.completeTask} onChange={(e) => onChange({ ...value!, completeTask: e.target.checked })} />
           Mark task done
+        </label>
+      )}
+      {block.category === 'meal' && block.plannedMeal && outcome && outcome !== 'skipped' && (
+        <label className="review-check">
+          <input type="checkbox" checked={value!.ateAsPlanned} onChange={(e) => onChange({ ...value!, ateAsPlanned: e.target.checked })} />
+          Ate as planned ({block.plannedMeal.name} ×{block.plannedMeal.servings})
         </label>
       )}
       {otherErrors.map(([k, m]) => (

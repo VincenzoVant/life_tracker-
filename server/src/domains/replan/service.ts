@@ -43,7 +43,17 @@ export function createReplanDraft(
 ): ReplanDraft | null {
   const { input, weekStart, basis } = buildReplanInput(ctx, opts.trigger);
   const out = replan(input);
-  if (out.changes.length === 0) return null;
+  // Any replan attempt supersedes the week's open draft, even when the new result is empty.
+  const discardOpenDrafts = () =>
+    ctx.db
+      .update(plans)
+      .set({ status: 'discarded' })
+      .where(and(eq(plans.weekStart, weekStart), eq(plans.mode, 'replan'), eq(plans.status, 'draft')))
+      .run();
+  if (out.changes.length === 0) {
+    discardOpenDrafts();
+    return null;
+  }
 
   const byId = new Map(input.movable.map((m) => [m.id, m]));
   const changes: ApiPlanChange[] = out.changes.map((c: PlanChangeCore) => {
@@ -72,11 +82,7 @@ export function createReplanDraft(
   };
   const id = ulid();
   ctx.db.transaction(() => {
-    ctx.db
-      .update(plans)
-      .set({ status: 'discarded' })
-      .where(and(eq(plans.weekStart, weekStart), eq(plans.mode, 'replan'), eq(plans.status, 'draft')))
-      .run();
+    discardOpenDrafts();
     ctx.db
       .insert(plans)
       .values({
@@ -125,8 +131,9 @@ export function applyReplan(ctx: Ctx, planId: string, conflicts: ConflictsPort =
       let cur: Block;
       try {
         cur = getBlock(ctx, id);
-      } catch {
-        throw new AppError('CONFLICT', STALE_MESSAGE);
+      } catch (e) {
+        if (e instanceof AppError && e.code === 'NOT_FOUND') throw new AppError('CONFLICT', STALE_MESSAGE);
+        throw e;
       }
       if (cur.updatedAt !== was.updatedAt || cur.status !== was.status) throw new AppError('CONFLICT', STALE_MESSAGE);
     }
@@ -174,5 +181,35 @@ export function replanFromConflict(
   return createReplanDraft(ctx, {
     trigger: { start: new Date(conflict.start), end: new Date(conflict.end), title: conflict.title },
     conflictId,
+  });
+}
+
+/** Re-runs a stale draft for the same trigger (block or conflict); the old draft is discarded. */
+export function retryReplan(
+  ctx: Ctx,
+  planId: string,
+  conflicts: ConflictsPort = defaultConflictsPort,
+): ReplanDraft | null {
+  const row = replanRow(ctx, planId);
+  if (row.status === 'applied') throw new AppError('CONFLICT', 'Plan is already applied');
+  const conflictId = (row.summary as PlanSummary).conflictId;
+
+  let trigger: Trigger;
+  if (row.triggerBlockId) {
+    const block = getBlock(ctx, row.triggerBlockId);
+    trigger = { start: new Date(block.start), end: new Date(block.end), title: block.title };
+  } else if (conflictId) {
+    const conflict = conflicts.listConflicts(ctx, 'open').find((c) => c.id === conflictId);
+    if (!conflict) throw new AppError('CONFLICT', 'This conflict is no longer open');
+    trigger = { start: new Date(conflict.start), end: new Date(conflict.end), title: conflict.title };
+  } else {
+    throw new AppError('CONFLICT', 'This replan has no trigger to retry');
+  }
+
+  ctx.db.update(plans).set({ status: 'discarded' }).where(eq(plans.id, planId)).run();
+  return createReplanDraft(ctx, {
+    trigger,
+    ...(row.triggerBlockId ? { triggerBlockId: row.triggerBlockId } : {}),
+    ...(conflictId ? { conflictId } : {}),
   });
 }

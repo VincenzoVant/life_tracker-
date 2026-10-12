@@ -53,7 +53,6 @@ export function TrendsSection() {
       {data && (
         <ul className="area-list">
           {rowsOf(data).map((r) => {
-            const nums = r.values.map((v) => v ?? 0);
             const latest = r.values[r.values.length - 1] ?? null;
             const goal = r.goal?.[r.goal.length - 1] ?? null;
             return (
@@ -65,7 +64,7 @@ export function TrendsSection() {
                     {goal !== null && ` / goal ${r.fmt(goal)}`}
                   </div>
                 </div>
-                <Sparkline values={nums} goal={r.goal} label={r.label} />
+                <Sparkline values={r.values} goal={r.goal} label={r.label} />
               </li>
             );
           })}

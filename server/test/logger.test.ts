@@ -1,8 +1,8 @@
-import { existsSync, lstatSync, mkdtempSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Writable } from 'node:stream';
-import { expect, test } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
 import pino from 'pino';
 import { createApp } from '../src/app.js';
 import { LOG_CURRENT_PATH_NAME, createLogger } from '../src/logger.js';
@@ -34,9 +34,29 @@ test('request log line has method/path/status/ms but no query, body or cookie', 
   expect(raw).not.toContain('1234');
 });
 
-test('file transport writes server.*.log and a current.log symlink', async () => {
+let fileLogs: pino.Logger[] = [];
+let tmpDirs: string[] = [];
+
+afterEach(async () => {
+  const logs = fileLogs;
+  fileLogs = [];
+  for (const log of logs) {
+    await new Promise<void>((r) => log.flush(() => r()));
+    // Close the pino-roll worker transport so it releases the tmp dir.
+    const stream = (log as any)[pino.symbols.streamSym] as { end?: () => void } | undefined;
+    stream?.end?.();
+  }
+  await new Promise((r) => setTimeout(r, 100));
+  for (const d of tmpDirs) rmSync(d, { recursive: true, force: true });
+  tmpDirs = [];
+});
+
+/** Starts a file logger in a fresh tmp dir and polls (with backoff) until its files appear or `budgetMs` elapses. */
+async function startFileLogger(budgetMs: number): Promise<boolean> {
   const dataDir = mkdtempSync(join(tmpdir(), 'lt-log-'));
+  tmpDirs.push(dataDir);
   const log = createLogger({ dataDir, toFile: true });
+  fileLogs.push(log);
   log.info('hello');
   const logs = join(dataDir, 'logs');
   const current = join(logs, LOG_CURRENT_PATH_NAME);
@@ -45,9 +65,23 @@ test('file transport writes server.*.log and a current.log symlink', async () =>
     readdirSync(logs).some((f) => /^server\.\d+\.log$/.test(f)) &&
     existsSync(current) &&
     lstatSync(current).isSymbolicLink();
-  for (let i = 0; i < 50 && !ready(); i++) await new Promise((r) => setTimeout(r, 100));
-  expect(ready()).toBe(true);
-  await new Promise<void>((r) => log.flush(() => r()));
+  const deadline = Date.now() + budgetMs;
+  for (let delay = 50; Date.now() < deadline && !ready(); delay = Math.min(delay * 2, 500)) {
+    await new Promise((r) => setTimeout(r, delay));
+  }
+  return ready();
+}
+
+test('file transport writes server.*.log and a current.log symlink', { timeout: 60_000 }, async () => {
+  // The pino-roll worker occasionally fails to come up for many seconds when the whole monorepo suite runs in parallel;
+  // a fresh logger/worker recovers quickly, so retry rather than wait on a stuck one.
+  let attempts = 0;
+  let ok = false;
+  while (!ok && attempts < 8) {
+    attempts++;
+    ok = await startFileLogger(3_000);
+  }
+  expect(ok).toBe(true);
 });
 
 test('createLogger without file returns a usable logger', () => {

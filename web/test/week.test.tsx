@@ -29,6 +29,7 @@ function api() {
     'GET /api/preferences': () => DEFAULT_PREFERENCES,
     'GET /api/blocks': () => blocks,
     'GET /api/plans/draft': () => null,
+    'GET /api/meal-plan': () => [],
     'DELETE /api/blocks/lec': () => block({ id: 'lec', status: 'removed' }),
   }));
 }
@@ -132,6 +133,7 @@ describe('overlap markers', () => {
         block({ id: 'c', title: 'Later', start: '2026-10-14T19:00:00.000Z', end: '2026-10-14T20:00:00.000Z' }),
       ],
       'GET /api/plans/draft': () => null,
+      'GET /api/meal-plan': () => [],
     });
     renderWithProviders(<WeekPage />);
     for (const title of ['Class', 'Drinks']) {

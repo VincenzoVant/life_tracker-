@@ -16,7 +16,7 @@ import '../../components/banners.css';
 function NotConfigured() {
   return (
     <div>
-      <p>Google Calendar isn&apos;t set up yet. Follow the steps in <a href="/docs/setup-google.md">docs/setup-google.md</a>:</p>
+      <p>Google Calendar isn&apos;t set up yet. Follow the steps in <code>docs/setup-google.md</code> in the project folder:</p>
       <ol>
         <li>Create a Google Cloud project and enable the Google Calendar API.</li>
         <li>Create an OAuth client of type &quot;Desktop app&quot;.</li>
