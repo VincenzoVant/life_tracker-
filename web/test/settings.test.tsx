@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test } from 'vitest';
+import { DEFAULT_PREFERENCES } from '@life-tracker/shared';
 import { SettingsPage } from '../src/features/settings/SettingsPage';
 import { mockApi } from './mockApi';
 import { renderWithProviders } from './render';
@@ -17,6 +18,9 @@ const goals = {
 const base = {
   'GET /api/goals': () => goals,
   'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
+  'GET /api/schedule': () => [],
+  'GET /api/courses': () => [],
+  'GET /api/preferences': () => DEFAULT_PREFERENCES,
 };
 
 describe('SettingsPage', () => {
