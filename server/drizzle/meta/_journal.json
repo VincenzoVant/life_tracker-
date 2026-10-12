@@ -85,6 +85,13 @@
       "when": 1791835278503,
       "tag": "0011_youthful_leader",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1791835378239,
+      "tag": "0012_heavy_swarm",
+      "breakpoints": true
     }
   ]
 }

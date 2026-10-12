@@ -177,7 +177,21 @@ export const mealLogs =sqliteTable(
   (t) => [index('meal_logs_date_idx').on(t.date)],
 );
 
-export const dailyReviews = sqliteTable('daily_reviews', {
+export const mealPlanEntries = sqliteTable(
+  'meal_plan_entries',
+  {
+    id: text('id').primaryKey(),
+    date: text('date').notNull(),
+    slot: text('slot').notNull(),
+    mealId: text('meal_id')
+      .notNull()
+      .references(() => meals.id),
+    servings: real('servings').notNull(),
+  },
+  (t) => [uniqueIndex('meal_plan_date_slot_uq').on(t.date, t.slot)],
+);
+
+export const dailyReviews =sqliteTable('daily_reviews', {
   date: text('date').primaryKey(),
   completedAt: text('completed_at').notNull(),
 });
