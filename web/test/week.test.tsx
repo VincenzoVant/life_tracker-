@@ -120,6 +120,17 @@ describe('WeekPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.getByRole('dialog', { name: 'Edit block' })).toBeInTheDocument();
   });
+
+  test('details dialog follows the refetched block instead of going stale', async () => {
+    api();
+    const { queryClient } = renderWithProviders(<WeekPage />);
+    await userEvent.click(await screen.findByText('Lecture'));
+    expect(screen.getByRole('dialog', { name: 'Lecture' })).toBeInTheDocument();
+    blocks[0] = { ...blocks[0]!, title: 'Lecture (moved room)' };
+    await queryClient.invalidateQueries({ queryKey: ['blocks'] });
+    expect(await screen.findByRole('dialog', { name: 'Lecture (moved room)' })).toBeInTheDocument();
+    blocks[0] = { ...blocks[0]!, title: 'Lecture' };
+  });
 });
 
 describe('overlap markers', () => {

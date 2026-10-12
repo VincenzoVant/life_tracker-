@@ -9,7 +9,7 @@ const PLACEHOLDER = '~/Library/Mobile Documents/com~apple~CloudDocs/LifeTracker'
 const fmtSize = (b: number) => (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 export function BackupsSection() {
-  const { data } = useBackups();
+  const { data, isError, error, refetch, isFetching } = useBackups();
   const run = useRunBackup();
   const save = useSaveBackupSettings();
   const toast = useToast();
@@ -34,10 +34,22 @@ export function BackupsSection() {
       toast.show('Backup folder saved');
     } catch (err) {
       if (err instanceof ApiError) setFieldError(err.fields?.dir ?? err.message);
-      else toast.show('Could not save backup folder', 'error');
+      else toast.showError(err, 'Could not save backup folder');
     }
   }
 
+  if (!data && isError) {
+    return (
+      <div>
+        <p className="error" role="alert">
+          Could not load backups{error instanceof Error ? `: ${error.message}` : ''}
+        </p>
+        <button type="button" onClick={() => void refetch()} disabled={isFetching}>
+          Retry
+        </button>
+      </div>
+    );
+  }
   if (!data) return <p className="muted">Loading…</p>;
   return (
     <div>

@@ -72,6 +72,35 @@ describe('AuthGate', () => {
   });
 });
 
+describe('AuthGate unreachable', () => {
+  test('Retry button refetches auth status and recovers', async () => {
+    const user = userEvent.setup();
+    let up = false;
+    mockApi({
+      'GET /api/auth/status': () =>
+        up ? { pinSet: true, authenticated: true } : { status: 503, body: { error: { code: 'INTERNAL', message: 'down' } } },
+    });
+    renderWithProviders(<AuthGate><p>secret</p></AuthGate>);
+    expect(await screen.findByText("Can't reach the server.")).toBeInTheDocument();
+    up = true;
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('secret')).toBeInTheDocument();
+  });
+
+  test('refetches when the window regains focus', async () => {
+    let up = false;
+    mockApi({
+      'GET /api/auth/status': () =>
+        up ? { pinSet: true, authenticated: true } : { status: 503, body: { error: { code: 'INTERNAL', message: 'down' } } },
+    });
+    renderWithProviders(<AuthGate><p>secret</p></AuthGate>);
+    await screen.findByText("Can't reach the server.");
+    up = true;
+    window.dispatchEvent(new Event('focus'));
+    expect(await screen.findByText('secret')).toBeInTheDocument();
+  });
+});
+
 describe('Layout', () => {
   test('renders children with navigation including Today', async () => {
     renderWithProviders(<Layout><p>content</p></Layout>);

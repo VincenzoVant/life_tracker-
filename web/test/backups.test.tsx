@@ -44,4 +44,18 @@ describe('BackupsSection', () => {
     expect(screen.getByLabelText('Backup folder')).toHaveAttribute('aria-invalid', 'true');
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ dir: 'relative/dir' });
   });
+
+  test('shows the error with a retry when loading fails', async () => {
+    const user = userEvent.setup();
+    let fail = true;
+    mockApi({
+      'GET /api/backups': () => (fail ? { status: 500, body: { error: { code: 'INTERNAL', message: 'disk on fire' } } } : status()),
+    });
+    renderWithProviders(<BackupsSection />);
+    expect(await screen.findByText(/Could not load backups/)).toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
+    fail = false;
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('data-2026-10-12.db')).toBeInTheDocument();
+  });
 });

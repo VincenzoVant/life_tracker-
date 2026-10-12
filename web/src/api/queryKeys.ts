@@ -17,4 +17,4 @@ export const qk = {
   preferences: () => ['preferences'] as const,
 } as const;
 
-export type QueryFamily = 'blocks' | 'progress' | 'review' | 'courses' | 'startup' | 'workouts' | 'food' | 'goals' | 'preferences' | 'plans' | 'conflicts' | 'sync';
+export type QueryFamily = 'blocks' | 'progress' | 'review' | 'courses' | 'startup' | 'workouts' | 'food' | 'goals' | 'preferences' | 'plans' | 'google';

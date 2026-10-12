@@ -194,7 +194,12 @@ export function TopLiftsPage() {
                   >
                     Rename
                   </button>
-                  <button disabled={hasSets} onClick={() => void run(del.mutateAsync(lift.id))}>
+                  <button
+                    disabled={hasSets}
+                    onClick={() => {
+                      if (window.confirm(`Delete the lift "${lift.name}"?`)) void run(del.mutateAsync(lift.id));
+                    }}
+                  >
                     Delete
                   </button>
                 </div>

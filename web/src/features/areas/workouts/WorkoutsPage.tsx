@@ -4,8 +4,9 @@ import { WORKOUT_TYPES, addDays, localDateOf, weekStartOf, type WorkoutSession, 
 import { useGoals } from '../../../api/hooks/goals';
 import { useWeekProgress } from '../../../api/hooks/progress';
 import { useTimezone } from '../../../api/hooks/settings';
-import { useWorkoutSessions } from '../../../api/hooks/workouts';
+import { useDeleteSession, useWorkoutSessions } from '../../../api/hooks/workouts';
 import { ProgressBar } from '../../../components/ProgressBar';
+import { useToast } from '../../../components/Toast';
 import { SessionForm, TYPE_LABEL } from './SessionForm';
 import './workouts.css';
 
@@ -34,6 +35,9 @@ export function WorkoutsPage() {
   const progress = useWeekProgress(weekStart);
   const [filter, setFilter] = useState<'all' | WorkoutType>('all');
   const [logging, setLogging] = useState(false);
+  const [editing, setEditing] = useState<WorkoutSession | null>(null);
+  const del = useDeleteSession();
+  const toast = useToast();
 
   const rows = [...(sessions.data ?? [])]
     .filter((s) => filter === 'all' || s.type === filter)
@@ -93,12 +97,28 @@ export function WorkoutsPage() {
                   <div className="muted">{s.date}</div>
                 </div>
                 <span>{describe(s)}</span>
+                <span className="wk-actions">
+                  <button aria-label={`Edit ${TYPE_LABEL[s.type]} session ${s.date}`} onClick={() => setEditing(s)}>
+                    Edit
+                  </button>
+                  <button
+                    aria-label={`Delete ${TYPE_LABEL[s.type]} session ${s.date}`}
+                    disabled={del.isPending}
+                    onClick={() => {
+                      if (!window.confirm(`Delete the ${TYPE_LABEL[s.type]} session on ${s.date}?`)) return;
+                      del.mutate(s.id, { onError: (err) => toast.showError(err, 'Could not delete session') });
+                    }}
+                  >
+                    Delete
+                  </button>
+                </span>
               </li>
             );
           })}
         </ul>
       )}
       {logging && <SessionForm today={today} onClose={() => setLogging(false)} />}
+      {editing && <SessionForm today={today} session={editing} onClose={() => setEditing(null)} />}
     </section>
   );
 }

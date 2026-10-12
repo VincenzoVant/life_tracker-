@@ -5,6 +5,8 @@ import { useTimezone } from '../../../api/hooks/settings';
 import {
   useCreateMilestone,
   useCreateTask,
+  useDeleteMilestone,
+  useDeleteTask,
   useMilestones,
   useReorderTasks,
   useStartupTasks,
@@ -125,6 +127,8 @@ export function StartupPage() {
   const progress = useWeekProgress(weekStart);
   const updateTask = useUpdateTask();
   const reorder = useReorderTasks();
+  const deleteTask = useDeleteTask();
+  const deleteMilestone = useDeleteMilestone();
   const toast = useToast();
   const [taskEdit, setTaskEdit] = useState<StartupTask | 'new' | null>(null);
   const [msEdit, setMsEdit] = useState<Milestone | 'new' | null>(null);
@@ -200,6 +204,15 @@ export function StartupPage() {
                   <button onClick={() => setMsEdit(g.milestone)} aria-label={`Edit milestone ${g.title}`}>
                     Edit
                   </button>
+                  <button
+                    aria-label={`Delete milestone ${g.title}`}
+                    onClick={() => {
+                      if (!window.confirm(`Delete the milestone "${g.title}"? Its tasks stay, without a milestone.`)) return;
+                      deleteMilestone.mutate(g.milestone!.id, { onError: (err) => fail(err, 'Could not delete milestone') });
+                    }}
+                  >
+                    Delete
+                  </button>
                 </>
               )}
             </div>
@@ -232,6 +245,15 @@ export function StartupPage() {
                           </button>
                           <button onClick={() => setTaskEdit(t)} aria-label={`Edit ${t.title}`}>
                             Edit
+                          </button>
+                          <button
+                            aria-label={`Delete ${t.title}`}
+                            onClick={() => {
+                              if (!window.confirm(`Delete the task "${t.title}"?`)) return;
+                              deleteTask.mutate(t.id, { onError: (err) => fail(err, 'Could not delete task') });
+                            }}
+                          >
+                            Delete
                           </button>
                         </div>
                       </div>

@@ -21,7 +21,7 @@ Run this against a throwaway Google account or a test calendar, never your real 
 - [ ] 8. **Offline queue.** Turn Wi-Fi off. Edit two blocks.
   Expected: the sync badge shows pending changes. Turn Wi-Fi on: the queue flushes, the badge clears and Google shows the edits.
 - [ ] 9. **Revoke.** At https://myaccount.google.com/permissions remove access for the app. Make an edit, or click Sync now.
-  Expected: a reconnect banner appears. Click Connect Google Calendar again: the banner clears and queued changes flush.
+  Expected: a banner says "Google Calendar needs to be reconnected", and Settings, Google Calendar shows "Google needs to be reconnected". On the Mac, click **Reconnect** and allow access again: the banner clears and queued changes flush. On the phone the banner shows "Reconnect on your Mac (http://127.0.0.1:4280)" as text instead of a link.
 - [ ] 10. **Calendar deleted.** Delete the Life Tracker calendar in Google, then click Sync now.
   Expected: a banner says the calendar is gone. Click recreate: a new Life Tracker calendar appears with your committed blocks.
 
@@ -30,7 +30,7 @@ Run this against a throwaway Google account or a test calendar, never your real 
 - [ ] 11. **Quick-add.** With Google connected and a week committed, quick-add "Drinks" for tonight.
   Expected: a summary shows the evening study block moved and "Drinks" added. Click Apply. In Google, the moved event and the new "Drinks" event are both there.
 - [ ] 12. **Replan around a conflict.** Add an overlapping event to the primary calendar, click Sync now, then click Replan around this.
-  Expected: a summary of changes appears. Click Apply: the overlapping block moves clear of the event and Google shows the new time. The conflict banner is gone.
+  Expected: a summary of changes appears. Click Apply: you land on the Week page for the changed week, the overlapping block has moved clear of the event, and Google shows the new time. The conflict banner is gone.
 
 ## Phone (Stage 5)
 
@@ -47,4 +47,4 @@ Do these on the iPhone over your Tailscale URL.
 - [ ] 17. **Offline screen.** Put the Mac to sleep, then switch back to the phone app.
   Expected: the phone shows the offline screen. Wake the Mac and return to the app: it recovers by itself without a reinstall.
 - [ ] 18. **Backup now.** In Settings, Backups, tap Back up now.
-  Expected: it reports success, and a new `data-YYYY-MM-DD.db` file appears in `~/LifeTracker/backups/`.
+  Expected: it reports success, and a new `data-YYYY-MM-DD.db` file appears in `~/LifeTracker/backups/`. A second backup on the same day overwrites that day's file, so no extra file appears.

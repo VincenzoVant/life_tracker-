@@ -5,6 +5,7 @@ import { Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Banners } from '../src/components/Banners';
 import { SyncBadge } from '../src/components/SyncBadge';
+import { LogoutButton } from '../src/features/settings/SettingsPage';
 import { ChangesFeed } from '../src/features/today/ChangesFeed';
 import { GoogleSection } from '../src/features/settings/GoogleSection';
 import { WeekPage } from '../src/features/week/WeekPage';
@@ -55,6 +56,53 @@ describe('SyncBadge', () => {
     renderWithProviders(<SyncBadge />);
     const link = await screen.findByRole('link', { name: 'Sync error' });
     expect(link).toHaveAttribute('href', '/settings#settings-google');
+  });
+});
+
+function onHost(hostname: string) {
+  vi.stubGlobal('location', { ...window.location, hostname });
+}
+
+describe('Reconnect and Connect on a non-loopback host (the phone)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  test('Banners shows the Mac hint as text instead of a link', async () => {
+    mockApi({ ...settings, 'GET /api/google/status': () => status({ needsReconnect: true }), 'GET /api/conflicts': () => [] });
+    onHost('mac.tail1234.ts.net');
+    renderWithProviders(<Banners />);
+    expect(await screen.findByText('Reconnect on your Mac (http://127.0.0.1:4280)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Reconnect' })).not.toBeInTheDocument();
+  });
+
+  test('GoogleSection shows the Mac hint for Connect and for Reconnect', async () => {
+    onHost('mac.tail1234.ts.net');
+    mockApi({ 'GET /api/google/status': () => status({ connected: false }) });
+    const first = renderWithProviders(<GoogleSection />);
+    expect(await screen.findByText('Connect on your Mac (http://127.0.0.1:4280)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Connect Google Calendar' })).not.toBeInTheDocument();
+    first.unmount();
+
+    mockApi({
+      'GET /api/google/status': () => status({ needsReconnect: true }),
+      'GET /api/sync/status': () => ({ pending: 0, failing: [], lastSyncAt: null, lastError: null }),
+      'GET /api/google/calendars': () => [],
+    });
+    renderWithProviders(<GoogleSection />);
+    expect(await screen.findByText('Google needs to be reconnected')).toBeInTheDocument();
+    expect(screen.getByText('Reconnect on your Mac (http://127.0.0.1:4280)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Reconnect' })).not.toBeInTheDocument();
+  });
+
+  test.each(['127.0.0.1', 'localhost', '[::1]'])('links are shown on %s', async (host) => {
+    onHost(host);
+    mockApi({
+      'GET /api/google/status': () => status({ needsReconnect: true }),
+      'GET /api/sync/status': () => ({ pending: 0, failing: [], lastSyncAt: null, lastError: null }),
+      'GET /api/google/calendars': () => [],
+    });
+    renderWithProviders(<GoogleSection />);
+    expect(await screen.findByText('Google needs to be reconnected')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/google/connect');
   });
 });
 
@@ -136,6 +184,42 @@ describe('Replan around this', () => {
     await user.click(await screen.findByRole('button', { name: 'Replan around this' }));
     expect(await screen.findByText('Nothing needs to move')).toBeInTheDocument();
     expect(screen.getByText(/Dentist \(Tue/)).toBeInTheDocument();
+  });
+});
+
+const failure = (message: string) => ({ status: 500, body: { error: { code: 'INTERNAL', message } } });
+
+describe('error feedback', () => {
+  test('dismiss and mark-as-seen failures show a toast', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      ...settings,
+      'GET /api/google/status': () => status(),
+      'GET /api/conflicts': () => [conflict],
+      'POST /api/conflicts/7/dismiss': () => failure('Dismiss exploded'),
+      'GET /api/google/changes': () => [
+        { id: 1, blockId: 'g', kind: 'deleted', title: 'Gym', beforeStart: '', beforeEnd: '', afterStart: null, afterEnd: null, createdAt: '' },
+      ],
+      'POST /api/google/changes/seen': () => failure('Seen exploded'),
+    });
+    renderWithProviders(
+      <>
+        <Banners />
+        <ChangesFeed />
+      </>,
+    );
+    await user.click(await screen.findByRole('button', { name: 'Dismiss' }));
+    expect(await screen.findByText('Dismiss exploded')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Mark as seen' }));
+    expect(await screen.findByText('Seen exploded')).toBeInTheDocument();
+  });
+
+  test('logout failure shows a toast', async () => {
+    const user = userEvent.setup();
+    mockApi({ 'POST /api/auth/logout': () => failure('Logout exploded') });
+    renderWithProviders(<LogoutButton />);
+    await user.click(screen.getByRole('button', { name: 'Log out' }));
+    expect(await screen.findByText('Logout exploded')).toBeInTheDocument();
   });
 });
 

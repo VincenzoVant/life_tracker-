@@ -71,6 +71,20 @@ test('daily totals vs targets render', async () => {
   expect(screen.getByText('Pasta')).toBeTruthy();
 });
 
+test('totals are rounded to 0.1 (no float noise)', async () => {
+  mockApi(
+    base({
+      'GET /api/meal-logs': () => [
+        { id: 'a', date: '2026-10-14', slot: 'breakfast', mealId: null, freeText: 'A', servings: 1, kcal: 100.1, proteinG: 0.1, carbsG: null, fatG: null },
+        { id: 'b', date: '2026-10-14', slot: 'dinner', mealId: null, freeText: 'B', servings: 1, kcal: 200.2, proteinG: 0.2, carbsG: null, fatG: null },
+      ],
+    }),
+  );
+  renderWithProviders(<FoodPage />);
+  expect(await screen.findByText('300.3 / 2000 kcal')).toBeTruthy();
+  expect(screen.getByText('0.3 / 150 g')).toBeTruthy();
+});
+
 test('library search filters by name; archive calls DELETE', async () => {
   const { calls } = mockApi(base({ 'DELETE /api/meals/m2': () => ({ ...chicken, archived: true }) }));
   renderWithProviders(<FoodPage />);

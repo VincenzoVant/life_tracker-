@@ -1,6 +1,7 @@
-import { addDays, type ApiShortfall, type Metric, type PlanDraft } from '@life-tracker/shared';
+import { addDays, localDateOf, zonedToUtc, type ApiShortfall, type Metric, type PlanDraft } from '@life-tracker/shared';
 import { useState } from 'react';
 import { useAddDraftBlock, useCommitPlan, useCreatePlan, useDiscardPlan } from '../../api/hooks/plans';
+import { useTimezone } from '../../api/hooks/settings';
 import { useWeekProgress } from '../../api/hooks/progress';
 import { Modal } from '../../components/Modal';
 import { useToast } from '../../components/Toast';
@@ -73,10 +74,15 @@ export function DraftPanel({ draft, weekStart }: DraftPanelProps) {
   const commit = useCommitPlan();
   const discard = useDiscardPlan();
   const toast = useToast();
+  const tz = useTimezone();
   const [adding, setAdding] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const { shortfalls, reservedEvenings } = plan.summary;
   const p = progress.data;
+
+  // A new block starts today when today is in the draft's week, else on the week's Monday at 09:00.
+  const today = localDateOf(new Date(), tz);
+  const initialStart = today >= weekStart && today <= addDays(weekStart, 6) ? undefined : zonedToUtc(weekStart, '09:00', tz);
 
   const fail = (e: unknown) => toast.showError(e, 'Something went wrong');
 
@@ -152,7 +158,10 @@ export function DraftPanel({ draft, weekStart }: DraftPanelProps) {
 
       {adding && (
         <Modal title="Add block to draft" onClose={() => setAdding(false)}>
-          <BlockForm onDone={() => setAdding(false)} onCreate={(input) => add.mutateAsync({ planId: plan.id, ...input })} />
+          <BlockForm
+            initial={initialStart && { start: initialStart.toISOString() }}
+            onDone={() => setAdding(false)}
+            onCreate={(input) => add.mutateAsync({ planId: plan.id, ...input })} />
         </Modal>
       )}
     </aside>
