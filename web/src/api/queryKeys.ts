@@ -12,6 +12,7 @@ export const qk = {
   meals: (includeArchived: boolean) => ['food', 'meals', includeArchived] as const,
   mealLogs: (date: string) => ['food', 'logs', date] as const,
   goals: () => ['goals'] as const,
+  preferences: () => ['preferences'] as const,
 } as const;
 
-export type QueryFamily = 'blocks' | 'progress' | 'review' | 'courses' | 'startup' | 'workouts' | 'food' | 'goals';
+export type QueryFamily = 'blocks' | 'progress' | 'review' | 'courses' | 'startup' | 'workouts' | 'food' | 'goals' | 'preferences';

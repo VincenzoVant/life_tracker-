@@ -14,7 +14,8 @@ import { AppError } from '../../lib/errors.js';
 import { parse } from '../../lib/validate.js';
 import { createBlock, getBlock, listBlocks, setBlockStatus } from '../blocks/service.js';
 import { getWeekProgress } from '../goals/progress.js';
-import { getSetting, getTimezone } from '../settings/service.js';
+import { getPreferences } from '../preferences/service.js';
+import { getTimezone } from '../settings/service.js';
 import { updateTask } from '../startup/service.js';
 import { deleteSessionForBlock, upsertSessionForBlock } from '../workouts/service.js';
 
@@ -94,7 +95,7 @@ export function submitReview(ctx: Ctx, input: ReviewSubmission): ReviewResult {
   return {
     date: s.date,
     progress: getWeekProgress(ctx, addDays(s.date, 1 - isoWeekday(s.date)), {
-      classesCountTowardStudy: getSetting(ctx, 'classes_count_toward_study', false),
+      prefs: getPreferences(ctx),
     }),
   };
 }

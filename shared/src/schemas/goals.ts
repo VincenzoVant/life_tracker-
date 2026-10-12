@@ -36,6 +36,10 @@ const localDate = z
 
 export const WeekProgressQuery = z.object({
   weekStart: localDate.refine((d) => isoWeekday(d) === 1, 'Must be a Monday'),
+  includeProposed: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
 });
 export type WeekProgressQuery = z.infer<typeof WeekProgressQuery>;
 

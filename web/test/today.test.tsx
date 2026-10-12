@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import type { Block } from '@life-tracker/shared';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { TodayPage } from '../src/features/today/TodayPage';
@@ -21,10 +21,13 @@ const blocks = [
   block({ id: '4', title: 'Gone', start: '2026-10-14T22:00:00.000Z', end: '2026-10-14T23:00:00.000Z', status: 'removed' }),
 ];
 
+let reviewPromptTime = '20:00';
+
 function api() {
   return mockApi({
     'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
     'GET /api/blocks': () => blocks,
+    'GET /api/preferences': () => ({ reviewPromptTime: reviewPromptTime }),
     'GET /api/progress/week': () => ({
       nutrition: [
         { date: '2026-10-13', kcal: 1, proteinG: 1, kcalTarget: 2400, proteinTarget: 150, kcalOk: null, proteinOk: null },
@@ -35,6 +38,7 @@ function api() {
 }
 
 beforeEach(() => {
+  reviewPromptTime = '20:00';
   vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-14T19:00:00Z') });
 });
 afterEach(() => vi.useRealTimers());
@@ -66,6 +70,18 @@ describe('TodayPage', () => {
     const link = await screen.findByRole('link', { name: /end-of-day review/i });
     expect(link).toHaveClass('emphasized');
     expect(link).toHaveAttribute('href', '/review');
+  });
+
+  test('review button emphasis follows the reviewPromptTime preference', async () => {
+    reviewPromptTime = '18:00'; // now is 12:00 PDT
+    api();
+    const { unmount } = renderWithProviders(<TodayPage />);
+    expect(await screen.findByRole('link', { name: /end-of-day review/i })).not.toHaveClass('emphasized');
+    unmount();
+    vi.setSystemTime(new Date('2026-10-15T01:30:00Z')); // 18:30 PDT
+    renderWithProviders(<TodayPage />);
+    const link = await screen.findByRole('link', { name: /end-of-day review/i });
+    await waitFor(() => expect(link).toHaveClass('emphasized'));
   });
 
   test('macro summary shows 1450 / 2400 kcal and 98 / 150 g protein', async () => {
