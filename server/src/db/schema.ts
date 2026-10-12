@@ -118,3 +118,33 @@ export const topSets = sqliteTable(
   },
   (t) => [index('top_sets_lift_date_idx').on(t.liftId, t.date)],
 );
+
+export const meals = sqliteTable('meals', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  kcal: real('kcal').notNull(),
+  proteinG: real('protein_g').notNull(),
+  carbsG: real('carbs_g'),
+  fatG: real('fat_g'),
+  notes: text('notes'),
+  archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull(),
+});
+
+export const mealLogs = sqliteTable(
+  'meal_logs',
+  {
+    id: text('id').primaryKey(),
+    date: text('date').notNull(),
+    slot: text('slot').notNull(),
+    mealId: text('meal_id').references(() => meals.id),
+    freeText: text('free_text'),
+    servings: real('servings').notNull(),
+    kcal: real('kcal').notNull(),
+    proteinG: real('protein_g').notNull(),
+    carbsG: real('carbs_g'),
+    fatG: real('fat_g'),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('meal_logs_date_idx').on(t.date)],
+);

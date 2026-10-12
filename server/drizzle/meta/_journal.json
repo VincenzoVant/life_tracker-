@@ -43,6 +43,13 @@
       "when": 1791833953867,
       "tag": "0005_lumpy_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791834179208,
+      "tag": "0006_vengeful_the_leader",
+      "breakpoints": true
     }
   ]
 }

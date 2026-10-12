@@ -7,3 +7,4 @@ export * from './schemas/blocks.js';
 export * from './schemas/courses.js';
 export * from './schemas/startup.js';
 export * from './schemas/workouts.js';
+export * from './schemas/food.js';

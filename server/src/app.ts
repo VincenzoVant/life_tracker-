@@ -9,6 +9,7 @@ import { blockRoutes } from './domains/blocks/routes.js';
 import { courseRoutes } from './domains/studies/routes.js';
 import { startupRoutes } from './domains/startup/routes.js';
 import { liftRoutes, workoutRoutes } from './domains/workouts/routes.js';
+import { mealLogRoutes, mealRoutes } from './domains/food/routes.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
 export function createApp(ctx: Ctx): Hono {
@@ -25,6 +26,8 @@ export function createApp(ctx: Ctx): Hono {
   app.route('/api/startup', startupRoutes(ctx));
   app.route('/api/workouts', workoutRoutes(ctx));
   app.route('/api/lifts', liftRoutes(ctx));
+  app.route('/api/meals', mealRoutes(ctx));
+  app.route('/api/meal-logs', mealLogRoutes(ctx));
 
   app.notFound((c) => {
     if (c.req.path.startsWith('/api/')) {
