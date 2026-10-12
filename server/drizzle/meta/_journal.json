@@ -64,6 +64,13 @@
       "when": 1791834540190,
       "tag": "0008_ambiguous_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791834670143,
+      "tag": "0009_polite_jackpot",
+      "breakpoints": true
     }
   ]
 }
