@@ -1,0 +1,17 @@
+.area-grid { display: grid; gap: var(--space-3); grid-template-columns: 1fr; }
+@media (min-width: 600px) { .area-grid { grid-template-columns: 1fr 1fr; } }
+.area-card { display: block; text-decoration: none; color: var(--text); }
+.area-card h2 { margin: 0 0 var(--space-1); }
+.area-list { display: flex; flex-direction: column; gap: var(--space-3); list-style: none; margin: 0; padding: 0; }
+.area-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.area-row .grow { flex: 1; min-width: 0; }
+.area-actions { display: flex; gap: var(--space-2); }
+.area-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+.area-head h1 { margin: 0; }
+.swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; background: var(--swatch); flex-shrink: 0; }
+.task-columns { display: grid; gap: var(--space-2); grid-template-columns: 1fr; margin-top: var(--space-2); }
+@media (min-width: 720px) { .task-columns { grid-template-columns: repeat(3, 1fr); } }
+.task-col h4 { margin: 0 0 var(--space-1); font-size: 0.85rem; color: var(--muted); }
+.task-item { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-2); margin-bottom: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); }
+.task-item .area-actions button { min-width: 44px; padding: 0 var(--space-2); }
+.section { margin-bottom: var(--space-5); }

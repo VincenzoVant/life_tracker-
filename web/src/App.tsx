@@ -2,6 +2,10 @@ import type { ReactElement } from 'react';
 import { Route, Routes } from 'react-router';
 import { Layout } from './components/Layout';
 import { AuthGate } from './features/auth/AuthGate';
+import { AreasPage } from './features/areas/AreasPage';
+import { StartupPage } from './features/areas/startup/StartupPage';
+import { StudiesPage } from './features/areas/studies/StudiesPage';
+import { WorkPage } from './features/areas/work/WorkPage';
 
 function Placeholder({ title }: { title: string }) {
   return <h1>{title}</h1>;
@@ -11,7 +15,10 @@ function Placeholder({ title }: { title: string }) {
 export const routes: Array<{ path: string; element: ReactElement }> = [
   { path: '/', element: <Placeholder title="Today" /> },
   { path: '/review', element: <Placeholder title="Review" /> },
-  { path: '/areas', element: <Placeholder title="Areas" /> },
+  { path: '/areas', element: <AreasPage /> },
+  { path: '/areas/studies', element: <StudiesPage /> },
+  { path: '/areas/work', element: <WorkPage /> },
+  { path: '/areas/startup', element: <StartupPage /> },
   { path: '/dashboard', element: <Placeholder title="Dashboard" /> },
   { path: '/settings', element: <Placeholder title="Settings" /> },
 ];
