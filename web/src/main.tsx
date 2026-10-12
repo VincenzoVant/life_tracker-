@@ -6,6 +6,9 @@ import { App } from './App';
 import { ToastProvider } from './components/Toast';
 import './styles/tokens.css';
 import './styles/global.css';
+import { registerSW } from 'virtual:pwa-register';
+
+registerSW({ immediate: true });
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
 
