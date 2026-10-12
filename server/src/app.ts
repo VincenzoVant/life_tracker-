@@ -8,6 +8,7 @@ import { requireOrigin, requireSession } from './auth/middleware.js';
 import { blockRoutes } from './domains/blocks/routes.js';
 import { courseRoutes } from './domains/studies/routes.js';
 import { startupRoutes } from './domains/startup/routes.js';
+import { liftRoutes, workoutRoutes } from './domains/workouts/routes.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
 export function createApp(ctx: Ctx): Hono {
@@ -22,6 +23,8 @@ export function createApp(ctx: Ctx): Hono {
   app.route('/api/blocks', blockRoutes(ctx));
   app.route('/api/courses', courseRoutes(ctx));
   app.route('/api/startup', startupRoutes(ctx));
+  app.route('/api/workouts', workoutRoutes(ctx));
+  app.route('/api/lifts', liftRoutes(ctx));
 
   app.notFound((c) => {
     if (c.req.path.startsWith('/api/')) {

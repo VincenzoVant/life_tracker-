@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
@@ -74,4 +74,47 @@ export const blocks = sqliteTable(
     updatedAt: text('updated_at').notNull(),
   },
   (t) => [index('blocks_start_idx').on(t.start), index('blocks_fixed_event_idx').on(t.fixedEventId)],
+);
+
+export const workoutSessions = sqliteTable(
+  'workout_sessions',
+  {
+    id: text('id').primaryKey(),
+    blockId: text('block_id').references(() => blocks.id, { onDelete: 'set null' }),
+    type: text('type').notNull(),
+    date: text('date').notNull(),
+    durationMinutes: integer('duration_minutes').notNull(),
+    intensity: integer('intensity'),
+    notes: text('notes'),
+    gymFocus: text('gym_focus'),
+    cardioKind: text('cardio_kind'),
+    distanceKm: real('distance_km'),
+    sportName: text('sport_name'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [uniqueIndex('workout_sessions_block_uq').on(t.blockId), index('workout_sessions_date_idx').on(t.date)],
+);
+
+export const lifts = sqliteTable('lifts', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  sortOrder: integer('sort_order').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const topSets = sqliteTable(
+  'top_sets',
+  {
+    id: text('id').primaryKey(),
+    liftId: text('lift_id')
+      .notNull()
+      .references(() => lifts.id),
+    date: text('date').notNull(),
+    weightKg: real('weight_kg').notNull(),
+    reps: integer('reps').notNull(),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('top_sets_lift_date_idx').on(t.liftId, t.date)],
 );

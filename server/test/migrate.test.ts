@@ -73,7 +73,7 @@ test('migration 0004 (blocks rebuild) preserves existing blocks and their course
     INSERT INTO blocks (id, category, title, start, end, status, source, locked, course_id, created_at, updated_at)
       VALUES ('b1','study','Read','2026-10-14T10:00:00.000Z','2026-10-14T11:00:00.000Z','committed','manual',0,'c1','t','t');
   `);
-  expect(runMigrations(handle, {}).applied).toBe(1);
+  expect(runMigrations(handle, {}).applied).toBe(journal.entries.length - 4);
   expect(sqlite.prepare("SELECT id, course_id, startup_task_id FROM blocks").all()).toEqual([
     { id: 'b1', course_id: 'c1', startup_task_id: null },
   ]);
