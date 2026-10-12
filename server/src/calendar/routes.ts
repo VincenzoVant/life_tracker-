@@ -39,6 +39,7 @@ function googleStatus(ctx: Ctx): GoogleStatus {
     lastError: s.lastError,
     pending: q.pending,
     failing: q.failing.length,
+    port: ctx.config.port,
   };
 }
 

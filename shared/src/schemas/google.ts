@@ -13,6 +13,8 @@ export const GoogleStatus = z.object({
   lastError: z.string().nullable(),
   pending: z.number().int(),
   failing: z.number().int(),
+  /** Port the server listens on; used to show where to reconnect on the Mac. */
+  port: z.number().int(),
 });
 export type GoogleStatus = z.infer<typeof GoogleStatus>;
 

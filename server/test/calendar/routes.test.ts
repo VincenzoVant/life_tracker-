@@ -109,6 +109,12 @@ describe('google routes', () => {
     expect((await c.get('/api/google/changes')).body).toHaveLength(1);
   });
 
+  test('google status reports the configured port', async () => {
+    const { c } = await setup();
+    const res = await c.get('/api/google/status');
+    expect(res.body.port).toBe(c.ctx.config.port);
+  });
+
   test('routes require a session', async () => {
     const { c } = await setup();
     const res = await c.app.request('/api/google/status');

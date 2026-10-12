@@ -24,7 +24,7 @@ function block(over: Partial<Block>): Block {
 const status = (over: Partial<GoogleStatus> = {}): GoogleStatus => ({
   configured: true, connected: true, needsReconnect: false, calendarId: 'cal', calendarMissing: false,
   busyCalendarIds: ['primary'], includeAllDay: false, lastSyncAt: '2026-10-14T18:55:00.000Z', lastError: null,
-  pending: 0, failing: 0, ...over,
+  pending: 0, failing: 0, port: 4280, ...over,
 });
 
 const conflict: Conflict = {
@@ -91,6 +91,13 @@ describe('Reconnect and Connect on a non-loopback host (the phone)', () => {
     expect(await screen.findByText('Google needs to be reconnected')).toBeInTheDocument();
     expect(screen.getByText('Reconnect on your Mac (http://127.0.0.1:4280)')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Reconnect' })).not.toBeInTheDocument();
+  });
+
+  test('the Mac hint uses the port from the status', async () => {
+    mockApi({ ...settings, 'GET /api/google/status': () => status({ needsReconnect: true, port: 4999 }), 'GET /api/conflicts': () => [] });
+    onHost('mac.tail1234.ts.net');
+    renderWithProviders(<Banners />);
+    expect(await screen.findByText('Reconnect on your Mac (http://127.0.0.1:4999)')).toBeInTheDocument();
   });
 
   test.each(['127.0.0.1', 'localhost', '[::1]'])('links are shown on %s', async (host) => {
