@@ -8,6 +8,8 @@ import { Modal } from '../../../components/Modal';
 import { ProgressBar } from '../../../components/ProgressBar';
 import { useToast } from '../../../components/Toast';
 
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
 function AddLogModal({ date, slot, onClose }: { date: string; slot: MealSlot; onClose: () => void }) {
   const { data: meals = [] } = useMeals();
   const logMeal = useLogMeal();
@@ -97,6 +99,9 @@ export function MealLogDay() {
   const [adding, setAdding] = useState<MealSlot | null>(null);
 
   const totals = logs.reduce((t, l) => ({ kcal: t.kcal + l.kcal, protein: t.protein + l.proteinG }), { kcal: 0, protein: 0 });
+  // Sums of fractional servings pick up float noise; show 0.1 precision.
+  totals.kcal = round1(totals.kcal);
+  totals.protein = round1(totals.protein);
   const kcalTarget = goals?.dailyKcal?.target ?? null;
   const proteinTarget = goals?.dailyProteinG ?? null;
 
@@ -139,7 +144,7 @@ export function MealLogDay() {
                 {l.mealId && l.servings !== 1 ? ` × ${l.servings}` : ''}
               </span>
               <span className="food-actions">
-                <span className="muted">{l.kcal} kcal · {l.proteinG} g</span>
+                <span className="muted">{round1(l.kcal)} kcal · {round1(l.proteinG)} g</span>
                 <button aria-label={`Delete log ${l.id}`} onClick={() =>
                     del.mutate(l.id, { onError: (err) => toast.showError(err, 'Could not delete log') })
                   }>✕</button>

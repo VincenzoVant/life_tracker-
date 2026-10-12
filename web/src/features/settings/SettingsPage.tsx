@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useLogout } from '../../api/hooks/auth';
+import { useScrollToHash } from '../../hooks/useScrollToHash';
 import { useToast } from '../../components/Toast';
 import { BackupsSection } from './BackupsSection';
 import { ChangePinForm } from './ChangePinForm';
@@ -49,6 +50,7 @@ const SECTIONS: Array<{ id: string; title: string; render: () => ReactNode }> = 
 ];
 
 export function SettingsPage() {
+  useScrollToHash();
   return (
     <div>
       <h1>Settings</h1>

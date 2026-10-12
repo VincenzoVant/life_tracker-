@@ -1,11 +1,26 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+
+/** Open modals, innermost last; Escape closes only the topmost one. */
+const openModals: symbol[] = [];
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const closeRef = useRef(onClose);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    closeRef.current = onClose;
+  });
+
+  useEffect(() => {
+    const me = Symbol('modal');
+    openModals.push(me);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && openModals[openModals.length - 1] === me) closeRef.current();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      openModals.splice(openModals.indexOf(me), 1);
+    };
+  }, []);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
