@@ -1,6 +1,8 @@
 import { expect, test } from 'vitest';
 import type { BlockCreateInput, BlockStatus } from '@life-tracker/shared';
 import { createBlock, getBlock } from '../src/domains/blocks/service.js';
+import { createMeal, listMealLogs } from '../src/domains/food/service.js';
+import { setMealPlanEntry } from '../src/domains/mealPlan/service.js';
 import { createTask, listTasks } from '../src/domains/startup/service.js';
 import { listSessions } from '../src/domains/workouts/service.js';
 import { getPendingReview, submitReview } from '../src/domains/review/service.js';
@@ -226,4 +228,30 @@ test('completedAt recorded; GET route works', async () => {
   expect(get.body.completedAt).toBe('2026-10-14T19:00:00.000Z');
   expect(get.body.reviewed).toHaveLength(1);
   expect((await client.get('/api/review?date=bad')).status).toBe(400);
+});
+
+test('review ateAsPlanned logs the planned meal once even if re-reviewed', () => {
+  const ctx = createTestCtx();
+  const m = createMeal(ctx, { name: 'Chicken rice', kcal: 600, proteinG: 45 });
+  setMealPlanEntry(ctx, '2026-10-14', 'lunch', { mealId: m.id, servings: 1.5 });
+  const b = add(ctx, { category: 'meal', mealSlot: 'lunch' }, '2026-10-14', '12:30', 30);
+  expect(getPendingReview(ctx, '2026-10-14').pending[0]!.plannedMeal).toEqual({ mealId: m.id, name: 'Chicken rice', servings: 1.5 });
+  submitReview(ctx, { date: '2026-10-14', entries: [{ blockId: b.id, outcome: 'done', ateAsPlanned: true }] });
+  const logs = listMealLogs(ctx, '2026-10-14');
+  expect(logs).toHaveLength(1);
+  expect(logs[0]).toMatchObject({ slot: 'lunch', mealId: m.id, servings: 1.5, kcal: 900 });
+  submitReview(ctx, { date: '2026-10-14', entries: [{ blockId: b.id, outcome: 'done', ateAsPlanned: true }] });
+  expect(listMealLogs(ctx, '2026-10-14')).toHaveLength(1);
+});
+
+test('ateAsPlanned without plan entry gives a 400 field error', () => {
+  const ctx = createTestCtx();
+  const b = add(ctx, { category: 'meal', mealSlot: 'lunch' }, '2026-10-14', '12:30', 30);
+  try {
+    submitReview(ctx, { date: '2026-10-14', entries: [{ blockId: b.id, outcome: 'done', ateAsPlanned: true }] });
+    expect.unreachable();
+  } catch (e) {
+    expect(e).toMatchObject({ code: 'VALIDATION', fields: { 'entries.0.ateAsPlanned': 'No meal planned for this slot' } });
+  }
+  expect(getBlock(ctx, b.id).status).toBe('committed');
 });

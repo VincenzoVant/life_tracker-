@@ -14,6 +14,7 @@ export const ReviewEntry = z.object({
   actualMinutes: z.number().int('Must be a whole number of minutes').optional(),
   workout: WorkoutDetails.optional(),
   completeStartupTask: z.boolean().optional(),
+  ateAsPlanned: z.boolean().optional(),
 });
 export type ReviewEntry = z.infer<typeof ReviewEntry>;
 
@@ -35,9 +36,13 @@ export type ReviewSubmission = z.input<typeof ReviewSubmission>;
 export const ReviewQuery = z.object({ date: localDate });
 export type ReviewQuery = z.infer<typeof ReviewQuery>;
 
+export interface PendingBlock extends Block {
+  plannedMeal?: { mealId: string; name: string; servings: number };
+}
+
 export interface PendingReview {
   date: string;
-  pending: Block[];
+  pending: PendingBlock[];
   reviewed: Block[];
   completedAt: string | null;
 }

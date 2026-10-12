@@ -5,15 +5,19 @@ import {
   blockMinutes,
   dayRangeUtc,
   isoWeekday,
+  localDateOf,
+  type PendingBlock,
   type PendingReview,
   type ReviewResult,
 } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
-import { blocks, dailyReviews } from '../../db/schema.js';
+import { blocks, dailyReviews, meals } from '../../db/schema.js';
 import { AppError } from '../../lib/errors.js';
 import { parse } from '../../lib/validate.js';
 import { createBlock, getBlock, listBlocks, setBlockStatus } from '../blocks/service.js';
+import { listMealLogs, logMeal } from '../food/service.js';
 import { getWeekProgress } from '../goals/progress.js';
+import { getMealPlanEntry } from '../mealPlan/service.js';
 import { getSetting, getTimezone } from '../settings/service.js';
 import { updateTask } from '../startup/service.js';
 import { deleteSessionForBlock, upsertSessionForBlock } from '../workouts/service.js';
@@ -27,7 +31,14 @@ export function getPendingReview(ctx: Ctx, date: string): PendingReview {
   const pending = all.filter((b) => b.status === 'committed');
   const reviewed = all.filter((b) => REVIEWED.has(b.status) && new Date(b.start) >= start);
   const row = ctx.db.select().from(dailyReviews).where(eq(dailyReviews.date, date)).get();
-  return { date, pending, reviewed, completedAt: row?.completedAt ?? null };
+  const tz = getTimezone(ctx);
+  const withPlan: PendingBlock[] = pending.map((b) => {
+    if (b.category !== 'meal' || !b.mealSlot) return b;
+    const plan = getMealPlanEntry(ctx, localDateOf(new Date(b.start), tz), b.mealSlot);
+    const meal = plan && ctx.db.select({ name: meals.name }).from(meals).where(eq(meals.id, plan.mealId)).get();
+    return meal && plan ? { ...b, plannedMeal: { mealId: plan.mealId, name: meal.name, servings: plan.servings } } : b;
+  });
+  return { date, pending: withPlan, reviewed, completedAt: row?.completedAt ?? null };
 }
 
 function checkMinutes(
@@ -56,6 +67,14 @@ export function submitReview(ctx: Ctx, input: ReviewSubmission): ReviewResult {
     // Unknown blocks are reported as NOT_FOUND by the transaction below.
     if (row) checkMinutes(fields, `entries.${i}.actualMinutes`, e.actualMinutes, blockMinutes(row), true);
   });
+  s.entries.forEach((e, i) => {
+    if (!e.ateAsPlanned || e.outcome === 'skipped') return;
+    const row = ctx.db.select().from(blocks).where(eq(blocks.id, e.blockId)).get();
+    if (!row || row.category !== 'meal' || !row.mealSlot) return;
+    if (!getMealPlanEntry(ctx, localDateOf(new Date(row.start), getTimezone(ctx)), row.mealSlot)) {
+      fields[`entries.${i}.ateAsPlanned`] = 'No meal planned for this slot';
+    }
+  });
   s.unplanned.forEach((u, i) => checkMinutes(fields, `unplanned.${i}.actualMinutes`, u.actualMinutes, blockMinutes(u), false));
   if (Object.keys(fields).length > 0) throw new AppError('VALIDATION', 'Invalid input', fields);
 
@@ -67,6 +86,12 @@ export function submitReview(ctx: Ctx, input: ReviewSubmission): ReviewResult {
       if (block.category === 'workout') {
         if (e.outcome === 'skipped') deleteSessionForBlock(ctx, block.id);
         else upsertSessionForBlock(ctx, updated, minutes, e.workout ?? {});
+      }
+      if (e.ateAsPlanned && e.outcome !== 'skipped' && block.category === 'meal' && block.mealSlot) {
+        const date = localDateOf(new Date(block.start), getTimezone(ctx));
+        const plan = getMealPlanEntry(ctx, date, block.mealSlot)!;
+        const logged = listMealLogs(ctx, date).some((l) => l.slot === block.mealSlot && l.mealId === plan.mealId);
+        if (!logged) logMeal(ctx, { date, slot: block.mealSlot, mealId: plan.mealId, servings: plan.servings });
       }
       if (e.completeStartupTask && e.outcome !== 'skipped' && block.startupTaskId) {
         updateTask(ctx, block.startupTaskId, { status: 'done' });
