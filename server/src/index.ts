@@ -8,6 +8,10 @@ import { loadConfig } from './config.js';
 import { createCtx } from './ctx.js';
 import { openDb } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
+import { runBackup } from './domains/backups/service.js';
+import { getTimezone } from './domains/settings/service.js';
+import { systemClock } from './lib/clock.js';
+import { createScheduler } from './jobs/scheduler.js';
 import { createLogger } from './logger.js';
 import { mountStatic } from './static.js';
 
@@ -32,7 +36,18 @@ export async function main(): Promise<void> {
   const handle = openDb(join(dataDir, 'data.db'));
   runMigrations(handle, { backupDir });
 
-  const app = createApp(createCtx(handle, config), { log });
+  const ctx = createCtx(handle, config);
+  const app = createApp(ctx, { log });
+  const scheduler = createScheduler({ clock: systemClock, log: (msg, err) => log.error({ err }, msg) });
+  scheduler.dailyAt('backup', '03:00', () => getTimezone(ctx), async () => {
+    await runBackup(ctx);
+  });
+  for (const sig of ['SIGINT', 'SIGTERM'] as const) {
+    process.once(sig, () => {
+      scheduler.stop();
+      process.exit(0);
+    });
+  }
   if (config.webDist) mountStatic(app, config.webDist);
 
   const fatal = (kind: string) => (err: unknown) => {

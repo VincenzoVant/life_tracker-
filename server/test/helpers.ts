@@ -7,8 +7,8 @@ import { runMigrations } from '../src/db/migrate.js';
 import { fixedClock } from '../src/lib/clock.js';
 import { setSetting } from '../src/domains/settings/service.js';
 
-export function createTestCtx(opts: { now?: string; timezone?: string; config?: AppConfig } = {}): Ctx & { clock: ReturnType<typeof fixedClock> } {
-  const handle = openDb(':memory:');
+export function createTestCtx(opts: { now?: string; timezone?: string; config?: AppConfig; file?: string } = {}): Ctx & { clock: ReturnType<typeof fixedClock> } {
+  const handle = openDb(opts.file ?? ':memory:');
   runMigrations(handle, {});
   const clock = fixedClock(opts.now ?? '2026-10-14T19:00:00.000Z');
   const ctx = { ...createCtx(handle, opts.config ?? loadConfig({ HOME: '/tmp/lt-test' } as NodeJS.ProcessEnv), clock), clock };

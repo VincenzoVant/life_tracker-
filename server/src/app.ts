@@ -15,6 +15,7 @@ import { liftRoutes, workoutRoutes } from './domains/workouts/routes.js';
 import { mealLogRoutes, mealRoutes } from './domains/food/routes.js';
 import { goalRoutes, progressRoutes } from './domains/goals/routes.js';
 import { reviewRoutes } from './domains/review/routes.js';
+import { backupRoutes } from './domains/backups/routes.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
 export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
@@ -28,6 +29,7 @@ export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
   app.get('/api/health', (c) => c.json({ ok: true, time: ctx.clock.now().toISOString() }));
   app.route('/api/auth', authRoutes(ctx, createLockout(ctx.clock)));
   app.route('/api/settings', settingsRoutes(ctx));
+  app.route('/api/backups', backupRoutes(ctx));
   app.route('/api/blocks', blockRoutes(ctx));
   app.route('/api/courses', courseRoutes(ctx));
   app.route('/api/schedule', scheduleRoutes(ctx));
