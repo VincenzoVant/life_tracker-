@@ -1,0 +1,17 @@
+.week-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.week-header h1 { margin: 0; }
+.week-switcher { display: flex; align-items: center; gap: var(--space-2); }
+.week-switcher button, .day-view-nav button { min-height: 44px; min-width: 44px; }
+.week-grid { overflow-x: auto; }
+.week-grid-head, .week-grid-body { display: grid; grid-template-columns: 48px repeat(7, minmax(110px, 1fr)); }
+.week-colhead { text-align: center; font-weight: 600; padding: var(--space-2) 0; }
+.week-hour-label { font-size: 0.7rem; color: var(--muted); box-sizing: border-box; border-top: 1px solid var(--border); }
+.week-col { position: relative; border-left: 1px solid var(--border); background-image: repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent 48px); }
+.block-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; text-align: left; box-sizing: border-box; overflow: hidden; color: #fff; border-width: 2px; border-color: rgba(255, 255, 255, 0.7); border-radius: 6px; padding: 2px 4px; font-size: 0.75rem; cursor: pointer; }
+.day-view-list .block-card { width: 100%; min-height: 56px; margin-bottom: var(--space-2); font-size: 0.9rem; padding: var(--space-2); }
+.block-card-time { opacity: 0.9; }
+.block-card-proposed { font-style: italic; }
+.block-card-badge { position: absolute; top: 2px; right: 4px; }
+.day-view-nav { display: flex; align-items: center; justify-content: space-between; }
+.block-details { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); }
+.block-details dd { margin: 0; }
