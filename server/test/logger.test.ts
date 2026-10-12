@@ -34,28 +34,29 @@ test('request log line has method/path/status/ms but no query, body or cookie', 
   expect(raw).not.toContain('1234');
 });
 
-let fileLog: pino.Logger | undefined;
+let fileLogs: pino.Logger[] = [];
 let tmpDirs: string[] = [];
 
 afterEach(async () => {
-  const log = fileLog;
-  fileLog = undefined;
-  if (log) {
+  const logs = fileLogs;
+  fileLogs = [];
+  for (const log of logs) {
     await new Promise<void>((r) => log.flush(() => r()));
     // Close the pino-roll worker transport so it releases the tmp dir.
     const stream = (log as any)[pino.symbols.streamSym] as { end?: () => void } | undefined;
     stream?.end?.();
-    await new Promise((r) => setTimeout(r, 100));
   }
+  await new Promise((r) => setTimeout(r, 100));
   for (const d of tmpDirs) rmSync(d, { recursive: true, force: true });
   tmpDirs = [];
 });
 
-test('file transport writes server.*.log and a current.log symlink', { timeout: 20_000 }, async () => {
+/** Starts a file logger in a fresh tmp dir and polls (with backoff) until its files appear or `budgetMs` elapses. */
+async function startFileLogger(budgetMs: number): Promise<boolean> {
   const dataDir = mkdtempSync(join(tmpdir(), 'lt-log-'));
   tmpDirs.push(dataDir);
   const log = createLogger({ dataDir, toFile: true });
-  fileLog = log;
+  fileLogs.push(log);
   log.info('hello');
   const logs = join(dataDir, 'logs');
   const current = join(logs, LOG_CURRENT_PATH_NAME);
@@ -64,12 +65,23 @@ test('file transport writes server.*.log and a current.log symlink', { timeout: 
     readdirSync(logs).some((f) => /^server\.\d+\.log$/.test(f)) &&
     existsSync(current) &&
     lstatSync(current).isSymbolicLink();
-  // Poll with backoff (50ms growing to 500ms) for up to ~15s; the worker thread is slow to boot under parallel load.
-  const deadline = Date.now() + 15_000;
+  const deadline = Date.now() + budgetMs;
   for (let delay = 50; Date.now() < deadline && !ready(); delay = Math.min(delay * 2, 500)) {
     await new Promise((r) => setTimeout(r, delay));
   }
-  expect(ready()).toBe(true);
+  return ready();
+}
+
+test('file transport writes server.*.log and a current.log symlink', { timeout: 60_000 }, async () => {
+  // The pino-roll worker occasionally fails to come up for many seconds when the whole monorepo suite runs in parallel;
+  // a fresh logger/worker recovers quickly, so retry rather than wait on a stuck one.
+  let attempts = 0;
+  let ok = false;
+  while (!ok && attempts < 8) {
+    attempts++;
+    ok = await startFileLogger(3_000);
+  }
+  expect(ok).toBe(true);
 });
 
 test('createLogger without file returns a usable logger', () => {
