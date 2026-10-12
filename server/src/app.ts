@@ -17,6 +17,7 @@ import { goalRoutes, progressRoutes } from './domains/goals/routes.js';
 import { reviewRoutes } from './domains/review/routes.js';
 import { backupRoutes } from './domains/backups/routes.js';
 import { preferencesRoutes } from './domains/preferences/routes.js';
+import { planRoutes } from './domains/plans/routes.js';
 import { settingsRoutes } from './domains/settings/routes.js';
 
 export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
@@ -43,6 +44,7 @@ export function createApp(ctx: Ctx, opts: { log?: Logger } = {}): Hono {
   app.route('/api/goals', goalRoutes(ctx));
   app.route('/api/progress', progressRoutes(ctx));
   app.route('/api/review', reviewRoutes(ctx));
+  app.route('/api/plans', planRoutes(ctx));
 
   app.notFound((c) => {
     if (c.req.path.startsWith('/api/')) {
