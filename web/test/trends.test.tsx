@@ -50,4 +50,11 @@ describe('trends and streaks', () => {
     render(<Sparkline values={[1, 2, 3.25]} goal={[4, 4, null]} label="Workouts" />);
     expect(screen.getByRole('img', { name: 'Workouts: 3.3 this week' })).toBeInTheDocument();
   });
+
+  test('sparkline breaks the line at null weeks and labels a missing latest week as no data', () => {
+    const { container } = render(<Sparkline values={[1, 2, null, 4, 5, null]} label="Average kcal" />);
+    expect(screen.getByRole('img', { name: 'Average kcal: no data this week' })).toBeInTheDocument();
+    expect(container.querySelectorAll('polyline')).toHaveLength(2);
+    expect(container.querySelectorAll('circle')).toHaveLength(0);
+  });
 });
