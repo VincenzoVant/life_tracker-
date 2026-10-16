@@ -1,0 +1,7 @@
+.study-summary { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-bottom: var(--space-4); }
+.study-stat { display: flex; flex-direction: column; gap: var(--space-1); }
+.study-stat strong { font-size: 1.25rem; }
+.study-warning { flex-basis: 100%; margin: 0; color: var(--danger); }
+.study-tab-head { margin-bottom: var(--space-3); }
+.study-tab-head p { margin: 0; }
+.study-goal { color: var(--muted); white-space: nowrap; }
