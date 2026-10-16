@@ -11,6 +11,7 @@ import { blockRoutes } from './domains/blocks/routes.js';
 import { scheduleRoutes } from './domains/schedule/routes.js';
 import { courseRoutes } from './domains/studies/routes.js';
 import { startupRoutes } from './domains/startup/routes.js';
+import { projectRoutes } from './domains/projects/routes.js';
 import { liftRoutes, workoutRoutes } from './domains/workouts/routes.js';
 import { mealLogRoutes, mealRoutes } from './domains/food/routes.js';
 import { mealPlanRoutes } from './domains/mealPlan/routes.js';
@@ -41,6 +42,7 @@ export function createApp(ctx: Ctx, opts: { log?: Logger; conflicts?: ConflictsP
   app.route('/api/courses', courseRoutes(ctx));
   app.route('/api/schedule', scheduleRoutes(ctx));
   app.route('/api/startup', startupRoutes(ctx));
+  app.route('/api/projects', projectRoutes(ctx));
   app.route('/api/workouts', workoutRoutes(ctx));
   app.route('/api/lifts', liftRoutes(ctx));
   app.route('/api/meals', mealRoutes(ctx));
