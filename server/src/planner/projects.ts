@@ -59,9 +59,9 @@ export function placeProjects(
     const study = goal.category === 'study';
     // Study projects follow the study hours: only inside the study windows, and the preferred study times when
     // the project has none of its own.
-    const softWindows = goal.windows.length > 0 || !study ? goal.windows : prefs.preferredStudyWindows;
+    const softWindows: typeof prefs.studyWindows = goal.windows.length > 0 || !study ? goal.windows : prefs.preferredStudyWindows;
     const hasPreferred = softWindows.length > 0;
-    const windowsOn = (date: string, ws: typeof goal.windows): Interval[] =>
+    const windowsOn = (date: string, ws: typeof prefs.studyWindows): Interval[] =>
       mergeIntervals(ws.filter((w) => w.days.includes(isoWeekday(date))).map((w) => localWindow(date, w, tz)));
     const preferredOn = (date: string): Interval[] => windowsOn(date, softWindows);
     const hardOn = study && prefs.studyWindows.length > 0 ? (date: string) => windowsOn(date, prefs.studyWindows) : null;
