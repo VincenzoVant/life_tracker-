@@ -42,6 +42,13 @@ function toDraft(ev: FixedEvent | null, tz: string, weekday: number): Draft {
 
 const SIDE_KEY = { before: 'bufferBefore', after: 'bufferAfter' } as const;
 
+interface NewCourse {
+  name: string;
+  color: string;
+  hours: string;
+}
+const EMPTY_COURSE: NewCourse = { name: '', color: '#3f51b5', hours: '' };
+
 /** Add (one event per picked weekday) or edit a class or work shift, including its buffers. */
 export function FixedEventForm({
   event, courses, prefs, tz, onClose,
@@ -52,7 +59,7 @@ export function FixedEventForm({
   const toast = useToast();
   const [draft, setDraft] = useState<Draft>(() => toDraft(event, tz, 1));
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [newCourse, setNewCourse] = useState<{ name: string; color: string } | null>(courses.length === 0 ? { name: '', color: '#3f51b5' } : null);
+  const [newCourse, setNewCourse] = useState<NewCourse | null>(courses.length === 0 ? { ...EMPTY_COURSE } : null);
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
   const defaults = draft.kind === 'class' ? prefs.classBuffer : { before: prefs.bufferMinutes, after: prefs.bufferMinutes };
 
@@ -64,10 +71,11 @@ export function FixedEventForm({
   async function addCourse() {
     if (!newCourse || !newCourse.name.trim()) return setErrors((e) => ({ ...e, newCourse: 'Name is required' }));
     try {
-      // Study hours are set on the Studies page; 0 keeps the planner from adding study time until then.
-      const c = await createCourse.mutateAsync({ name: newCourse.name.trim(), color: newCourse.color, weeklyGoalMinutes: 0 });
+      const hours = newCourse.hours.trim() === '' ? 0 : Number(newCourse.hours);
+      if (!Number.isFinite(hours) || hours < 0 || hours > 100) return setErrors((e) => ({ ...e, newCourseHours: 'Enter 0 to 100 hours' }));
+      const c = await createCourse.mutateAsync({ name: newCourse.name.trim(), color: newCourse.color, weeklyGoalMinutes: Math.round(hours * 60) });
       setNewCourse(null);
-      setErrors((e) => ({ ...e, newCourse: '', courseId: '' }));
+      setErrors((e) => ({ ...e, newCourse: '', newCourseHours: '', courseId: '' }));
       set({ courseId: c.id, ...(draft.title.trim() === '' ? { title: c.name } : {}) });
       toast.show('Course added');
     } catch (err) {
@@ -182,13 +190,17 @@ export function FixedEventForm({
                 <Field label="New course colour">
                   <input type="color" value={newCourse.color} onChange={(e) => setNewCourse({ ...newCourse, color: e.target.value })} />
                 </Field>
+                <Field label="Study hours per week (outside class)" error={errors.newCourseHours}>
+                  <input type="number" inputMode="decimal" min={0} step={0.5} value={newCourse.hours} onChange={(e) => setNewCourse({ ...newCourse, hours: e.target.value })} />
+                </Field>
+                <p className="muted">Leave empty for none; the planner only schedules study for courses with hours. You can change this in Studies.</p>
                 <div className="area-actions">
                   <button type="button" onClick={addCourse} disabled={createCourse.isPending}>Create course</button>
                   {courses.length > 0 && <button type="button" onClick={() => setNewCourse(null)}>Cancel</button>}
                 </div>
               </div>
             ) : (
-              <button type="button" className="class-link" onClick={() => setNewCourse({ name: '', color: '#3f51b5' })}>
+              <button type="button" className="class-link" onClick={() => setNewCourse({ ...EMPTY_COURSE })}>
                 New course
               </button>
             )}

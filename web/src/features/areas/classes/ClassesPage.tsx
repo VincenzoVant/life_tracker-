@@ -50,7 +50,8 @@ type Editing = { event: FixedEvent | null } | null;
 function ClassesPageContent() {
   const tz = useTimezone();
   const events = useFixedEvents();
-  const courses = useCourses();
+  // Archived courses still colour their old classes; only active ones can be picked.
+  const courses = useCourses({ includeArchived: true });
   const prefs = usePreferences();
   const [editing, setEditing] = useState<Editing>(null);
   const [showEnded, setShowEnded] = useState(false);
@@ -104,7 +105,7 @@ function ClassesPageContent() {
       </div>
       <DefaultBufferCard prefs={prefs.data} />
       {editing && (
-        <FixedEventForm event={editing.event} courses={courses.data} prefs={prefs.data} tz={tz} onClose={() => setEditing(null)} />
+        <FixedEventForm event={editing.event} courses={courses.data.filter((c) => c.active || c.id === editing.event?.courseId)} prefs={prefs.data} tz={tz} onClose={() => setEditing(null)} />
       )}
     </div>
   );

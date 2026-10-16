@@ -113,9 +113,10 @@ describe('Classes page', () => {
     const dialog = screen.getByRole('dialog');
     await user.type(within(dialog).getByLabelText('New course name'), 'Databases');
     fireEvent.change(within(dialog).getByLabelText('New course colour'), { target: { value: '#00aa55' } });
+    await user.type(within(dialog).getByLabelText('Study hours per week (outside class)'), '3.5');
     await user.click(within(dialog).getByRole('button', { name: 'Create course' }));
     await waitFor(() => expect(within(dialog).getByLabelText('Course')).toHaveValue('c9'));
-    expect(calls.find((c) => c.method === 'POST' && c.path === '/api/courses')?.body).toEqual({ name: 'Databases', color: '#00aa55', weeklyGoalMinutes: 0 });
+    expect(calls.find((c) => c.method === 'POST' && c.path === '/api/courses')?.body).toEqual({ name: 'Databases', color: '#00aa55', weeklyGoalMinutes: 210 });
     await user.click(within(dialog).getByRole('button', { name: 'Add to schedule' }));
     await waitFor(() => expect(calls.find((c) => c.path === '/api/schedule' && c.method === 'POST')?.body).toMatchObject({ courseId: 'c9', title: 'Databases', weekday: 1 }));
   });
@@ -194,5 +195,19 @@ describe('Classes page', () => {
     const tuesday = await screen.findByRole('region', { name: 'Tuesday' });
     expect(within(tuesday).getByRole('button', { name: 'Algorithms lecture, Tuesday 10:00–12:00' })).toHaveTextContent('Free 15 min before · 30 min after');
     expect(screen.queryByRole('region', { name: 'Weekly class schedule' })).toBeNull();
+  });
+
+  test('an archived course still colours its class but cannot be picked for new ones', async () => {
+    const user = userEvent.setup();
+    const archived = { ...course, id: 'c2', name: 'Old physics', color: '#aa3300', active: false };
+    const physics: FixedEvent = { ...lecture, id: 'fe4', title: 'Physics lab', courseId: 'c2', weekday: 3 };
+    api({ 'GET /api/courses': () => [course, archived], 'GET /api/schedule': () => [physics] });
+    renderWithProviders(<ClassesPage />);
+    const grid = await screen.findByRole('region', { name: 'Weekly class schedule' });
+    expect(within(grid).getByRole('button', { name: 'Physics lab, Wednesday 10:00–12:00' })).toHaveStyle({ '--ev': '#aa3300' });
+    await user.click(screen.getByRole('button', { name: 'Add class or shift' }));
+    const options = within(within(screen.getByRole('dialog')).getByLabelText('Course')).getAllByRole('option').map((o) => o.textContent);
+    expect(options).not.toContain('Old physics');
+    expect(options).toContain('Algorithms');
   });
 });
