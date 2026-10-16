@@ -39,6 +39,19 @@ node --import tsx server/src/index.ts
 
 The app is served at `http://127.0.0.1:4280`. The server serves the built web app from `web/dist`. The first visit shows the setup screen where you choose a PIN.
 
+## Set up your week
+
+Planning is set up per area, under **Areas**. The planner uses all of it when you plan from the Week tab.
+
+- **This week**: projects for the week (a course to study for, startup work, fun projects, relax time) with hours, priority and preferred times, plus your startup hours and free evenings.
+- **Classes**: your fixed class and work schedule on a weekly grid, with the buffer kept free before and after each class.
+- **Studies**: courses and weekly study hours, when you can study and when you prefer to.
+- **Workouts**: how often and how long, when you can go, preferred times, and the buffer before and after a workout.
+- **Meals**: breakfast, lunch and dinner times (different on some days if you like), meal prep, the weekly menu and nutrition goals.
+- **Startup**: tasks, milestones and when you work on it.
+
+Settings keeps your day (sleep, earliest and latest block, minimum gap, daily maximum), evenings, timezone, Google Calendar, backups and security.
+
 ## Data directory and environment variables
 
 All data lives in one directory, `~/LifeTracker` by default.
