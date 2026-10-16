@@ -29,10 +29,10 @@ export function AreaProgressRow({
   const pct = (v: number) => `${Math.min(100, (v / max) * 100)}%`;
   const summary = `${format(metric.actual)} actual · ${format(metric.planned)} planned · ${goal === null ? 'no goal' : `goal ${format(goal)}`}`;
   return (
-    <li className="area-row" style={color ? ({ '--bar-color': color } as CSSProperties) : undefined}>
-      <div className="area-row-head">
-        <span className="area-row-label">{label}</span>
-        <span className="muted area-row-summary">{summary}</span>
+    <li className="dash-row" style={color ? ({ '--bar-color': color } as CSSProperties) : undefined}>
+      <div className="dash-row-head">
+        <span className="dash-row-label">{label}</span>
+        <span className="muted dash-row-summary">{summary}</span>
       </div>
       <div className="area-bar" role="img" aria-label={`${label}: ${summary}`}>
         <div className="area-bar-planned" style={{ width: pct(metric.planned) }} />

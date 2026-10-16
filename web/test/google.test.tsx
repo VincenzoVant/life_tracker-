@@ -40,6 +40,12 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('SyncBadge', () => {
+  test('sync badge stays hidden when Google is not connected', async () => {
+    mockApi({ 'GET /api/google/status': () => status({ configured: false, connected: false, pending: 32 }) });
+    const { queryClient } = renderWithProviders(<SyncBadge />);
+    await waitFor(() => expect(queryClient.getQueryData(['google', 'status'])).toBeDefined());
+    expect(screen.queryByText(/waiting to sync/)).toBeNull();
+  });
   test('sync badge shows pending count and hides at 0', async () => {
     let current = status({ pending: 3 });
     mockApi({ 'GET /api/google/status': () => current });

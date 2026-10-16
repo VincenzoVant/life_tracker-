@@ -69,10 +69,10 @@ function DashboardPageContent() {
             </ul>
           </AreaProgressRow>
           <AreaProgressRow label="Free evenings" color={CATEGORY_META.rest.color} metric={data.freeEvenings} format={formatCount} />
-          <li className="area-row">
-            <div className="area-row-head">
-              <span className="area-row-label">Nutrition</span>
-              <span className="muted area-row-summary">Mon to Sun</span>
+          <li className="dash-row">
+            <div className="dash-row-head">
+              <span className="dash-row-label">Nutrition</span>
+              <span className="muted dash-row-summary">Mon to Sun</span>
             </div>
             {(['kcal', 'protein'] as const).map((k) => (
               <div className="nutrition-dots" key={k}>

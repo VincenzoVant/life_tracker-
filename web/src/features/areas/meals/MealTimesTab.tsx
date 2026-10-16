@@ -35,14 +35,16 @@ function MealTimesForm({ initial }: { initial: MealPrefs }) {
   const patch = (x: Partial<MealPrefs>) => setP((cur) => ({ ...cur, ...x }));
   const setOverride = (i: number, o: Override) => patch({ mealsByDay: p.mealsByDay.map((x, j) => (j === i ? o : x)) });
 
-  const time = (label: string, key: string, value: string, set: (v: string) => void) => (
+  // `name` is the accessible name when the visible label is shortened (e.g. "Time" under a "Lunch" heading).
+  const time = (label: string, key: string, value: string, set: (v: string) => void, name?: string) => (
     <Field label={label} error={errors[key]}>
-      <input type="time" value={value} onChange={(e) => set(e.target.value)} />
+      <input type="time" aria-label={name} value={value} onChange={(e) => set(e.target.value)} />
     </Field>
   );
-  const num = (label: string, key: string, value: number, set: (v: number) => void) => (
+  const num = (label: string, key: string, value: number, set: (v: number) => void, name?: string) => (
     <Field label={label} error={errors[key]}>
       <input
+        aria-label={name}
         type="number"
         inputMode="numeric"
         min={0}
@@ -57,10 +59,10 @@ function MealTimesForm({ initial }: { initial: MealPrefs }) {
       />
     </Field>
   );
-  const slotFields = (label: string, key: string, cfg: MealCfg, set: (c: MealCfg) => void) => (
+  const slotFields = (label: string, key: string, cfg: MealCfg, set: (c: MealCfg) => void, short = false) => (
     <>
-      {time(`${label} time`, `${key}.time`, cfg.time, (v) => set({ ...cfg, time: v }))}
-      {num(`${label} duration (min)`, `${key}.minutes`, cfg.minutes, (v) => set({ ...cfg, minutes: v }))}
+      {time(short ? 'Time' : `${label} time`, `${key}.time`, cfg.time, (v) => set({ ...cfg, time: v }), short ? `${label} time` : undefined)}
+      {num(short ? 'Duration (min)' : `${label} duration (min)`, `${key}.minutes`, cfg.minutes, (v) => set({ ...cfg, minutes: v }), short ? `${label} duration (min)` : undefined)}
     </>
   );
 
@@ -107,7 +109,7 @@ function MealTimesForm({ initial }: { initial: MealPrefs }) {
           return (
             <div key={i} className="meal-override">
               <div className="meal-override-head">
-                <h3>Days {n}</h3>
+                <h3>{o.days.length > 0 ? o.days.map((d) => WEEKDAYS[d - 1]!.slice(0, 3)).join(', ') : 'Pick days'}</h3>
                 <button type="button" onClick={() => removeOverride(i)} aria-label={`Remove days ${n}`}>
                   Remove
                 </button>
@@ -118,7 +120,7 @@ function MealTimesForm({ initial }: { initial: MealPrefs }) {
                 return (
                   <div key={m} className="meal-slot-row">
                     <h4>{NAMES[m]}</h4>
-                    {cfg && slotFields(`Days ${n} ${m}`, `mealsByDay.${i}.${m}`, cfg, (c) => setOverride(i, { ...o, [m]: c }))}
+                    {cfg && slotFields(`Days ${n} ${m}`, `mealsByDay.${i}.${m}`, cfg, (c) => setOverride(i, { ...o, [m]: c }), true)}
                     <label className="meal-check">
                       <input
                         type="checkbox"

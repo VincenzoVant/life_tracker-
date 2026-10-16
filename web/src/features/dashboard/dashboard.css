@@ -2,10 +2,10 @@
 .week-switcher button { min-width: 44px; padding: 0; }
 .week-switcher .week-title { text-align: center; }
 .area-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
-.area-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); }
-.area-row-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-3); margin-bottom: var(--space-2); }
-.area-row-label { font-weight: 600; }
-.area-row-summary { font-size: 0.85rem; }
+.dash-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); }
+.dash-row-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-3); margin-bottom: var(--space-2); }
+.dash-row-label { font-weight: 600; }
+.dash-row-summary { font-size: 0.85rem; }
 .area-bar { position: relative; height: 12px; border-radius: 6px; background: var(--border); }
 .area-bar-planned { position: absolute; inset: 0 auto 0 0; border: 2px solid var(--bar-color, var(--accent)); border-radius: 6px; background: transparent; }
 .area-bar-actual { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--bar-color, var(--accent)); }

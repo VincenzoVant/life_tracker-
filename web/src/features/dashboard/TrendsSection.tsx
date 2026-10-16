@@ -56,10 +56,10 @@ export function TrendsSection() {
             const latest = r.values[r.values.length - 1] ?? null;
             const goal = r.goal?.[r.goal.length - 1] ?? null;
             return (
-              <li key={r.label} className="area-row trend-row">
+              <li key={r.label} className="dash-row trend-row">
                 <div>
-                  <div className="area-row-label">{r.label}</div>
-                  <div className="muted area-row-summary">
+                  <div className="dash-row-label">{r.label}</div>
+                  <div className="muted dash-row-summary">
                     {latest === null ? 'no data' : r.fmt(latest)}
                     {goal !== null && ` / goal ${r.fmt(goal)}`}
                   </div>
