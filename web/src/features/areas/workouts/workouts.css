@@ -11,3 +11,13 @@
 .wk-chart .line { stroke: var(--accent); fill: none; stroke-width: 2; }
 .wk-chart .dot { fill: var(--accent); }
 .wk-chart text { fill: var(--muted); font-size: 11px; }
+.wk-schedule fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); margin: 0 0 var(--space-4); }
+.wk-schedule legend { font-weight: 700; padding: 0 var(--space-2); }
+.wk-schedule h4 { margin: var(--space-3) 0 var(--space-2); }
+.wk-goal { display: flex; align-items: flex-end; gap: var(--space-3); }
+.wk-goal .field { flex: 1; }
+.wk-goal-off { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; margin-bottom: var(--space-3); white-space: nowrap; font-size: 0.9rem; }
+.wk-goal-off input { width: auto; min-height: 0; }
+.wk-preview { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+.wk-preview strong { min-width: 3rem; }
+.wk-preview .wk-row { justify-content: flex-start; align-items: baseline; }

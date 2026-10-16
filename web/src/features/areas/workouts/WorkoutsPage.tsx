@@ -7,9 +7,11 @@ import { useTimezone } from '../../../api/hooks/settings';
 import { useDeleteSession, useWorkoutSessions } from '../../../api/hooks/workouts';
 import { ProgressBar } from '../../../components/ProgressBar';
 import { useToast } from '../../../components/Toast';
-import { SessionForm, TYPE_LABEL } from './SessionForm';
-import './workouts.css';
+import { AreaTabs } from '../../../components/planning';
 import { SettingsGate } from '../../../components/SettingsGate';
+import { SessionForm, TYPE_LABEL } from './SessionForm';
+import { WorkoutSchedule } from './WorkoutSchedule';
+import './workouts.css';
 
 export function formatPace(secPerKm: number): string {
   const m = Math.floor(secPerKm / 60);
@@ -29,20 +31,9 @@ function describe(s: WorkoutSession): string {
 function WorkoutsPageContent() {
   const tz = useTimezone();
   const now = new Date();
-  const today = localDateOf(now, tz);
   const weekStart = weekStartOf(now, tz);
-  const sessions = useWorkoutSessions({ from: addDays(today, -56), to: today });
   const goals = useGoals();
   const progress = useWeekProgress(weekStart);
-  const [filter, setFilter] = useState<'all' | WorkoutType>('all');
-  const [logging, setLogging] = useState(false);
-  const [editing, setEditing] = useState<WorkoutSession | null>(null);
-  const del = useDeleteSession();
-  const toast = useToast();
-
-  const rows = [...(sessions.data ?? [])]
-    .filter((s) => filter === 'all' || s.type === filter)
-    .sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <section>
@@ -50,9 +41,6 @@ function WorkoutsPageContent() {
         <h1>Workouts</h1>
         <div className="wk-actions">
           <Link to="/areas/workouts/lifts">Top lifts</Link>
-          <button className="primary" onClick={() => setLogging(true)}>
-            Log session
-          </button>
         </div>
       </div>
 
@@ -73,6 +61,36 @@ function WorkoutsPageContent() {
           );
         })}
       </div>
+
+      <AreaTabs
+        tabs={[
+          { key: 'schedule', label: 'Schedule', render: () => <WorkoutSchedule /> },
+          { key: 'sessions', label: 'Sessions', render: () => <Sessions /> },
+        ]}
+      />
+    </section>
+  );
+}
+
+function Sessions() {
+  const tz = useTimezone();
+  const today = localDateOf(new Date(), tz);
+  const sessions = useWorkoutSessions({ from: addDays(today, -56), to: today });
+  const [filter, setFilter] = useState<'all' | WorkoutType>('all');
+  const [logging, setLogging] = useState(false);
+  const [editing, setEditing] = useState<WorkoutSession | null>(null);
+  const del = useDeleteSession();
+  const toast = useToast();
+
+  const rows = [...(sessions.data ?? [])]
+    .filter((s) => filter === 'all' || s.type === filter)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  return (
+    <>
+      <button className="primary" onClick={() => setLogging(true)}>
+        Log session
+      </button>
 
       <div className="wk-chips" role="group" aria-label="Filter by type">
         {(['all', ...WORKOUT_TYPES] as const).map((t) => (
@@ -120,7 +138,7 @@ function WorkoutsPageContent() {
       )}
       {logging && <SessionForm today={today} onClose={() => setLogging(false)} />}
       {editing && <SessionForm today={today} session={editing} onClose={() => setEditing(null)} />}
-    </section>
+    </>
   );
 }
 
