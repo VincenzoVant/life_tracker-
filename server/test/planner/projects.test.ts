@@ -131,3 +131,34 @@ test('study projects respect the daily study cap and come on top of the course g
   expect(study.filter((b) => !b.projectId).reduce((n, b) => n + mins(b), 0)).toBe(360);
   expect(study.filter((b) => b.projectId === 'exam').reduce((n, b) => n + mins(b), 0)).toBe(360);
 });
+
+test('study projects stay inside the study windows and use the preferred study times when they have none', () => {
+  const input = baseInput({
+    prefs: prefs({
+      studyWindows: [{ days: [1, 2, 3, 4, 5], start: '09:00', end: '18:00' }],
+      preferredStudyWindows: [{ days: [2, 4], start: '14:00', end: '17:00' }],
+    }),
+    goals: [project('exam', 240, { category: 'study', courseId: 'A', block: { min: 60, max: 120 } })],
+  });
+  const out = plan(input);
+  const blocks = out.blocks.filter((b) => b.projectId === 'exam');
+  expect(blocks.reduce((n, b) => n + mins(b), 0)).toBe(240);
+  for (const b of blocks) {
+    expect(isoWeekday(dateOf(b.start))).toBeLessThanOrEqual(5);
+    expect(localTimeOf(new Date(b.start), TZ) >= '09:00').toBe(true);
+    expect(localTimeOf(new Date(b.end), TZ) <= '18:00').toBe(true);
+    // Room in Tue/Thu 14:00–17:00, so that is where it goes.
+    expect([2, 4]).toContain(isoWeekday(dateOf(b.start)));
+    expect(localTimeOf(new Date(b.start), TZ) >= '14:00').toBe(true);
+  }
+});
+
+test('non-study projects ignore the study windows', () => {
+  const input = baseInput({
+    prefs: prefs({ studyWindows: [{ days: [1], start: '09:00', end: '10:00' }] }),
+    goals: [project('fun', 240, { category: 'other' })],
+  });
+  const out = plan(input);
+  expect(out.blocks.filter((b) => b.projectId === 'fun').reduce((n, b) => n + mins(b), 0)).toBe(240);
+  expect(out.shortfalls).toEqual([]);
+});
