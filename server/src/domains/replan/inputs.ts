@@ -4,10 +4,11 @@ import {
 import type { Ctx } from '../../ctx.js';
 import { ceilTo15 } from '../../planner/intervals.js';
 import type { MovableBlock, ReplanInput } from '../../planner/replan.js';
-import type { PlannerBlockRef, PlannerGoal } from '../../planner/types.js';
+import type { Pads, PlannerBlockRef, PlannerGoal } from '../../planner/types.js';
 import { listBlocks } from '../blocks/service.js';
 import { getGoals } from '../goals/service.js';
 import { freePastEvenings } from '../plans/inputs.js';
+import { padsLookup } from '../plans/pads.js';
 import { getPreferences } from '../preferences/service.js';
 import { getTimezone } from '../settings/service.js';
 import { listOpenTasks } from '../startup/service.js';
@@ -25,7 +26,8 @@ const FROZEN_STATUSES = new Set<BlockStatus>(['committed', 'done', 'partial', 's
 const FROZEN_MANUAL_CATEGORIES = new Set<Category>(['appointment', 'social', 'errand', 'work', 'other']);
 const ms = (iso: string): number => new Date(iso).getTime();
 
-const toRef = (b: Block): PlannerBlockRef => ({
+const toRef = (b: Block, pads: (b: Block) => Pads): PlannerBlockRef => ({
+  ...pads(b),
   start: ms(b.start),
   end: ms(b.end),
   category: b.category,
@@ -88,11 +90,12 @@ export function buildReplanInput(
   // Locked blocks in range are obstacles the draft was placed around; changing one makes the draft stale.
   for (const b of frozen) if (b.locked) basis[b.id] = { updatedAt: b.updatedAt, status: b.status };
 
+  const pads = padsLookup(ctx, prefs);
   const input: ReplanInput = {
     range,
     timezone: tz,
     prefs,
-    existing: frozen.map(toRef),
+    existing: frozen.map((b) => toRef(b, pads)),
     busy: ctx.busy
       .busyIntervals(new Date(range.start), new Date(range.end))
       .map((i) => ({ start: ms(i.start), end: ms(i.end), title: i.title })),

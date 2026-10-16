@@ -1,0 +1,10 @@
+.day-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.chip { min-height: 44px; }
+.chip-on { background: var(--accent, #2563eb); color: #fff; }
+.window-row { margin-bottom: var(--space-3); }
+.window-times { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); }
+.window-times .field { flex: 1; min-width: 8rem; }
+.buffer-fields { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.buffer-fields .field { flex: 1; min-width: 8rem; }
+.area-tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+.area-tabs button[aria-selected='true'] { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }

@@ -2,67 +2,11 @@ import { useState, type FormEvent, type ReactElement } from 'react';
 import type { Preferences } from '@life-tracker/shared';
 
 type Weekday = number;
-type TimeWindow = Preferences['preferredStartupWindows'][number];
 import { ApiError } from '../../api/client';
 import { usePreferences, useSavePreferences } from '../../api/hooks/preferences';
 import { Field } from '../../components/Field';
 import { useToast } from '../../components/Toast';
-import { WEEKDAYS } from './FixedScheduleSection';
-
-function DayChips({ label, days, onChange, error }: { label: string; days: Weekday[]; onChange: (d: Weekday[]) => void; error?: string }) {
-  return (
-    <div className="day-chips" role="group" aria-label={label} aria-invalid={error ? true : undefined}>
-      {WEEKDAYS.map((name, i) => {
-        const d = (i + 1) as Weekday;
-        const on = days.includes(d);
-        return (
-          <button
-            key={d}
-            type="button"
-            className={on ? 'chip chip-on' : 'chip'}
-            aria-pressed={on}
-            aria-label={`${label}: ${name}`}
-            onClick={() => onChange(on ? days.filter((x) => x !== d) : [...days, d].sort((a, b) => a - b))}
-          >
-            {name.slice(0, 3)}
-          </button>
-        );
-      })}
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Weekday chips plus start/end times, with add/remove rows. */
-export function TimeWindowEditor({ label, windows, onChange, errors }: { label: string; windows: TimeWindow[]; onChange: (w: TimeWindow[]) => void; errors: Record<string, string> }) {
-  const update = (i: number, patch: Partial<TimeWindow>) => onChange(windows.map((w, j) => (j === i ? { ...w, ...patch } : w)));
-  return (
-    <div className="window-editor">
-      <h4>{label}s</h4>
-      {windows.map((w, i) => (
-        <div key={i} className="window-row">
-          <DayChips label={`${label} ${i + 1} days`} days={w.days} onChange={(days) => update(i, { days })} error={errors[`${i}.days`]} />
-          <Field label={`${label} ${i + 1} start`} error={errors[`${i}.start`]}>
-            <input type="time" value={w.start} onChange={(e) => update(i, { start: e.target.value })} />
-          </Field>
-          <Field label={`${label} ${i + 1} end`} error={errors[`${i}.end`]}>
-            <input type="time" value={w.end} onChange={(e) => update(i, { end: e.target.value })} />
-          </Field>
-          <button type="button" onClick={() => onChange(windows.filter((_, j) => j !== i))} aria-label={`Remove ${label} ${i + 1}`}>
-            Remove
-          </button>
-        </div>
-      ))}
-      <button type="button" onClick={() => onChange([...windows, { days: [1, 2, 3, 4, 5], start: '17:00', end: '19:00' }])}>
-        Add {label.toLowerCase()}
-      </button>
-    </div>
-  );
-}
+import { DayChips, TimeWindowEditor, WEEKDAYS } from '../../components/planning';
 
 export function PreferencesSection() {
   const { data } = usePreferences();

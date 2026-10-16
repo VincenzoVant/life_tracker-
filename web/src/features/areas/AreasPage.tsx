@@ -2,11 +2,14 @@ import { Link } from 'react-router';
 import './areas.css';
 
 const AREAS = [
-  { to: '/areas/studies', title: 'Studies', blurb: 'Courses and weekly study hours' },
-  { to: '/areas/work', title: 'Work', blurb: 'This week’s work blocks' },
+  { to: '/areas/this-week', title: 'This week', blurb: 'Projects, startup, fun and relax time' },
+  { to: '/areas/classes', title: 'Classes', blurb: 'Your fixed class schedule and buffers' },
+  { to: '/areas/studies', title: 'Studies', blurb: 'What and when you study' },
+  { to: '/areas/workouts', title: 'Workouts', blurb: 'Gym schedule, sessions and lifts' },
+  { to: '/areas/meals', title: 'Meals', blurb: 'Meal times, prep and the weekly menu' },
+  { to: '/areas/food', title: 'Food', blurb: 'Food log and nutrition' },
   { to: '/areas/startup', title: 'Startup', blurb: 'Tasks and milestones' },
-  { to: '/areas/workouts', title: 'Workouts', blurb: 'Sessions and lifts' },
-  { to: '/areas/food', title: 'Food', blurb: 'Meals and nutrition' },
+  { to: '/areas/work', title: 'Work', blurb: 'This week’s work blocks' },
 ];
 
 export function AreasPage() {

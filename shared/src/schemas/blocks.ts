@@ -26,6 +26,8 @@ export interface Block {
   workoutType: WorkoutType | null;
   mealSlot: MealSlot | null;
   fixedEventId: string | null;
+  /** The weekly project (Areas → This week) this block works on. */
+  projectId?: string | null;
   occurrenceDate?: string | null;
   removedBy?: 'user' | 'schedule' | null;
   planId: string | null;

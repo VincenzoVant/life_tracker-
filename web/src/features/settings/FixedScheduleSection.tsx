@@ -7,7 +7,7 @@ import { useDeleteFixedEvent, useFixedEvents, useSaveFixedEvent } from '../../ap
 import { Field } from '../../components/Field';
 import { useToast } from '../../components/Toast';
 
-export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+import { WEEKDAYS } from '../../components/planning';
 
 interface Draft {
   id?: string;

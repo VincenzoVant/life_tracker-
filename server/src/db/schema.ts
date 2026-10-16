@@ -65,6 +65,7 @@ export const blocks = sqliteTable(
     workoutType: text('workout_type'),
     mealSlot: text('meal_slot'),
     fixedEventId: text('fixed_event_id'),
+    projectId: text('project_id').references(() => projects.id, { onDelete: 'set null' }),
     occurrenceDate: text('occurrence_date'), // fixed blocks: the local date this occurrence was generated for
     removedBy: text('removed_by'), // user | schedule (set when status = removed)
     planId: text('plan_id'),
@@ -154,6 +155,25 @@ export const fixedEvents = sqliteTable('fixed_events', {
   endTime: text('end_time').notNull(),
   validFrom: text('valid_from').notNull(),
   validTo: text('valid_to').notNull(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  bufferBefore: integer('buffer_before'), // minutes; null = preferences.classBuffer.before
+  bufferAfter: integer('buffer_after'), // minutes; null = preferences.classBuffer.after
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/** Things to make time for (study for a course, startup, fun project, relaxing), with hours per week. */
+export const projects = sqliteTable('projects', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  kind: text('kind').notNull(), // study | startup | fun | relax | other
+  courseId: text('course_id').references(() => courses.id, { onDelete: 'set null' }),
+  weeklyMinutes: integer('weekly_minutes').notNull(),
+  weekStart: text('week_start'), // a Monday: only that week; null = every week
+  windows: text('windows').notNull().default('[]'), // JSON TimeWindow[]: preferred times
+  blockMin: integer('block_min').notNull().default(60),
+  blockMax: integer('block_max').notNull().default(120),
+  priority: integer('priority').notNull().default(2), // 1 high, 2 normal, 3 low
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

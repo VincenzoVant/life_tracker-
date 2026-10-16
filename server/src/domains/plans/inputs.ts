@@ -11,10 +11,11 @@ import {
 import type { Ctx } from '../../ctx.js';
 import { AppError } from '../../lib/errors.js';
 import { ceilTo15 } from '../../planner/intervals.js';
-import type { PlannerBlockRef, PlannerGoal, PlannerInput } from '../../planner/types.js';
+import type { Pads, PlannerBlockRef, PlannerGoal, PlannerInput } from '../../planner/types.js';
 import { listBlocks } from '../blocks/service.js';
 import { getGoals } from '../goals/service.js';
 import { getPreferences } from '../preferences/service.js';
+import { padsLookup } from './pads.js';
 import { getTimezone } from '../settings/service.js';
 import { listOpenTasks } from '../startup/service.js';
 import { listCourses } from '../studies/service.js';
@@ -34,8 +35,9 @@ function usedMinutes(bs: Block[]): number {
   return total;
 }
 
-function toRef(b: Block): PlannerBlockRef {
+function toRef(b: Block, pads: (b: Block) => Pads): PlannerBlockRef {
   return {
+    ...pads(b),
     start: ms(b.start),
     end: ms(b.end),
     category: b.category,
@@ -90,7 +92,8 @@ export function buildPlannerInput(ctx: Ctx, weekStart: string): PlannerInput {
       b.category === 'workout' &&
       b.workoutType === 'gym',
   );
-  const existing = [...inRange, ...nearbyGyms].map(toRef);
+  const pads = padsLookup(ctx, prefs);
+  const existing = [...inRange, ...nearbyGyms].map((b) => toRef(b, pads));
   const busy = ctx.busy
     .busyIntervals(new Date(range.start), new Date(range.end))
     .map((i) => ({ start: ms(i.start), end: ms(i.end), title: i.title }));

@@ -8,8 +8,17 @@ export interface Interval {
   end: Ms;
 }
 
+/**
+ * Minutes kept free before/after a block. Missing sides fall back to prefs.bufferMinutes. Two neighbours are kept
+ * apart by the larger of the facing sides, so bufferMinutes is the minimum gap and class/workout buffers widen it.
+ */
+export interface Pads {
+  padBefore?: number;
+  padAfter?: number;
+}
+
 /** An already-occupied block (committed, fixed, ...) the planner must work around. */
-export interface PlannerBlockRef extends Interval {
+export interface PlannerBlockRef extends Interval, Pads {
   category: Category;
   source: BlockSource;
   courseId?: string | null;
@@ -37,7 +46,7 @@ export interface PlannerInput {
   startupTasks: { id: string; title: string }[];
 }
 
-export interface ProposedBlock extends Interval {
+export interface ProposedBlock extends Interval, Pads {
   category: Category;
   title: string;
   courseId?: string;

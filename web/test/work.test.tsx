@@ -32,5 +32,8 @@ test('work page sums planned and actual hours', async () => {
 test('areas index links to every area page', () => {
   renderWithProviders(<AreasPage />);
   const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
-  expect(hrefs).toEqual(['/areas/studies', '/areas/work', '/areas/startup', '/areas/workouts', '/areas/food']);
+  expect(hrefs).toEqual([
+    '/areas/this-week', '/areas/classes', '/areas/studies', '/areas/workouts',
+    '/areas/meals', '/areas/food', '/areas/startup', '/areas/work',
+  ]);
 });

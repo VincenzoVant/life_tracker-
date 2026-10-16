@@ -1,7 +1,7 @@
 import { localDateOf } from '@life-tracker/shared';
 import { buildDayWindows, type DayWindow } from './days.js';
-import { ceilTo15, mergeIntervals, padIntervals, STEP_MS, subtractIntervals } from './intervals.js';
-import type { Interval, Ms, PlannerInput, ProposedBlock } from './types.js';
+import { ceilTo15, MINUTE_MS, STEP_MS, subtractIntervals } from './intervals.js';
+import type { Interval, Ms, Pads, PlannerInput, ProposedBlock } from './types.js';
 
 export interface DayLoad {
   planned: number;
@@ -14,7 +14,8 @@ export interface DayLoad {
 export interface Timeline {
   days: DayWindow[];
   freeIntervals(date: string): Interval[];
-  candidates(date: string, minutes: number, opts?: { within?: Interval; exclude?: Interval[] }): Interval[];
+  /** Start times (15-minute steps) where a block of `minutes` fits; `pad` is the new block's own buffer. */
+  candidates(date: string, minutes: number, opts?: { within?: Interval; exclude?: Interval[]; pad?: Pads }): Interval[];
   occupy(block: ProposedBlock): void;
   load(date: string): DayLoad;
   gymStarts(): Ms[];
@@ -33,8 +34,19 @@ const emptyLoad = (): DayLoad => ({ planned: 0, study: 0, perCourse: {}, startup
 export function createTimeline(input: PlannerInput): Timeline {
   const { prefs, timezone: tz } = input;
   const days = buildDayWindows(input.range, tz, prefs);
-  const raw: Interval[] = [...input.existing, ...input.busy].map((x) => ({ start: x.start, end: x.end }));
-  let occupied = mergeIntervals(padIntervals(raw, prefs.bufferMinutes));
+  const side = (m: number | undefined): Ms => (m ?? prefs.bufferMinutes) * MINUTE_MS;
+  interface Taken extends Interval {
+    before: Ms;
+    after: Ms;
+  }
+  const taken = (x: Interval & Pads): Taken => ({ start: x.start, end: x.end, before: side(x.padBefore), after: side(x.padAfter) });
+  const occupied: Taken[] = [...input.existing.map(taken), ...input.busy.map((b) => taken(b))];
+  /** Occupied intervals widened by the larger facing buffer, as seen by a new block with `pad`. */
+  const blocked = (pad: Pads = {}): Interval[] => {
+    const before = side(pad.padBefore);
+    const after = side(pad.padAfter);
+    return occupied.map((o) => ({ start: o.start - Math.max(o.before, after), end: o.end + Math.max(o.after, before) }));
+  };
   const loads = new Map<string, DayLoad>();
   const gyms: Ms[] = [];
 
@@ -59,16 +71,17 @@ export function createTimeline(input: PlannerInput): Timeline {
     if (e.category === 'workout' && e.workoutType === 'gym') gyms.push(e.start);
   }
 
-  const freeIntervals = (date: string): Interval[] => {
+  const freeFor = (date: string, pad?: Pads): Interval[] => {
     const w = days.find((d) => d.date === date);
-    return w ? subtractIntervals([{ start: w.start, end: w.end }], occupied) : [];
+    return w ? subtractIntervals([{ start: w.start, end: w.end }], blocked(pad)) : [];
   };
+  const freeIntervals = (date: string): Interval[] => freeFor(date);
 
   return {
     days,
     freeIntervals,
     candidates(date, minutes, opts = {}) {
-      let free = freeIntervals(date);
+      let free = freeFor(date, opts.pad);
       if (opts.within) {
         const within = opts.within;
         free = free
@@ -84,7 +97,7 @@ export function createTimeline(input: PlannerInput): Timeline {
       return out;
     },
     occupy(block) {
-      occupied = mergeIntervals([...occupied, ...padIntervals([block], prefs.bufferMinutes)]);
+      occupied.push(taken(block));
       addLoad(block);
       if (block.category === 'workout' && block.workoutType === 'gym') gyms.push(block.start);
     },

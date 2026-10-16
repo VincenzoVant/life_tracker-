@@ -17,6 +17,22 @@ const BlockRange = z.object({
   max: z.number().int().positive(),
 });
 const MealCfg = z.object({ time: HHmm, minutes: z.number().int().positive() });
+export type MealCfg = { time: string; minutes: number };
+const Buffer = z.object({ before: z.number().int().min(0).max(240), after: z.number().int().min(0).max(240) });
+
+/** Meal times for some weekdays, overriding `meals`. A null slot means: do not plan that meal on those days. */
+export const MealDayOverrideSchema = z.object({
+  days: z.array(Weekday).min(1),
+  breakfast: MealCfg.nullable(),
+  lunch: MealCfg.nullable(),
+  dinner: MealCfg.nullable(),
+});
+export type MealDayOverride = {
+  days: Weekday[];
+  breakfast: MealCfg | null;
+  lunch: MealCfg | null;
+  dinner: MealCfg | null;
+};
 
 export const DEFAULT_PREFERENCES = {
   sleep: { start: '23:30', end: '07:30' },
@@ -32,7 +48,17 @@ export const DEFAULT_PREFERENCES = {
     { days: [1, 2, 3, 4, 5], start: '19:00', end: '22:30' },
     { days: [6, 7], start: '09:00', end: '13:00' },
   ] as TimeWindow[],
+  /** Hard windows study may be planned in; empty means anywhere in the day. */
+  studyWindows: [] as TimeWindow[],
+  /** Soft windows the planner prefers for study. */
+  preferredStudyWindows: [] as TimeWindow[],
+  /** Default free time kept before/after a class (a fixed event can override it). */
+  classBuffer: { before: 15, after: 15 },
   workoutDurations: { gym: 75, cardio: 45, sport: 90 },
+  /** Hard windows workouts may be planned in; empty means anywhere in the day. */
+  workoutAvailability: [] as TimeWindow[],
+  /** Free time kept before (getting there, changing) and after (shower, travel) every workout. */
+  workoutBuffer: { before: 15, after: 30 },
   preferredWorkoutWindows: [{ days: [1, 3, 5], start: '17:00', end: '19:00' }] as TimeWindow[],
   allowedWorkoutDays: [1, 2, 3, 4, 5, 6, 7] as Weekday[],
   minHoursBetweenGym: 40,
@@ -41,6 +67,7 @@ export const DEFAULT_PREFERENCES = {
     lunch: { time: '12:30', minutes: 30 },
     dinner: { time: '19:00', minutes: 45 },
   },
+  mealsByDay: [] as MealDayOverride[],
   mealFlexMinutes: 60,
   mealPrep: { day: 7 as Weekday, preferredStart: '16:00', minutes: 90 },
   eveningStart: '19:00',
@@ -51,6 +78,15 @@ export const DEFAULT_PREFERENCES = {
 };
 
 const D = DEFAULT_PREFERENCES;
+
+/** Every TimeWindow[] preference; each window must start before it ends. */
+export const WINDOW_KEYS = [
+  'preferredStartupWindows',
+  'preferredWorkoutWindows',
+  'workoutAvailability',
+  'studyWindows',
+  'preferredStudyWindows',
+] as const;
 const Windows = (def: TimeWindow[]) => z.array(TimeWindowSchema).default(structuredClone(def));
 
 export const PreferencesSchema = z
@@ -65,6 +101,9 @@ export const PreferencesSchema = z
     maxMinutesPerCoursePerDay: z.number().int().positive().default(D.maxMinutesPerCoursePerDay),
     startupBlock: BlockRange.default({ ...D.startupBlock }),
     preferredStartupWindows: Windows(D.preferredStartupWindows),
+    studyWindows: Windows(D.studyWindows),
+    preferredStudyWindows: Windows(D.preferredStudyWindows),
+    classBuffer: Buffer.default({ ...D.classBuffer }),
     workoutDurations: z
       .object({
         gym: z.number().int().positive(),
@@ -73,11 +112,14 @@ export const PreferencesSchema = z
       })
       .default({ ...D.workoutDurations }),
     preferredWorkoutWindows: Windows(D.preferredWorkoutWindows),
+    workoutAvailability: Windows(D.workoutAvailability),
+    workoutBuffer: Buffer.default({ ...D.workoutBuffer }),
     allowedWorkoutDays: z.array(Weekday).default([...D.allowedWorkoutDays]),
     minHoursBetweenGym: z.number().min(0).default(D.minHoursBetweenGym),
     meals: z
       .object({ breakfast: MealCfg, lunch: MealCfg, dinner: MealCfg })
       .default(structuredClone(D.meals)),
+    mealsByDay: z.array(MealDayOverrideSchema).default([]),
     mealFlexMinutes: z.number().int().min(0).default(D.mealFlexMinutes),
     mealPrep: z
       .object({ day: Weekday, preferredStart: HHmm, minutes: z.number().int().positive() })
@@ -98,7 +140,7 @@ export const PreferencesSchema = z
       else if (min % 15 !== 0) issue([key, 'min'], 'min must be a multiple of 15');
       if (max % 15 !== 0) issue([key, 'max'], 'max must be a multiple of 15');
     }
-    for (const key of ['preferredStartupWindows', 'preferredWorkoutWindows'] as const) {
+    for (const key of WINDOW_KEYS) {
       p[key].forEach((w, i) => {
         if (w.start >= w.end) issue([key, i, 'start'], 'start must be before end');
       });

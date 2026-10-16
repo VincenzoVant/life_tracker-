@@ -12,6 +12,9 @@ export interface FixedEvent {
   validFrom: string;
   validTo: string;
   active: boolean;
+  /** Minutes kept free before/after this event; null = preferences.classBuffer. */
+  bufferBefore: number | null;
+  bufferAfter: number | null;
 }
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:mm');
@@ -27,6 +30,8 @@ const fixedEventFields = {
   validFrom: date,
   validTo: date,
   active: z.boolean(),
+  bufferBefore: z.number().int().min(0).max(240).nullable(),
+  bufferAfter: z.number().int().min(0).max(240).nullable(),
 };
 
 interface Refinable {
@@ -51,7 +56,14 @@ function refineFixedEvent(v: Refinable, ctx: z.RefinementCtx): void {
   if (v.kind === 'work' && v.courseId) add('courseId', 'Course is not allowed for work');
 }
 
-export const FixedEventInput = z.object({ ...fixedEventFields, active: z.boolean().default(true) }).superRefine(refineFixedEvent);
+export const FixedEventInput = z
+  .object({
+    ...fixedEventFields,
+    active: z.boolean().default(true),
+    bufferBefore: fixedEventFields.bufferBefore.default(null),
+    bufferAfter: fixedEventFields.bufferAfter.default(null),
+  })
+  .superRefine(refineFixedEvent);
 export type FixedEventInput = z.infer<typeof FixedEventInput>;
 
 /** Partial patch; the server re-validates the merged result with FixedEventInput. */

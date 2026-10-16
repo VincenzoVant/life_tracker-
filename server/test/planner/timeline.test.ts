@@ -55,3 +55,22 @@ test('bufferMinutes 0 lets candidates touch occupied blocks', () => {
   const t = createTimeline(baseInput({ prefs: prefs({ bufferMinutes: 0 }), existing: [ref(MON, '12:00', '13:00')] }));
   expect(t.candidates(MON, 30, { within: { start: at(MON, '12:00'), end: at(MON, '13:30') } })[0]!.start).toBe(at(MON, '13:00'));
 });
+test('per-block pads widen the gap to the larger facing side', () => {
+  const cls = ref(MON, '10:00', '11:00', { category: 'study', source: 'fixed', padBefore: 30, padAfter: 45 });
+  const t = createTimeline(baseInput({ existing: [cls] }));
+  const within = { start: at(MON, '08:00'), end: at(MON, '14:00') };
+  const plain = t.candidates(MON, 60, { within });
+  expect(plain.some((x) => x.end === at(MON, '09:30'))).toBe(true);
+  expect(plain.some((x) => x.end === at(MON, '09:45'))).toBe(false);
+  expect(plain.find((x) => x.start >= at(MON, '11:00'))!.start).toBe(at(MON, '11:45'));
+  // A new block with a 60-minute lead-in needs an hour after the class, not 45 minutes.
+  const gym = t.candidates(MON, 60, { within, pad: { padBefore: 60, padAfter: 0 } });
+  expect(gym.find((x) => x.start >= at(MON, '11:00'))!.start).toBe(at(MON, '12:00'));
+  expect(gym.some((x) => x.end === at(MON, '09:30'))).toBe(true);
+});
+test('occupy keeps the block pads', () => {
+  const t = createTimeline(baseInput());
+  t.occupy({ category: 'workout', title: 'Gym', workoutType: 'gym', start: at(MON, '17:00'), end: at(MON, '18:00'), padAfter: 60 });
+  const after = t.candidates(MON, 30, { within: { start: at(MON, '18:00'), end: at(MON, '21:00') } });
+  expect(after[0]!.start).toBe(at(MON, '19:00'));
+});

@@ -62,6 +62,7 @@ export interface CreateBlockOpts {
   planId?: string | null;
   fixedEventId?: string | null;
   occurrenceDate?: string | null;
+  projectId?: string | null;
   actualMinutes?: number | null;
 }
 
@@ -84,6 +85,7 @@ export function createBlock(ctx: Ctx, input: BlockCreateInput, opts: CreateBlock
     workoutType: v.workoutType ?? null,
     mealSlot: v.mealSlot ?? null,
     fixedEventId: opts.fixedEventId ?? null,
+    projectId: opts.projectId ?? null,
     occurrenceDate: opts.occurrenceDate ?? null,
     removedBy: null,
     planId: opts.planId ?? null,

@@ -14,3 +14,9 @@ export function savePreferences(ctx: Ctx, input: unknown): Preferences {
   setSetting(ctx, 'preferences', prefs);
   return prefs;
 }
+
+/** Shallow merge of top-level keys onto the stored preferences, then full validation. */
+export function patchPreferences(ctx: Ctx, input: unknown): Preferences {
+  const patch = input !== null && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  return savePreferences(ctx, { ...getPreferences(ctx), ...patch });
+}

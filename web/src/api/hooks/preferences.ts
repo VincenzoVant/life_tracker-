@@ -12,3 +12,10 @@ export const useSavePreferences = () =>
     (input: Partial<Preferences>) => apiFetch<Preferences>('/api/preferences', { method: 'PUT', body: input }),
     ['preferences', 'progress'],
   );
+
+/** Saves only the given top-level keys; the server merges them onto the stored preferences. */
+export const usePatchPreferences = () =>
+  useInvalidatingMutation(
+    (input: Partial<Preferences>) => apiFetch<Preferences>('/api/preferences', { method: 'PATCH', body: input }),
+    ['preferences', 'progress'],
+  );

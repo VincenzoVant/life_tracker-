@@ -5,6 +5,9 @@ import { useServerHealth } from "./hooks/useServerHealth";
 import { Layout } from "./components/Layout";
 import { AuthGate } from "./features/auth/AuthGate";
 import { AreasPage } from "./features/areas/AreasPage";
+import { ClassesPage } from "./features/areas/classes/ClassesPage";
+import { MealsPage } from "./features/areas/meals/MealsPage";
+import { ThisWeekPage } from "./features/areas/thisWeek/ThisWeekPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { FoodPage } from "./features/areas/food/FoodPage";
 import { QuickAddPage } from "./features/quickAdd/QuickAddPage";
@@ -32,6 +35,9 @@ export const routes: Array<{ path: string; element: ReactElement }> = [
   { path: "/replan/:planId", element: <ReplanPage /> },
   { path: "/review", element: <ReviewPage /> },
   { path: "/areas", element: <AreasPage /> },
+  { path: "/areas/this-week", element: <ThisWeekPage /> },
+  { path: "/areas/classes", element: <ClassesPage /> },
+  { path: "/areas/meals", element: <MealsPage /> },
   { path: "/areas/studies", element: <StudiesPage /> },
   { path: "/areas/work", element: <WorkPage /> },
   { path: "/areas/startup", element: <StartupPage /> },

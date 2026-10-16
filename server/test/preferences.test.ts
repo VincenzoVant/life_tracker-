@@ -24,3 +24,14 @@ test('PUT invalid returns 400 with fields', async () => {
   const stored = await c.get('/api/preferences');
   expect(stored.body).toEqual(DEFAULT_PREFERENCES);
 });
+test('PATCH merges top-level keys onto stored preferences', async () => {
+  const c = await createTestClient();
+  await c.put('/api/preferences', { bufferMinutes: 30 });
+  const r = await c.patch('/api/preferences', { workoutBuffer: { before: 10, after: 45 } });
+  expect(r.status).toBe(200);
+  expect(r.body.bufferMinutes).toBe(30);
+  expect(r.body.workoutBuffer).toEqual({ before: 10, after: 45 });
+  const bad = await c.patch('/api/preferences', { studyWindows: [{ days: [1], start: '12:00', end: '11:00' }] });
+  expect(bad.status).toBe(400);
+  expect(bad.body.error.fields).toHaveProperty('studyWindows.0.start');
+});

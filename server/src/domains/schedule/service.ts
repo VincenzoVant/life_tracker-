@@ -25,6 +25,8 @@ const toEvent = (r: Row): FixedEvent => ({
   validFrom: r.validFrom,
   validTo: r.validTo,
   active: r.active,
+  bufferBefore: r.bufferBefore,
+  bufferAfter: r.bufferAfter,
 });
 
 export function listFixedEvents(ctx: Ctx): FixedEvent[] {
@@ -61,6 +63,8 @@ export function createFixedEvent(ctx: Ctx, input: unknown): FixedEvent {
         validFrom: v.validFrom,
         validTo: v.validTo,
         active: v.active,
+        bufferBefore: v.bufferBefore,
+        bufferAfter: v.bufferAfter,
         createdAt: now,
         updatedAt: now,
       })
@@ -87,6 +91,8 @@ export function updateFixedEvent(ctx: Ctx, id: string, patch: FixedEventUpdateIn
         validFrom: v.validFrom,
         validTo: v.validTo,
         active: v.active,
+        bufferBefore: v.bufferBefore,
+        bufferAfter: v.bufferAfter,
         updatedAt: ctx.clock.now().toISOString(),
       })
       .where(eq(fixedEvents.id, id))
