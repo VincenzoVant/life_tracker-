@@ -1,6 +1,6 @@
 import { isoWeekday } from '@life-tracker/shared';
 import { localWindow } from './days.js';
-import { ceilTo15 } from './intervals.js';
+import { ceilTo15, mergeIntervals } from './intervals.js';
 import { pickBest, scoreCandidate } from './score.js';
 import type { DayLoad, Timeline } from './timeline.js';
 import type { Interval, PlannerGoal, PlannerInput, ProposedBlock, Shortfall } from './types.js';
@@ -25,6 +25,8 @@ interface Hooks {
   block: { min: number; max: number };
   fits(load: DayLoad, minutes: number, item: Item): boolean;
   preferred(date: string): Interval[];
+  /** Hard windows for the date; blocks go only inside them. Undefined means anywhere in the day. */
+  within?(date: string): Interval[] | undefined;
   dayLoad(load: DayLoad, item: Item): number;
   make(item: Item, c: Interval, index: number): ProposedBlock;
 }
@@ -54,7 +56,11 @@ function placeItems(
         const load = t.load(day.date);
         if (!hooks.fits(load, minutes, item)) continue;
         const preferred = hooks.preferred(day.date);
-        for (const c of t.candidates(day.date, minutes, { exclude })) options.push({ ...c, date: day.date, preferred, load });
+        const windows = hooks.within?.(day.date);
+        const cands = windows
+          ? windows.flatMap((w) => t.candidates(day.date, minutes, { within: w, exclude }))
+          : t.candidates(day.date, minutes, { exclude });
+        for (const c of cands) options.push({ ...c, date: day.date, preferred, load });
       }
       const best = pickBest(options, (c) => {
         const o = c as Option;
@@ -115,13 +121,16 @@ export function placeStudy(
   const names = new Map(
     input.goals.flatMap((g) => (g.kind === 'study' ? [[g.courseId, g.courseName] as const] : [])),
   );
+  const windowsOn = (date: string, windows: typeof prefs.studyWindows): Interval[] =>
+    mergeIntervals(windows.filter((w) => w.days.includes(isoWeekday(date))).map((w) => localWindow(date, w, input.timezone)));
   return placeItems(t, input, [...items.values()], exclude, {
     block: prefs.studyBlock,
     fits: (load, m, item) =>
       load.study + m <= prefs.maxStudyMinutesPerDay &&
       (load.perCourse[item.key] ?? 0) + m <= prefs.maxMinutesPerCoursePerDay &&
       load.planned + m <= prefs.maxPlannedMinutesPerDay,
-    preferred: () => [],
+    preferred: (date) => windowsOn(date, prefs.preferredStudyWindows),
+    within: prefs.studyWindows.length > 0 ? (date) => windowsOn(date, prefs.studyWindows) : undefined,
     dayLoad: (load, item) => load.perCourse[item.key] ?? 0,
     make: (item, c) => ({
       category: 'study',

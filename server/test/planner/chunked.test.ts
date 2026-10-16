@@ -1,10 +1,10 @@
-import { addDays, isoWeekday, localDateOf } from '@life-tracker/shared';
+import { addDays, isoWeekday, localDateOf, type Weekday } from '@life-tracker/shared';
 import { expect, test } from 'vitest';
 import { nextChunk, placeStartup, placeStudy } from '../../src/planner/chunked.js';
 import { reserveEvenings } from '../../src/planner/evenings.js';
 import { createTimeline } from '../../src/planner/timeline.js';
 import type { PlannerGoal } from '../../src/planner/types.js';
-import { TZ, at, baseInput, ref } from './fixtures.js';
+import { TZ, at, baseInput, prefs, ref } from './fixtures.js';
 
 const MON = '2026-10-19';
 const SUN = '2026-10-25';
@@ -137,4 +137,79 @@ test('startup block that cannot fit a preferred window at full size shrinks to f
   const placed = blocks.reduce((n, b) => n + mins(b), 0);
   expect(placed).toBeGreaterThanOrEqual(180);
   expect(shortfalls).toEqual([]);
+});
+
+const days = (...d: Weekday[]) => d;
+
+test('study windows are hard: every study block sits inside a window on its weekday', () => {
+  const studyWindows = [
+    { days: days(1, 2, 3, 4, 5), start: '09:00', end: '12:00' },
+    { days: days(6), start: '14:00', end: '17:00' },
+  ];
+  const input = baseInput({ prefs: prefs({ studyWindows }), goals: [study('A', 360), study('B', 240)] });
+  const { blocks, shortfalls } = placeStudy(createTimeline(input), input, []);
+  expect(shortfalls).toEqual([]);
+  expect(blocks.reduce((n, b) => n + mins(b), 0)).toBe(600);
+  for (const b of blocks) {
+    const d = dateOf(b.start);
+    const w = studyWindows.find((x) => x.days.includes(isoWeekday(d)));
+    expect(w, `no window on ${d}`).toBeDefined();
+    expect(b.start).toBeGreaterThanOrEqual(at(d, w!.start));
+    expect(b.end).toBeLessThanOrEqual(at(d, w!.end));
+  }
+});
+
+test('preferred study windows are preferred when there is room', () => {
+  const preferredStudyWindows = [{ days: days(1, 2, 3, 4, 5, 6, 7), start: '14:00', end: '18:00' }];
+  const input = baseInput({ prefs: prefs({ preferredStudyWindows }), goals: [study('A', 360)] });
+  const { blocks, shortfalls } = placeStudy(createTimeline(input), input, []);
+  expect(shortfalls).toEqual([]);
+  expect(blocks.length).toBeGreaterThan(0);
+  for (const b of blocks) {
+    const d = dateOf(b.start);
+    expect(b.start).toBeGreaterThanOrEqual(at(d, '14:00'));
+    expect(b.end).toBeLessThanOrEqual(at(d, '18:00'));
+  }
+});
+
+test('preferred study windows are soft: study still goes elsewhere when they are full', () => {
+  const g = study('A', 300);
+  const input = baseInput({
+    prefs: prefs({ preferredStudyWindows: [{ days: days(1), start: '14:00', end: '15:00' }] }),
+    goals: [g],
+  });
+  const { blocks, shortfalls } = placeStudy(createTimeline(input), input, []);
+  expect(shortfalls).toEqual([]);
+  expect(blocks.reduce((n, b) => n + mins(b), 0)).toBe(300);
+  expect(blocks.some((b) => b.start === at(MON, '14:00') && b.end === at(MON, '15:00'))).toBe(true);
+});
+
+test('empty study windows behave like before', () => {
+  const goals = [study('A', 360), study('B', 240)];
+  const a = baseInput({ goals });
+  const b = baseInput({ prefs: prefs({ studyWindows: [], preferredStudyWindows: [] }), goals });
+  expect(placeStudy(createTimeline(b), b, [])).toEqual(placeStudy(createTimeline(a), a, []));
+});
+
+test('study windows too small → shortfall for what does not fit', () => {
+  // One hour on Monday only: a single 60-minute block fits.
+  const g = study('A', 300);
+  const input = baseInput({ prefs: prefs({ studyWindows: [{ days: days(1), start: '10:00', end: '11:00' }] }), goals: [g] });
+  const { blocks, shortfalls } = placeStudy(createTimeline(input), input, []);
+  expect(blocks).toHaveLength(1);
+  expect(blocks[0]).toMatchObject({ start: at(MON, '10:00'), end: at(MON, '11:00') });
+  expect(shortfalls).toEqual([{ goal: g, missing: 240 }]);
+});
+
+test('study windows still respect exclude intervals and existing blocks inside them', () => {
+  const input = baseInput({
+    range: { start: at(MON, '00:00'), end: at(addDays(MON, 1), '00:00') },
+    prefs: prefs({ studyWindows: [{ days: days(1), start: '09:00', end: '13:00' }] }),
+    goals: [study('A', 120)],
+    existing: [ref(MON, '09:00', '10:00')],
+  });
+  const { blocks } = placeStudy(createTimeline(input), input, [{ start: at(MON, '12:00'), end: at(MON, '13:00') }]);
+  // 10:00 + 15 min buffer leaves 10:15..12:00: one 105-minute block.
+  expect(blocks).toHaveLength(1);
+  expect(blocks[0]).toMatchObject({ start: at(MON, '10:15'), end: at(MON, '12:00') });
 });

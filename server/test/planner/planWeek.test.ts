@@ -206,3 +206,20 @@ test('A4: protected evenings stay free even without a free_evenings goal', () =>
   );
   expect(clash).toEqual([]);
 });
+
+test('study windows: whole-week plan keeps every study block inside its window, other kinds unaffected', () => {
+  const input = baseInput({
+    prefs: prefs({ studyWindows: [{ days: [1, 2, 3, 4, 5], start: '09:00', end: '13:00' }] }),
+    goals: [study('A', 360), study('B', 240), wk('gym', 2), { kind: 'startup', minutes: 300 }],
+  });
+  const out = plan(input);
+  expect(out.shortfalls).toEqual([]);
+  const studyBlocks = out.blocks.filter((b) => b.category === 'study');
+  expect(studyBlocks.reduce((n, b) => n + mins(b), 0)).toBe(600);
+  for (const b of studyBlocks) {
+    expect(localTimeOf(new Date(b.start), TZ) >= '09:00').toBe(true);
+    expect(localTimeOf(new Date(b.end), TZ) <= '13:00').toBe(true);
+    expect(['2026-10-24', '2026-10-25']).not.toContain(localDateOf(new Date(b.start), TZ));
+  }
+  expect(out.blocks.filter((b) => b.category === 'workout')).toHaveLength(2);
+});
