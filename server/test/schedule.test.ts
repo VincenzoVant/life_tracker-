@@ -227,3 +227,35 @@ test('an occurrence moved to another day is not duplicated by the daily run', as
   expect(materializeFixedEvents(c.ctx)).toEqual({ created: 0, updated: 0, removed: 0 });
   expect(eventBlocks(c, ev.body.id)).toHaveLength(7);
 });
+
+test('buffers default to null and round-trip on create and update', async () => {
+  const { c, courseId } = await setup();
+  const plain = await c.post('/api/schedule', classBody(courseId));
+  expect(plain.body).toMatchObject({ bufferBefore: null, bufferAfter: null });
+
+  const res = await c.post('/api/schedule', classBody(courseId, { weekday: 2, bufferBefore: 10, bufferAfter: 45 }));
+  expect(res.status).toBe(201);
+  expect(res.body).toMatchObject({ bufferBefore: 10, bufferAfter: 45 });
+
+  const upd = await c.patch(`/api/schedule/${res.body.id}`, { bufferAfter: 60 });
+  expect(upd.body).toMatchObject({ bufferBefore: 10, bufferAfter: 60 });
+  const cleared = await c.patch(`/api/schedule/${res.body.id}`, { bufferBefore: null });
+  expect(cleared.body).toMatchObject({ bufferBefore: null, bufferAfter: 60 });
+  // A PATCH without buffer keys keeps them.
+  const renamed = await c.patch(`/api/schedule/${res.body.id}`, { title: 'Renamed' });
+  expect(renamed.body).toMatchObject({ title: 'Renamed', bufferBefore: null, bufferAfter: 60 });
+
+  const list = await c.get('/api/schedule');
+  expect(list.body.find((e: { id: string }) => e.id === res.body.id)).toMatchObject({ bufferBefore: null, bufferAfter: 60 });
+});
+
+test('buffers outside 0..240 whole minutes are field errors', async () => {
+  const { c, courseId } = await setup();
+  const res = await c.post('/api/schedule', classBody(courseId, { bufferBefore: -5, bufferAfter: 300 }));
+  expect(res.status).toBe(400);
+  expect(res.body.error.fields).toMatchObject({ bufferBefore: expect.any(String), bufferAfter: expect.any(String) });
+  const ok = await c.post('/api/schedule', classBody(courseId));
+  const bad = await c.patch(`/api/schedule/${ok.body.id}`, { bufferAfter: 1.5 });
+  expect(bad.status).toBe(400);
+  expect(bad.body.error.fields).toMatchObject({ bufferAfter: expect.any(String) });
+});
