@@ -1,8 +1,12 @@
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { QueryFamily } from './queryKeys';
 
+/** Families derived from another family's data: projects carry planned/done minutes from blocks, like progress. */
+const DEPENDENTS: Partial<Record<QueryFamily, QueryFamily[]>> = { progress: ['projects'] };
+
 export function invalidateFamilies(qc: QueryClient, families: QueryFamily[]) {
-  return Promise.all(families.map((f) => qc.invalidateQueries({ queryKey: [f] })));
+  const all = new Set(families.flatMap((f) => [f, ...(DEPENDENTS[f] ?? [])]));
+  return Promise.all([...all].map((f) => qc.invalidateQueries({ queryKey: [f] })));
 }
 
 /** A mutation that invalidates the given query families on success. */

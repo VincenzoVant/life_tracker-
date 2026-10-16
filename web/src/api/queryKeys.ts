@@ -15,6 +15,7 @@ export const qk = {
   planDraft: (weekStart: string) => ['plans', 'draft', weekStart] as const,
   goals: () => ['goals'] as const,
   preferences: () => ['preferences'] as const,
+  projects: (weekStart: string) => ['projects', weekStart] as const,
 } as const;
 
-export type QueryFamily = 'blocks' | 'progress' | 'review' | 'courses' | 'startup' | 'workouts' | 'food' | 'goals' | 'preferences' | 'plans' | 'google';
+export type QueryFamily = 'blocks' | 'progress' | 'review' | 'courses' | 'startup' | 'workouts' | 'food' | 'goals' | 'preferences' | 'plans' | 'google' | 'projects';
