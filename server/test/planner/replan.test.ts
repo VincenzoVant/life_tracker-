@@ -210,6 +210,7 @@ test('a displaced meal is re-placed around that weekday\'s own meal time', () =>
   expect(out.changes).toEqual([
     { type: 'moved', blockId: lunch.id, from: { start: lunch.start, end: lunch.end }, to: { start: at(TUE, '14:00'), end: at(TUE, '14:30') } },
   ]);
+});
 
 test('a trigger inside the workout buffer moves the gym into the availability windows, with its buffer', () => {
   const THU = '2026-10-22';
