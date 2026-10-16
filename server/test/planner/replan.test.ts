@@ -201,3 +201,13 @@ test('placeMeals onlySlots places just the requested slot', () => {
   expect(out).toHaveLength(1);
   expect(out[0]).toMatchObject({ mealSlot: 'dinner', start: at(WED, '19:00') });
 });
+
+test('a displaced meal is re-placed around that weekday\'s own meal time', () => {
+  const late = { time: '14:00', minutes: 30 };
+  const p = prefs({ mealsByDay: [{ days: [2], breakfast: prefs().meals.breakfast, lunch: late, dinner: prefs().meals.dinner }] });
+  const lunch = mv(TUE, '12:30', '13:00', { category: 'meal', title: 'Lunch', courseId: null, mealSlot: 'lunch' });
+  const out = replan(input({ prefs: p, movable: [lunch], trigger: trigger(TUE, '12:30', '13:00') }));
+  expect(out.changes).toEqual([
+    { type: 'moved', blockId: lunch.id, from: { start: lunch.start, end: lunch.end }, to: { start: at(TUE, '14:00'), end: at(TUE, '14:30') } },
+  ]);
+});

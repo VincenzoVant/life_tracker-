@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DEFAULT_PREFERENCES, type Block } from '@life-tracker/shared';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { FoodPage } from '../src/features/areas/food/FoodPage';
+import { MealsPage } from '../src/features/areas/meals/MealsPage';
 import { ReviewPage } from '../src/features/review/ReviewPage';
 import { MealAssignAction } from '../src/features/week/MealAssignModal';
 import { WeekPage } from '../src/features/week/WeekPage';
@@ -52,17 +52,16 @@ test('assign meal from week block details PUTs entry', async () => {
   expect(calls.find((c) => c.method === 'PUT')!.body).toEqual({ mealId: 'm1', servings: 2 });
 });
 
-test('plan tab repeat last week shows copied count and sums day totals', async () => {
+test('meals menu tab: repeat last week shows copied count and sums day totals', async () => {
   const { calls } = mockApi({
     'GET /api/settings': settings,
-    'GET /api/goals': () => ({}),
+    'GET /api/preferences': () => DEFAULT_PREFERENCES,
     'GET /api/meals': () => [bowl],
-    'GET /api/meal-logs': () => [],
     'GET /api/meal-plan': () => [entry],
     'POST /api/meal-plan/repeat': () => ({ copied: 5 }),
   });
-  renderWithProviders(<FoodPage />);
-  await userEvent.click(await screen.findByRole('tab', { name: 'Plan' }));
+  renderWithProviders(<MealsPage />);
+  await userEvent.click(await screen.findByRole('tab', { name: 'Menu' }));
   const cell = await screen.findByRole('button', { name: '2026-10-14 lunch' });
   expect(within(cell).getByText(/1200 kcal/)).toBeInTheDocument();
   expect(screen.getByLabelText('2026-10-14 total')).toHaveTextContent('1200 kcal · 90 g');

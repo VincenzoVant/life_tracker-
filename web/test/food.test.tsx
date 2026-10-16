@@ -35,6 +35,14 @@ test('logging saved meal with 1.5 servings posts mealId and servings', async () 
   expect(calls.find((c) => c.method === 'POST')!.body).toEqual({ date: '2026-10-14', slot: 'lunch', mealId: 'm1', servings: 1.5 });
 });
 
+test('food has only Log and Library tabs and links to Meals for the menu', async () => {
+  mockApi(base());
+  renderWithProviders(<FoodPage />);
+  expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Log', 'Library']);
+  expect(screen.getByRole('link', { name: 'Plan your menu in Meals' })).toHaveAttribute('href', '/areas/meals');
+  await screen.findByRole('button', { name: 'Add to lunch' });
+});
+
 test('free text log posts kcal and proteinG', async () => {
   const { calls } = mockApi(base({ 'POST /api/meal-logs': () => ({ id: 'l1' }) }));
   renderWithProviders(<FoodPage />);

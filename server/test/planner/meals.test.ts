@@ -1,5 +1,5 @@
 import { localDateOf } from '@life-tracker/shared';
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { placeMealPrep, placeMeals } from '../../src/planner/meals.js';
 import { createTimeline } from '../../src/planner/timeline.js';
 import { TZ, at, baseInput, prefs, ref } from './fixtures.js';
@@ -72,4 +72,40 @@ test('meal prep on a busy Sunday afternoon picks the nearest free start to 16:00
   const r = prep({ busy: [{ start: at(SUN, '15:00'), end: at(SUN, '16:30'), title: 'x' }] });
   // free from 16:45; the candidate nearest 16:00 is 16:45
   expect(r[0]!.start).toBe(at(SUN, '16:45'));
+});
+
+describe('per-day meal times (mealsByDay)', () => {
+  const brunch = { time: '10:30', minutes: 45 };
+  const weekend = (over = {}) => prefs({
+    mealsByDay: [{ days: [6, 7], breakfast: null, lunch: brunch, dinner: prefs().meals.dinner, ...over }],
+  });
+  const on = (blocks: ReturnType<typeof run>['blocks'], date: string, slot: string) =>
+    blocks.find((b) => localDateOf(new Date(b.start), TZ) === date && b.mealSlot === slot);
+
+  test('override applies on its days only', () => {
+    const { blocks } = run({ prefs: weekend() });
+    expect(on(blocks, SAT, 'lunch')).toMatchObject({ start: at(SAT, '10:30'), end: at(SAT, '11:15') });
+    expect(on(blocks, SUN, 'lunch')).toMatchObject({ start: at(SUN, '10:30') });
+    expect(on(blocks, MON, 'lunch')).toMatchObject({ start: at(MON, '12:30'), end: at(MON, '13:00') });
+    expect(on(blocks, MON, 'breakfast')).toMatchObject({ start: at(MON, '08:00') });
+  });
+
+  test('a null slot skips that meal on those days', () => {
+    const { blocks } = run({ prefs: weekend({ dinner: null }) });
+    expect(on(blocks, SAT, 'breakfast')).toBeUndefined();
+    expect(on(blocks, SUN, 'dinner')).toBeUndefined();
+    expect(on(blocks, WED, 'dinner')).toBeDefined();
+    expect(blocks).toHaveLength(21 - 4);
+  });
+
+  test('no overrides → default times unchanged', () => {
+    const { blocks } = run({ prefs: prefs({ mealsByDay: [] }) });
+    expect(blocks).toHaveLength(21);
+    expect(on(blocks, SAT, 'breakfast')).toMatchObject({ start: at(SAT, '08:00') });
+  });
+
+  test('onlySlots for a skipped meal places nothing', () => {
+    const input = baseInput({ prefs: weekend() });
+    expect(placeMeals(createTimeline(input), input, { onlySlots: [{ date: SAT, slot: 'breakfast' }] })).toEqual([]);
+  });
 });
