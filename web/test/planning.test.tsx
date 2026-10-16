@@ -34,6 +34,7 @@ const progress: WeekProgress = {
   weekStart: '2026-10-19',
   study: [{ courseId: 'c1', name: 'Econometrics', color: '#000', goal: 300, planned: 210, actual: 0 }],
   startup: { goal: 360, planned: 120, actual: 0 },
+  projects: [],
   work: { planned: 0, actual: 0 },
   workouts: { total: { goal: 3, planned: 2, actual: 0 }, byType: {} as WeekProgress['workouts']['byType'] },
   freeEvenings: { goal: 2, planned: 1, actual: 0, freeDates: [] },

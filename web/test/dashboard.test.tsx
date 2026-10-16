@@ -10,6 +10,7 @@ const progress = (weekStart: string) => ({
   weekStart,
   study: [{ courseId: 'c1', name: 'Algorithms', color: '#3f51b5', ...metric(360, 300, 180) }],
   startup: metric(600, 540, 120),
+  projects: [{ projectId: 'p1', title: 'Read a novel', kind: 'relax', ...metric(180, 120, 60) }],
   work: { planned: 960, actual: 480 },
   workouts: {
     total: metric(4, 4, 2),
@@ -44,6 +45,7 @@ describe('DashboardPage', () => {
     renderWithProviders(<DashboardPage />);
     expect(await screen.findByRole('img', { name: 'Algorithms: 3h actual · 5h planned · goal 6h' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Startup: 2h actual · 9h planned · goal 10h' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Read a novel: 1h actual · 2h planned · goal 3h' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Work: 8h actual · 16h planned · no goal' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Workouts: 2 actual · 4 planned · goal 4' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Gym: 1 actual · 2 planned · goal 2' })).toBeInTheDocument();

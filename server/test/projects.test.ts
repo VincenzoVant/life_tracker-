@@ -180,3 +180,26 @@ test('replan: blocks added for a displaced project block keep the projectId', ()
   expect(created).toHaveLength(added.length);
   for (const x of created) expect(x).toMatchObject({ status: 'committed', projectId: p.id, courseId: course.id });
 });
+
+test('weekly progress keeps project blocks out of course and startup rows and lists projects on their own', async () => {
+  const c = await createTestClient();
+  const course = createCourse(c.ctx, { name: 'Algebra', color: '#3366ff', weeklyGoalMinutes: 300 });
+  const exam = createProject(c.ctx, { title: 'Midterm', kind: 'study', courseId: course.id, weeklyMinutes: 240 });
+  const pitch = createProject(c.ctx, { title: 'Pitch deck', kind: 'startup', weeklyMinutes: 120 });
+  const linked = createBlock(
+    c.ctx,
+    { category: 'study', title: 'Midterm', start: iso('2026-10-13', '10:00'), end: iso('2026-10-13', '11:00'), courseId: course.id },
+    { projectId: exam.id },
+  );
+  setBlockStatus(c.ctx, linked.id, 'done');
+  createBlock(c.ctx, { category: 'study', title: 'Algebra', start: iso('2026-10-14', '10:00'), end: iso('2026-10-14', '11:30'), courseId: course.id });
+  createBlock(c.ctx, { category: 'startup', title: 'Pitch deck', start: iso('2026-10-15', '10:00'), end: iso('2026-10-15', '11:00') }, { projectId: pitch.id });
+
+  const r = await c.get('/api/progress/week?weekStart=2026-10-12');
+  expect(r.body.study.find((s: any) => s.courseId === course.id)).toMatchObject({ planned: 90, actual: 0 });
+  expect(r.body.startup).toMatchObject({ planned: 0, actual: 0 });
+  expect(r.body.projects).toEqual([
+    expect.objectContaining({ projectId: exam.id, title: 'Midterm', kind: 'study', goal: 240, planned: 60, actual: 60 }),
+    expect.objectContaining({ projectId: pitch.id, title: 'Pitch deck', kind: 'startup', goal: 120, planned: 60, actual: 0 }),
+  ]);
+});

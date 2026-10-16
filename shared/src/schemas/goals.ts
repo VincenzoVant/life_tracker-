@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { LocalDate } from './localDate.js';
 import { isoWeekday } from '../time.js';
 import type { WorkoutType } from './blocks.js';
+import type { ProjectKind } from './projects.js';
 
 const goalMinutes = z.number().int().min(0).max(100_000).nullable().default(null);
 const goalCount = z.number().int().min(0).max(100).nullable().default(null);
@@ -55,6 +56,8 @@ export interface WeekProgress {
   weekStart: string;
   study: Array<{ courseId: string; name: string; color: string } & Metric>;
   startup: Metric;
+  /** This week's projects (Areas → This week); their blocks are not in `study` or `startup`. */
+  projects: Array<{ projectId: string; title: string; kind: ProjectKind } & Metric>;
   work: { planned: number; actual: number };
   workouts: { total: Metric; byType: Record<WorkoutType, Metric> };
   freeEvenings: Metric & { freeDates: string[] };

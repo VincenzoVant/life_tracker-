@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CATEGORY_META, WORKOUT_TYPES, addDays, weekStartOf } from '@life-tracker/shared';
+import { CATEGORY_META, PROJECT_KIND_CATEGORY, WORKOUT_TYPES, addDays, weekStartOf } from '@life-tracker/shared';
 import { useWeekProgress } from '../../api/hooks/progress';
 import { useTimezone } from '../../api/hooks/settings';
 import { StreakTiles } from './StreakTiles';
@@ -51,6 +51,9 @@ function DashboardPageContent() {
             <AreaProgressRow key={c.courseId} label={c.name} color={c.color} metric={c} />
           ))}
           <AreaProgressRow label="Startup" color={CATEGORY_META.startup.color} metric={data.startup} />
+          {(data.projects ?? []).map((p) => (
+            <AreaProgressRow key={p.projectId} label={p.title} color={CATEGORY_META[PROJECT_KIND_CATEGORY[p.kind]].color} metric={p} />
+          ))}
           <AreaProgressRow label="Work" color={CATEGORY_META.work.color} metric={data.work} />
           <AreaProgressRow label="Workouts" color={CATEGORY_META.workout.color} metric={data.workouts.total} format={formatCount}>
             <ul className="area-sub">

@@ -15,6 +15,7 @@ import {
 } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
 import { listBlocks } from '../blocks/service.js';
+import { projectsForWeek } from '../projects/service.js';
 import { dailyTotals } from '../food/service.js';
 import { getTimezone } from '../settings/service.js';
 import { listCourses } from '../studies/service.js';
@@ -71,8 +72,9 @@ export function getWeekProgress(ctx: Ctx, weekStart: string, opts: WeekProgressO
   const ofCategory = (c: string) => inWeek.filter((b) => b.category === c);
 
   // Study, split per course.
+  // Project blocks come on top of the course and startup goals (as in the planner), so they get their own rows.
   const studyBlocks = ofCategory('study').filter(
-    (b) => b.courseId !== null && (opts.prefs?.classesCountTowardStudy === true || b.source !== 'fixed'),
+    (b) => b.courseId !== null && !b.projectId && (opts.prefs?.classesCountTowardStudy === true || b.source !== 'fixed'),
   );
   const withBlocks = new Set(studyBlocks.map((b) => b.courseId));
   const courses = listCourses(ctx, { includeArchived: true }).filter((c) => c.active || withBlocks.has(c.id));
@@ -88,12 +90,23 @@ export function getWeekProgress(ctx: Ctx, weekStart: string, opts: WeekProgressO
     };
   });
 
-  const startupBlocks = ofCategory('startup');
+  const startupBlocks = ofCategory('startup').filter((b) => !b.projectId);
   const startup: Metric = {
     goal: goals.startupMinutes,
     planned: plannedMinutes(startupBlocks, planned),
     actual: actualMinutes(startupBlocks),
   };
+  const projects = projectsForWeek(ctx, weekStart).map((p) => {
+    const bs = inWeek.filter((b) => b.projectId === p.id);
+    return {
+      projectId: p.id,
+      title: p.title,
+      kind: p.kind,
+      goal: p.weeklyMinutes,
+      planned: plannedMinutes(bs, planned),
+      actual: actualMinutes(bs),
+    };
+  });
   const workBlocks = ofCategory('work');
   const work = { planned: plannedMinutes(workBlocks, planned), actual: actualMinutes(workBlocks) };
 
@@ -137,6 +150,7 @@ export function getWeekProgress(ctx: Ctx, weekStart: string, opts: WeekProgressO
     weekStart,
     study,
     startup,
+    projects,
     work,
     workouts: { total: metricFor(null, goals.workoutsTotal), byType },
     freeEvenings: { goal: goals.freeEvenings, planned: freeAll.length, actual: freeDates.length, freeDates },
