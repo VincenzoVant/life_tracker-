@@ -17,7 +17,7 @@ export function describeShortfall(s: ApiShortfall, reservedEvenings: number): st
     const noun = `${s.workoutType ? `${s.workoutType} ` : ''}session${s.missing === 1 ? '' : 's'}`;
     return `Can't fit: ${s.missing} ${noun}`;
   }
-  const what = s.kind === 'study' ? (s.courseName ?? 'study') : 'startup work';
+  const what = s.kind === 'study' ? (s.courseName ?? 'study') : s.kind === 'project' ? (s.projectTitle ?? 'a project') : 'startup work';
   return `Can't fit: ${s.unit === 'minutes' ? hoursText(s.missing) : s.missing} of ${what}`;
 }
 

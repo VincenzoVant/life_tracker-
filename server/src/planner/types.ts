@@ -1,4 +1,4 @@
-import type { BlockSource, Category, MealSlot, Preferences, WorkoutType } from '@life-tracker/shared';
+import type { BlockSource, Category, MealSlot, Preferences, TimeWindow, WorkoutType } from '@life-tracker/shared';
 
 /** Epoch milliseconds, UTC. */
 export type Ms = number;
@@ -24,6 +24,7 @@ export interface PlannerBlockRef extends Interval, Pads {
   courseId?: string | null;
   workoutType?: WorkoutType | null;
   mealSlot?: MealSlot | null;
+  projectId?: string | null;
 }
 
 export interface BusyRef extends Interval {
@@ -34,7 +35,20 @@ export type PlannerGoal =
   | { kind: 'study'; courseId: string; courseName: string; minutes: number }
   | { kind: 'startup'; minutes: number }
   | { kind: 'workout'; workoutType: WorkoutType; count: number }
-  | { kind: 'free_evenings'; count: number };
+  | { kind: 'free_evenings'; count: number }
+  | {
+      kind: 'project';
+      projectId: string;
+      title: string;
+      category: Category;
+      minutes: number;
+      /** Preferred (soft) times. */
+      windows: TimeWindow[];
+      block: { min: number; max: number };
+      /** 1 high, 2 normal, 3 low. */
+      priority: number;
+      courseId?: string;
+    };
 
 export interface PlannerInput {
   range: Interval;
@@ -51,6 +65,7 @@ export interface ProposedBlock extends Interval, Pads {
   title: string;
   courseId?: string;
   startupTaskId?: string;
+  projectId?: string;
   workoutType?: WorkoutType;
   mealSlot?: MealSlot;
 }

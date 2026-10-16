@@ -1,6 +1,7 @@
 import {
   WORKOUT_TYPES,
   type WorkoutType,
+  PROJECT_KIND_CATEGORY,
   blockMinutes,
   eveningWindowUtc,
   weekDates,
@@ -16,6 +17,7 @@ import { listBlocks } from '../blocks/service.js';
 import { getGoals } from '../goals/service.js';
 import { getPreferences } from '../preferences/service.js';
 import { padsLookup } from './pads.js';
+import { projectsForWeek } from '../projects/service.js';
 import { getTimezone } from '../settings/service.js';
 import { listOpenTasks } from '../startup/service.js';
 import { listCourses } from '../studies/service.js';
@@ -45,6 +47,7 @@ function toRef(b: Block, pads: (b: Block) => Pads): PlannerBlockRef {
     courseId: b.courseId,
     workoutType: b.workoutType,
     mealSlot: b.mealSlot,
+    projectId: b.projectId ?? null,
   };
 }
 
@@ -101,16 +104,34 @@ export function buildPlannerInput(ctx: Ctx, weekStart: string): PlannerInput {
   const goalSet = getGoals(ctx);
   const goals: PlannerGoal[] = [];
 
+  // Project time comes on top of the course and startup goals, so project blocks do not count towards them.
   const studyBlocks = weekBlocks.filter(
-    (b) => b.category === 'study' && b.courseId !== null && (prefs.classesCountTowardStudy || b.source !== 'fixed'),
+    (b) =>
+      b.category === 'study' && b.courseId !== null && !b.projectId && (prefs.classesCountTowardStudy || b.source !== 'fixed'),
   );
   for (const c of listCourses(ctx)) {
     const minutes = Math.max(0, c.weeklyGoalMinutes - usedMinutes(studyBlocks.filter((b) => b.courseId === c.id)));
     if (minutes > 0) goals.push({ kind: 'study', courseId: c.id, courseName: c.name, minutes });
   }
 
+  for (const p of projectsForWeek(ctx, weekStart)) {
+    const minutes = Math.max(0, p.weeklyMinutes - usedMinutes(weekBlocks.filter((b) => b.projectId === p.id)));
+    if (minutes <= 0) continue;
+    goals.push({
+      kind: 'project',
+      projectId: p.id,
+      title: p.title,
+      category: PROJECT_KIND_CATEGORY[p.kind],
+      minutes,
+      windows: p.windows,
+      block: { min: p.blockMin, max: p.blockMax },
+      priority: p.priority,
+      ...(p.kind === 'study' && p.courseId ? { courseId: p.courseId } : {}),
+    });
+  }
+
   if (goalSet.startupMinutes !== null) {
-    const used = usedMinutes(weekBlocks.filter((b) => b.category === 'startup'));
+    const used = usedMinutes(weekBlocks.filter((b) => b.category === 'startup' && !b.projectId));
     const minutes = Math.max(0, goalSet.startupMinutes - used);
     if (minutes > 0) goals.push({ kind: 'startup', minutes });
   }

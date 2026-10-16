@@ -15,6 +15,7 @@ export interface MovableBlock extends Interval {
   title: string;
   courseId?: string | null;
   startupTaskId?: string | null;
+  projectId?: string | null;
   workoutType?: WorkoutType | null;
   mealSlot?: MealSlot | null;
 }
@@ -85,7 +86,10 @@ function pair(sources: MovableBlock[], placed: ProposedBlock[], out: PlanChangeC
     if (p) out.push({ type: 'moved', blockId: src.id, from: span(src), to: span(p) });
     else out.push({ type: 'removed', blockId: src.id, from: span(src) });
   });
-  for (const extra of ps.slice(sources.length)) out.push({ type: 'added', block: { ...extra, title: sources[0]!.title } });
+  // An extra block keeps the project link when every source shares it.
+  const projectId = sources[0]!.projectId;
+  const link = projectId && sources.every((s) => s.projectId === projectId) ? { projectId } : {};
+  for (const extra of ps.slice(sources.length)) out.push({ type: 'added', block: { ...extra, ...link, title: sources[0]!.title } });
 }
 
 /**
