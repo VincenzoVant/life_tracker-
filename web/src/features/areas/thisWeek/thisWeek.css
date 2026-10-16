@@ -1,0 +1,17 @@
+.tw-plan { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-4); border-radius: var(--radius); background: var(--accent); color: var(--accent-contrast); font-weight: 600; text-decoration: none; }
+.tw-switcher { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.tw-switcher button { min-width: 44px; padding: 0 var(--space-2); }
+.tw-switcher .tw-title { text-align: center; flex: 1; }
+.section > .area-head h2 { margin: 0; }
+.tw-group { margin-bottom: var(--space-4); }
+.tw-group h3 { margin: 0 0 var(--space-2); font-size: 0.95rem; color: var(--muted); }
+.tw-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
+.tw-tag { font-size: 0.8rem; padding: 2px var(--space-2); border: 1px solid var(--border); border-radius: 999px; color: var(--muted); }
+.tw-totals { display: flex; flex-direction: column; gap: var(--space-1); }
+.tw-warn { color: var(--danger); margin: var(--space-1) 0 0; }
+.tw-goals { display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+.tw-goals .buffer-fields { width: 100%; }
+.tw-repeat { border: none; padding: 0; margin: 0 0 var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.tw-repeat legend { padding: 0; margin-bottom: var(--space-1); }
+.tw-repeat label { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; }
+.tw-repeat input { width: auto; min-height: 0; }

@@ -55,7 +55,8 @@ export function createTimeline(input: PlannerInput): Timeline {
     const l = loads.get(date) ?? emptyLoad();
     loads.set(date, l);
     const minutes = (b.end - b.start) / 60_000;
-    if (b.category !== 'meal' && b.source !== 'fixed') l.planned += minutes;
+    // Meals and rest (relax time) do not use up the daily planned-work cap.
+    if (b.category !== 'meal' && b.category !== 'rest' && b.source !== 'fixed') l.planned += minutes;
     if (b.source !== 'fixed') {
       if (b.category === 'study') {
         l.study += minutes;

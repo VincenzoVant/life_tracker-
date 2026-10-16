@@ -45,6 +45,7 @@ const toMovable = (b: Block): MovableBlock => ({
   title: b.title,
   courseId: b.courseId,
   startupTaskId: b.startupTaskId,
+  projectId: b.projectId ?? null,
   workoutType: b.workoutType,
   mealSlot: b.mealSlot,
 });

@@ -13,9 +13,11 @@ export interface BusyInterval {
 }
 
 export interface ApiShortfall {
-  kind: 'study' | 'startup' | 'workout' | 'free_evenings';
+  kind: 'study' | 'startup' | 'workout' | 'free_evenings' | 'project';
   courseId?: string;
   courseName?: string;
+  projectId?: string;
+  projectTitle?: string;
   workoutType?: WorkoutType;
   missing: number;
   unit: 'minutes' | 'count';
@@ -31,6 +33,7 @@ export interface ApiPlanChange {
   /** Links an `added` block carries, so Apply can create it. */
   courseId?: string;
   startupTaskId?: string;
+  projectId?: string;
   workoutType?: WorkoutType;
   mealSlot?: MealSlot;
 }

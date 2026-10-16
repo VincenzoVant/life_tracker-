@@ -63,6 +63,7 @@ export function createReplanDraft(
         type: 'added', blockId: null, title: b.title, category: b.category, from: null, to: span(b),
         ...(b.courseId ? { courseId: b.courseId } : {}),
         ...(b.startupTaskId ? { startupTaskId: b.startupTaskId } : {}),
+        ...(b.projectId ? { projectId: b.projectId } : {}),
         ...(b.workoutType ? { workoutType: b.workoutType } : {}),
         ...(b.mealSlot ? { mealSlot: b.mealSlot } : {}),
       };
@@ -164,7 +165,7 @@ export function applyReplan(ctx: Ctx, planId: string, conflicts: ConflictsPort =
               category: c.category, title: c.title, start: c.to!.start, end: c.to!.end,
               courseId: c.courseId, startupTaskId: c.startupTaskId, workoutType: c.workoutType, mealSlot: c.mealSlot,
             },
-            { source: 'planner', status: 'committed', planId },
+            { source: 'planner', status: 'committed', planId, projectId: c.projectId ?? null },
           ),
         );
       } else if (c.type === 'removed') {

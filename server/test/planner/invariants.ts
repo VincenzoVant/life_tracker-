@@ -67,6 +67,9 @@ export function checkInvariants(input: PlannerInput, output: PlannerOutput): str
   for (const b of blocks) {
     const name = label(b, tz);
     const len = (b.end - b.start) / MIN;
+    const project = b.projectId ? input.goals.find((g) => g.kind === 'project' && g.projectId === b.projectId) : undefined;
+    if (project && project.kind === 'project' && (len < project.block.min || len > project.block.max)) errs.push(`${name}: project block length ${len} outside min..max`);
+    if (b.projectId) continue;
     if (b.category === 'study' && (len < prefs.studyBlock.min || len > prefs.studyBlock.max)) errs.push(`${name}: study block length ${len} outside min..max`);
     if (b.category === 'startup' && (len < prefs.startupBlock.min || len > prefs.startupBlock.max)) errs.push(`${name}: startup block length ${len} outside min..max`);
     if (b.category === 'workout' && b.workoutType && len !== prefs.workoutDurations[b.workoutType]) errs.push(`${name}: workout duration ${len} is not the configured one`);
@@ -93,15 +96,19 @@ export function checkInvariants(input: PlannerInput, output: PlannerOutput): str
     input.goals.filter(pred).reduce((n, g) => n + amount(g), 0);
   for (const courseId of new Set(input.goals.flatMap((g) => (g.kind === 'study' ? [g.courseId] : [])))) {
     const is = (g: PlannerGoal) => g.kind === 'study' && g.courseId === courseId;
-    account(`study ${courseId}`, placedMinutes((b) => b.category === 'study' && b.courseId === courseId), sumGoals(is, (g) => (g.kind === 'study' ? g.minutes : 0)), missingFor(is));
+    account(`study ${courseId}`, placedMinutes((b) => b.category === 'study' && b.courseId === courseId && !b.projectId), sumGoals(is, (g) => (g.kind === 'study' ? g.minutes : 0)), missingFor(is));
   }
   if (input.goals.some((g) => g.kind === 'startup')) {
     const is = (g: PlannerGoal) => g.kind === 'startup';
-    account('startup', placedMinutes((b) => b.category === 'startup'), sumGoals(is, (g) => (g.kind === 'startup' ? g.minutes : 0)), missingFor(is));
+    account('startup', placedMinutes((b) => b.category === 'startup' && !b.projectId), sumGoals(is, (g) => (g.kind === 'startup' ? g.minutes : 0)), missingFor(is));
   }
   for (const type of new Set(input.goals.flatMap((g) => (g.kind === 'workout' ? [g.workoutType] : [])))) {
     const is = (g: PlannerGoal) => g.kind === 'workout' && g.workoutType === type;
     account(`workout ${type}`, blocks.filter((b) => b.category === 'workout' && b.workoutType === type).length, sumGoals(is, (g) => (g.kind === 'workout' ? g.count : 0)), missingFor(is));
+  }
+  for (const projectId of new Set(input.goals.flatMap((g) => (g.kind === 'project' ? [g.projectId] : [])))) {
+    const is = (g: PlannerGoal) => g.kind === 'project' && g.projectId === projectId;
+    account(`project ${projectId}`, placedMinutes((b) => b.projectId === projectId), sumGoals(is, (g) => (g.kind === 'project' ? g.minutes : 0)), missingFor(is));
   }
   if (input.goals.some((g) => g.kind === 'free_evenings')) {
     const is = (g: PlannerGoal) => g.kind === 'free_evenings';
@@ -125,7 +132,7 @@ export function checkInvariants(input: PlannerInput, output: PlannerOutput): str
       for (const x of xs) {
         if (localDateOf(new Date(x.start), tz) !== date) continue;
         const m = (x.end - x.start) / MIN;
-        if (x.category !== 'meal' && x.source !== 'fixed') r.planned += m;
+        if (x.category !== 'meal' && x.category !== 'rest' && x.source !== 'fixed') r.planned += m;
         if (x.category === 'study' && x.source !== 'fixed') {
           r.study += m;
           if (x.courseId) r.perCourse[x.courseId] = (r.perCourse[x.courseId] ?? 0) + m;
@@ -147,7 +154,8 @@ export function checkInvariants(input: PlannerInput, output: PlannerOutput): str
     return { start: w.start.getTime(), end: w.end.getTime() };
   });
   for (const b of blocks) {
-    if ((b.category === 'study' || b.category === 'startup') && reserved.some((r) => b.start < r.end && r.start < b.end)) {
+    const blocking = b.category === 'study' || b.category === 'startup' || (b.projectId && b.category !== 'rest');
+    if (blocking && reserved.some((r) => b.start < r.end && r.start < b.end)) {
       errs.push(`${label(b, tz)}: inside a reserved evening`);
     }
   }

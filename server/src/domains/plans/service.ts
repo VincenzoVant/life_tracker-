@@ -32,6 +32,8 @@ export function toApiShortfall(s: Shortfall): ApiShortfall {
       return { kind: 'workout', workoutType: g.workoutType, missing: s.missing, unit: 'count' };
     case 'free_evenings':
       return { kind: 'free_evenings', missing: s.missing, unit: 'count' };
+    case 'project':
+      return { kind: 'project', projectId: g.projectId, projectTitle: g.title, missing: s.missing, unit: 'minutes' };
   }
 }
 
@@ -91,7 +93,7 @@ export function createWeekPlan(ctx: Ctx, weekStart: string): PlanDraft {
           workoutType: p.workoutType,
           mealSlot: p.mealSlot,
         },
-        { status: 'proposed', source: 'planner', planId: id },
+        { status: 'proposed', source: 'planner', planId: id, projectId: p.projectId ?? null },
       );
     }
   });
