@@ -5,6 +5,7 @@ import { useTimezone } from '../../../api/hooks/settings';
 import { useToast } from '../../../components/Toast';
 import { MealAssignModal } from '../../week/MealAssignModal';
 import { SettingsGate } from '../../../components/SettingsGate';
+import './meals.css';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner'];
 
@@ -37,8 +38,8 @@ function MealPlanTabContent() {
   }
 
   return (
-    <div className="food-stack">
-      <div className="food-actions">
+    <div className="meals-stack">
+      <div className="meals-actions">
         <button type="button" onClick={() => setWeekStart((w) => addDays(w, -7))} aria-label="Previous week">
           ‹
         </button>

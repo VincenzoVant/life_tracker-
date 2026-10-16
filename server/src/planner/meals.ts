@@ -1,10 +1,9 @@
-import { addDays, isoWeekday, localDateOf, zonedToUtc, type MealSlot } from '@life-tracker/shared';
+import { PLANNED_MEALS, addDays, isoWeekday, localDateOf, mealTimesFor, zonedToUtc, type MealSlot, type PlannedMeal } from '@life-tracker/shared';
 import { MINUTE_MS } from './intervals.js';
 import type { Timeline } from './timeline.js';
 import type { Interval, PlannerInput, ProposedBlock } from './types.js';
 
-const SLOTS = ['breakfast', 'lunch', 'dinner'] as const satisfies readonly MealSlot[];
-const TITLES: Record<(typeof SLOTS)[number], string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' };
+const TITLES: Record<PlannedMeal, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' };
 
 /** Candidate nearest to `target`; ties go to the earlier start. */
 function nearest(cands: Interval[], target: number): Interval | null {
@@ -24,9 +23,11 @@ export function placeMeals(
   const flex = prefs.mealFlexMinutes * MINUTE_MS;
   const out: ProposedBlock[] = [];
   for (const day of t.days) {
-    for (const slot of SLOTS) {
+    const times = mealTimesFor(prefs, isoWeekday(day.date));
+    for (const slot of PLANNED_MEALS) {
       if (opts.onlySlots && !opts.onlySlots.some((s) => s.date === day.date && s.slot === slot)) continue;
-      const cfg = prefs.meals[slot];
+      const cfg = times[slot];
+      if (!cfg) continue;
       const already = input.existing.some(
         (e) => e.category === 'meal' && e.mealSlot === slot && localDateOf(new Date(e.start), tz) === day.date,
       );

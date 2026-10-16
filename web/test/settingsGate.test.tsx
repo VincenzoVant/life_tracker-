@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { DashboardPage } from '../src/features/dashboard/DashboardPage';
 import { MealLogDay } from '../src/features/areas/food/MealLogDay';
-import { MealPlanTab } from '../src/features/areas/food/MealPlanTab';
+import { MealPlanTab } from '../src/features/areas/meals/MealPlanTab';
 import { StartupPage } from '../src/features/areas/startup/StartupPage';
 import { StudiesPage } from '../src/features/areas/studies/StudiesPage';
 import { TopLiftsPage } from '../src/features/areas/workouts/TopLiftsPage';

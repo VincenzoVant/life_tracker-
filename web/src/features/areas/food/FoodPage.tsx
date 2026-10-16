@@ -1,35 +1,23 @@
-import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
+import { AreaTabs } from '../../../components/planning';
 import { MealLibrary } from './MealLibrary';
 import { MealLogDay } from './MealLogDay';
-import { MealPlanTab } from './MealPlanTab';
+import '../areas.css';
 import './food.css';
 
-interface FoodTab {
-  key: string;
-  label: string;
-  render: () => ReactNode;
-}
-
-const TABS: FoodTab[] = [
-  { key: 'log', label: 'Log', render: () => <MealLogDay /> },
-  { key: 'library', label: 'Library', render: () => <MealLibrary /> },
-  { key: 'plan', label: 'Plan', render: () => <MealPlanTab /> },
-];
-
 export function FoodPage() {
-  const [active, setActive] = useState(TABS[0]!.key);
-  const tab = TABS.find((t) => t.key === active) ?? TABS[0]!;
   return (
     <section>
-      <h1>Food</h1>
-      <div className="food-tabs" role="tablist">
-        {TABS.map((t) => (
-          <button key={t.key} role="tab" aria-selected={t.key === tab.key} onClick={() => setActive(t.key)}>
-            {t.label}
-          </button>
-        ))}
+      <div className="area-head">
+        <h1>Food</h1>
+        <Link to="/areas/meals">Plan your menu in Meals</Link>
       </div>
-      <div role="tabpanel">{tab.render()}</div>
+      <AreaTabs
+        tabs={[
+          { key: 'log', label: 'Log', render: () => <MealLogDay /> },
+          { key: 'library', label: 'Library', render: () => <MealLibrary /> },
+        ]}
+      />
     </section>
   );
 }
