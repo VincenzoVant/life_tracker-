@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test } from 'vitest';
 import { DEFAULT_PREFERENCES } from '@life-tracker/shared';
@@ -26,22 +26,15 @@ const base = {
 };
 
 describe('SettingsPage', () => {
-  test('goals form sends startupMinutes from hours and null when toggled off', async () => {
-    const user = userEvent.setup();
-    const { calls } = mockApi({ ...base, 'PUT /api/goals': (b) => b });
+  test('planning section links to every planning area; old sections are gone', async () => {
+    mockApi(base);
     renderWithProviders(<SettingsPage />);
-    const startup = await screen.findByLabelText('Startup (hours per week)');
-    await waitFor(() => expect(startup).toHaveValue(10));
-    await user.clear(startup);
-    await user.type(startup, '7.5');
-    await user.click(screen.getByLabelText('No goal for Free evenings per week'));
-    await user.click(screen.getByRole('button', { name: 'Save goals' }));
-    await waitFor(() => expect(calls.find((c) => c.method === 'PUT')).toBeDefined());
-    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({
-      ...goals,
-      startupMinutes: 450,
-      freeEvenings: null,
-    });
+    const planning = await screen.findByRole('region', { name: 'Planning' });
+    const hrefs = within(planning).getAllByRole('link').map((l) => l.getAttribute('href'));
+    expect(hrefs).toEqual(['/areas/this-week', '/areas/classes', '/areas/studies', '/areas/workouts', '/areas/meals', '/areas/startup']);
+    expect(screen.queryByRole('heading', { name: 'Goals' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Fixed schedule' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Planner preferences' })).toBeNull();
   });
 
   test('timezone save calls PUT /api/settings', async () => {

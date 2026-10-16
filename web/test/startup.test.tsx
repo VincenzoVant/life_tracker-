@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { DEFAULT_PREFERENCES } from '@life-tracker/shared';
 import { StartupPage } from '../src/features/areas/startup/StartupPage';
 import { mockApi } from './mockApi';
 import { renderWithProviders } from './render';
@@ -19,6 +20,7 @@ const base = () => ({
   'GET /api/startup/tasks': () => tasks,
   'GET /api/startup/milestones': () => [{ id: 'm1', title: 'Launch', targetDate: '2026-11-01', doneAt: null, sortOrder: 0 }],
   'GET /api/progress/week': () => ({ weekStart: '2026-10-12', startup: { goal: 600, planned: 480, actual: 270 } }),
+  'GET /api/preferences': () => DEFAULT_PREFERENCES,
 });
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-14T19:00:00Z') }));
@@ -85,4 +87,21 @@ test('startup adds a task under a milestone', async () => {
   await user.selectOptions(screen.getByLabelText('Milestone'), 'm1');
   await user.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ title: 'Write docs', milestoneId: 'm1' }));
+});
+
+test('startup schedule PATCHes only block lengths and windows', async () => {
+  vi.useRealTimers();
+  const user = userEvent.setup();
+  const { calls } = mockApi({ ...base(), 'PATCH /api/preferences': (b) => ({ ...DEFAULT_PREFERENCES, ...b }) });
+  renderWithProviders(<StartupPage />);
+  const max = await screen.findByLabelText('Longest startup block (min)');
+  await user.clear(max);
+  await user.type(max, '120');
+  await user.click(screen.getByRole('button', { name: 'Remove Startup window 2' }));
+  await user.click(screen.getByRole('button', { name: 'Save startup schedule' }));
+  await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')).toBeDefined());
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+    startupBlock: { min: 60, max: 120 },
+    preferredStartupWindows: [DEFAULT_PREFERENCES.preferredStartupWindows[0]],
+  });
 });

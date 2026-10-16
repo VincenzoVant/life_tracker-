@@ -20,6 +20,7 @@ import { useToast } from '../../../components/Toast';
 import { currentWeek, hours } from '../format';
 import '../areas.css';
 import { SettingsGate } from '../../../components/SettingsGate';
+import { StartupSchedule } from './StartupSchedule';
 
 const STATUS_LABEL: Record<TaskStatus, string> = { todo: 'To do', doing: 'Doing', done: 'Done' };
 
@@ -266,6 +267,11 @@ function StartupPageContent() {
           </section>
         );
       })}
+
+      <section className="card section" aria-labelledby="startup-schedule">
+        <h2 id="startup-schedule">When do you work on it?</h2>
+        <StartupSchedule />
+      </section>
 
       {taskEdit && <TaskForm task={taskEdit === 'new' ? null : taskEdit} milestones={milestones} onClose={() => setTaskEdit(null)} />}
       {msEdit && <MilestoneForm milestone={msEdit === 'new' ? null : msEdit} onClose={() => setMsEdit(null)} />}

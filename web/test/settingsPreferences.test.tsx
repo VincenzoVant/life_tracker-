@@ -7,77 +7,63 @@ import { mockApi } from './mockApi';
 import { renderWithProviders } from './render';
 
 const base = {
-  'GET /api/goals': () => ({
-    startupMinutes: null, workoutsTotal: null, workoutsByType: { gym: null, cardio: null, sport: null },
-    freeEvenings: null, dailyKcal: null, dailyProteinG: null,
-  }),
   'GET /api/settings': () => ({ timezone: 'America/Los_Angeles' }),
   'GET /api/google/status': () => ({ configured: false, connected: false }),
-  'GET /api/courses': () => [],
   'GET /api/backups': () => ({ dir: '/b', files: [], lastBackupAt: null, lastError: null }),
-  'GET /api/schedule': () => [],
+  'GET /api/preferences': () => DEFAULT_PREFERENCES,
 };
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('Planner preferences settings', () => {
-  test('preferences save sends full object; server field error displayed at latestBlockEnd', async () => {
+describe('Day and evenings settings', () => {
+  test('save PATCHes only the day keys; server field error is shown at its field', async () => {
     const user = userEvent.setup();
     const { calls } = mockApi({
       ...base,
-      'GET /api/preferences': () => DEFAULT_PREFERENCES,
-      'PUT /api/preferences': () => ({
+      'PATCH /api/preferences': () => ({
         status: 400,
         body: { error: { code: 'VALIDATION', message: 'Invalid preferences', fields: { latestBlockEnd: 'Preferences leave less than an hour per day' } } },
       }),
     });
     renderWithProviders(<SettingsPage />);
-    await user.click(await screen.findByLabelText('Classes count toward study'));
-    await user.click(screen.getByRole('button', { name: 'Save preferences' }));
-    await waitFor(() => expect(calls.find((c) => c.method === 'PUT')).toBeDefined());
-    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ ...DEFAULT_PREFERENCES, classesCountTowardStudy: true });
+    await user.click(await screen.findByRole('button', { name: 'Protected evenings: Friday' }));
+    await user.click(screen.getByRole('button', { name: 'Save day settings' }));
+    await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')).toBeDefined());
+    const d = DEFAULT_PREFERENCES;
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+      sleep: d.sleep, earliestBlock: d.earliestBlock, latestBlockEnd: d.latestBlockEnd, bufferMinutes: d.bufferMinutes,
+      maxPlannedMinutesPerDay: d.maxPlannedMinutesPerDay, eveningStart: d.eveningStart, protectedEvenings: [5],
+      reviewPromptTime: d.reviewPromptTime,
+    });
     expect(await screen.findByText('Preferences leave less than an hour per day')).toBeInTheDocument();
     expect(screen.getByLabelText('Latest block end')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  test('reset to defaults sends {}', async () => {
+  test('reset to defaults confirms and PUTs {}', async () => {
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const { calls } = mockApi({ ...base, 'GET /api/preferences': () => DEFAULT_PREFERENCES, 'PUT /api/preferences': () => DEFAULT_PREFERENCES });
+    const { calls } = mockApi({ ...base, 'PUT /api/preferences': () => DEFAULT_PREFERENCES });
     renderWithProviders(<SettingsPage />);
     await user.click(await screen.findByRole('button', { name: 'Reset to defaults' }));
     expect(confirm).toHaveBeenCalled();
     await waitFor(() => expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({}));
   });
 
-  test('field errors without a rendered field are shown on day chips and in a fallback list', async () => {
+  test('a cleared number field is sent as null and errors for other keys show in a fallback list', async () => {
     const user = userEvent.setup();
-    mockApi({
+    const { calls } = mockApi({
       ...base,
-      'GET /api/preferences': () => DEFAULT_PREFERENCES,
-      'PUT /api/preferences': () => ({
+      'PATCH /api/preferences': () => ({
         status: 400,
-        body: { error: { code: 'VALIDATION', message: 'Invalid preferences', fields: { 'studyBlock.min': 'Min too small', studyBlock: 'Study block is inconsistent', allowedWorkoutDays: 'Pick at least one day' } } },
+        body: { error: { code: 'VALIDATION', message: 'Invalid preferences', fields: { bufferMinutes: 'Expected number', studyBlock: 'Study block is inconsistent' } } },
       }),
     });
     renderWithProviders(<SettingsPage />);
-    await user.click(await screen.findByRole('button', { name: 'Save preferences' }));
-    expect(await screen.findByText('Min too small')).toBeInTheDocument();
-    expect(screen.getByText('Pick at least one day')).toBeInTheDocument();
-    expect(screen.getByText(/Study block is inconsistent/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Min too small/)).toHaveLength(1);
-    expect(screen.getAllByText(/Pick at least one day/)).toHaveLength(1);
-  });
-
-  test('clearing a numeric input does not silently send 0', async () => {
-    const user = userEvent.setup();
-    const { calls } = mockApi({ ...base, 'GET /api/preferences': () => DEFAULT_PREFERENCES, 'PUT /api/preferences': () => DEFAULT_PREFERENCES });
-    renderWithProviders(<SettingsPage />);
-    const input = await screen.findByLabelText('Buffer between blocks (min)');
-    await user.clear(input);
-    expect(input).toHaveValue(null);
-    await user.click(screen.getByRole('button', { name: 'Save preferences' }));
-    await waitFor(() => expect(calls.find((c) => c.method === 'PUT')).toBeDefined());
-    expect((calls.find((c) => c.method === 'PUT')?.body as { bufferMinutes: unknown }).bufferMinutes).toBeNull();
+    await user.clear(await screen.findByLabelText('Minimum gap between blocks (min)'));
+    await user.click(screen.getByRole('button', { name: 'Save day settings' }));
+    await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')).toBeDefined());
+    expect((calls.find((c) => c.method === 'PATCH')?.body as { bufferMinutes: unknown }).bufferMinutes).toBeNull();
+    expect(await screen.findByText('Expected number')).toBeInTheDocument();
+    expect(screen.getByRole('alert', { name: 'Other problems' })).toHaveTextContent('studyBlock: Study block is inconsistent');
   });
 });
