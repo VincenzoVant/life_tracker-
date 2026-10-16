@@ -210,4 +210,38 @@ test('a displaced meal is re-placed around that weekday\'s own meal time', () =>
   expect(out.changes).toEqual([
     { type: 'moved', blockId: lunch.id, from: { start: lunch.start, end: lunch.end }, to: { start: at(TUE, '14:00'), end: at(TUE, '14:30') } },
   ]);
+
+test('a trigger inside the workout buffer moves the gym into the availability windows, with its buffer', () => {
+  const THU = '2026-10-22';
+  const gym = mv(TUE, '17:00', '18:15', { category: 'workout', title: 'Gym', courseId: null, workoutType: 'gym' });
+  const inp = input({
+    prefs: prefs({ workoutAvailability: [{ days: [2, 4], start: '17:00', end: '19:30' }], workoutBuffer: { before: 15, after: 30 } }),
+    movable: [gym],
+    trigger: trigger(TUE, '18:30', '23:00'),
+  });
+  const out = replan(inp);
+  expect(out.changes).toHaveLength(1);
+  const c = out.changes[0]!;
+  if (c.type !== 'moved') throw new Error(`expected moved, got ${c.type}`);
+  expect(c.to.start).toBeGreaterThanOrEqual(at(THU, '17:00'));
+  expect(c.to.end).toBeLessThanOrEqual(at(THU, '19:30'));
+  expect(violations(inp, out.changes)).toEqual([]);
+});
+
+test('a trigger past the workout buffer leaves the gym alone', () => {
+  const gym = mv(TUE, '17:00', '18:15', { category: 'workout', title: 'Gym', courseId: null, workoutType: 'gym' });
+  const inp = input({ prefs: prefs({ workoutBuffer: { before: 15, after: 30 } }), movable: [gym], trigger: trigger(TUE, '18:45', '23:00') });
+  expect(replan(inp)).toEqual({ changes: [], shortfalls: [] });
+});
+
+test('gym with no room inside the availability windows → removed + shortfall', () => {
+  const gym = mv(TUE, '17:00', '18:15', { category: 'workout', title: 'Gym', courseId: null, workoutType: 'gym' });
+  const inp = input({
+    prefs: prefs({ workoutAvailability: [{ days: [2], start: '17:00', end: '19:00' }] }),
+    movable: [gym],
+    trigger: trigger(TUE, '17:30', '18:00'),
+  });
+  const out = replan(inp);
+  expect(out.changes).toEqual([{ type: 'removed', blockId: gym.id, from: { start: gym.start, end: gym.end } }]);
+  expect(out.shortfalls).toEqual([{ goal: { kind: 'workout', workoutType: 'gym', count: 1 }, missing: 1 }]);
 });

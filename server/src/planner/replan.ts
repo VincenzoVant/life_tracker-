@@ -1,13 +1,13 @@
 import { localDateOf, type Category, type MealSlot, type WorkoutType } from '@life-tracker/shared';
 import { placeStartup, placeStudy } from './chunked.js';
 import { reserveEvenings } from './evenings.js';
-import { ceilTo15, overlaps, padIntervals, STEP_MS, subtractIntervals } from './intervals.js';
+import { ceilTo15, MINUTE_MS, overlaps, padIntervals, STEP_MS, subtractIntervals } from './intervals.js';
 import { placeMealPrep, placeMeals } from './meals.js';
 import { createTimeline } from './timeline.js';
 import type {
   Interval, PlannerBlockRef, PlannerGoal, PlannerInput, ProposedBlock, Shortfall,
 } from './types.js';
-import { placeWorkouts } from './workouts.js';
+import { placeWorkouts, workoutPads } from './workouts.js';
 
 export interface MovableBlock extends Interval {
   id: string;
@@ -45,8 +45,9 @@ const minutesOf = (b: Interval): number => (b.end - b.start) / 60_000;
 const byStart = (a: MovableBlock, b: MovableBlock): number => a.start - b.start || a.id.localeCompare(b.id);
 const byBlockStart = (a: ProposedBlock, b: ProposedBlock): number => a.start - b.start || a.end - b.end;
 
-function asRef(b: MovableBlock, at: Interval = b): PlannerBlockRef {
+function asRef(b: MovableBlock, prefs: PlannerInput['prefs'], at: Interval = b): PlannerBlockRef {
   return {
+    ...(b.category === 'workout' ? workoutPads(prefs) : {}),
     start: at.start,
     end: at.end,
     category: b.category,
@@ -99,16 +100,24 @@ export function replan(input: ReplanInput): ReplanOutput {
   const kept: PlannerBlockRef[] = [];
   const pool: MovableBlock[] = [];
 
+  // A workout also conflicts when the trigger lands inside its own buffer.
+  const reach = (b: MovableBlock): Interval => {
+    if (b.category !== 'workout') return pad;
+    const before = Math.max(prefs.bufferMinutes, prefs.workoutBuffer.after) * MINUTE_MS;
+    const after = Math.max(prefs.bufferMinutes, prefs.workoutBuffer.before) * MINUTE_MS;
+    return { start: input.trigger.start - before, end: input.trigger.end + after };
+  };
+
   for (const b of [...input.movable].sort(byStart)) {
-    if (!overlaps(b, pad)) {
-      kept.push(asRef(b));
+    if (!overlaps(b, reach(b))) {
+      kept.push(asRef(b, prefs));
       continue;
     }
     if (!UNSHORTENABLE.has(b.category)) {
       const min = b.category === 'study' ? prefs.studyBlock.min : b.category === 'startup' ? prefs.startupBlock.min : 15;
       const part = shortenedPart(b, pad, min);
       if (part) {
-        kept.push(asRef(b, part));
+        kept.push(asRef(b, prefs, part));
         changes.push({ type: 'shortened', blockId: b.id, from: span(b), to: part });
         continue;
       }
