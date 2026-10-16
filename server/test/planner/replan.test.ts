@@ -246,3 +246,32 @@ test('gym with no room inside the availability windows → removed + shortfall',
   expect(out.changes).toEqual([{ type: 'removed', blockId: gym.id, from: { start: gym.start, end: gym.end } }]);
   expect(out.shortfalls).toEqual([{ goal: { kind: 'workout', workoutType: 'gym', count: 1 }, missing: 1 }]);
 });
+
+const relaxProject = {
+  kind: 'project' as const, projectId: 'p-relax', title: 'Read a novel', category: 'rest' as const, minutes: 0,
+  windows: [{ days: [2 as const], start: '20:00', end: '22:00' }], block: { min: 60, max: 60 }, priority: 2,
+};
+
+test('a displaced relax project block is moved with its own size and windows, not removed', () => {
+  const read = mv(TUE, '14:00', '15:00', { category: 'rest', title: 'Read a novel', courseId: null, projectId: 'p-relax' });
+  const out = replan(input({ projects: [relaxProject], movable: [read], trigger: trigger(TUE, '13:30', '15:30') }));
+  expect(out.changes).toHaveLength(1);
+  const ch = out.changes[0]!;
+  expect(ch).toMatchObject({ type: 'moved', blockId: read.id });
+  if (ch.type !== 'moved') throw new Error('expected a move');
+  expect(ch.to.end - ch.to.start).toBe(60 * 60_000);
+  expect(ch.to.start >= at(TUE, '20:00') && ch.to.end <= at(TUE, '22:00')).toBe(true);
+});
+
+test('a project block whose project is gone falls back to the category rules', () => {
+  const read = mv(TUE, '14:00', '15:00', { category: 'rest', title: 'Read a novel', courseId: null, projectId: 'p-deleted' });
+  const out = replan(input({ projects: [relaxProject], movable: [read], trigger: trigger(TUE, '13:30', '15:30') }));
+  expect(out.changes).toEqual([{ type: 'removed', blockId: read.id, from: { start: read.start, end: read.end } }]);
+});
+
+test('a project block is only shortened down to its own minimum block length', () => {
+  const read = mv(TUE, '14:00', '15:30', { category: 'rest', title: 'Read a novel', courseId: null, projectId: 'p-relax' });
+  const out = replan(input({ projects: [relaxProject], movable: [read], trigger: trigger(TUE, '14:45', '16:00') }));
+  // 14:00–14:30 is left after the trigger and buffer: shorter than the 60-minute minimum, so it moves instead.
+  expect(out.changes[0]).toMatchObject({ type: 'moved', blockId: read.id });
+});

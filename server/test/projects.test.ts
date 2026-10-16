@@ -5,7 +5,6 @@ import { blocks } from '../src/db/schema.js';
 import { createBlock, getBlock, setBlockStatus } from '../src/domains/blocks/service.js';
 import { saveGoals } from '../src/domains/goals/service.js';
 import { buildPlannerInput } from '../src/domains/plans/inputs.js';
-import { getPreferences, savePreferences } from '../src/domains/preferences/service.js';
 import { createProject } from '../src/domains/projects/service.js';
 import { applyReplan, quickAdd } from '../src/domains/replan/service.js';
 import { createCourse } from '../src/domains/studies/service.js';
@@ -164,9 +163,8 @@ test('a project the planner cannot fit shows up as a project shortfall', async (
 test('replan: blocks added for a displaced project block keep the projectId', () => {
   const ctx = createTestCtx();
   const course = createCourse(ctx, { name: 'Algebra', color: '#3366ff', weeklyGoalMinutes: 0 });
-  const p = createProject(ctx, { title: 'Midterm', kind: 'study', courseId: course.id, weeklyMinutes: 120 });
-  // Study blocks are capped at 60 min, so the displaced 2 h come back as one moved block plus an added one.
-  savePreferences(ctx, { ...getPreferences(ctx), studyBlock: { min: 45, max: 60 } });
+  // The project's blocks are capped at 60 min, so the displaced 2 h come back as one moved block plus an added one.
+  const p = createProject(ctx, { title: 'Midterm', kind: 'study', courseId: course.id, weeklyMinutes: 120, blockMin: 45, blockMax: 60 });
   const b = createBlock(
     ctx,
     { category: 'study', title: 'Midterm', start: iso('2026-10-15', '19:00'), end: iso('2026-10-15', '21:00'), courseId: course.id },

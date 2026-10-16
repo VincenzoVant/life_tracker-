@@ -44,3 +44,14 @@ test('freeEvenings must be 0..7, dailyKcal tolerance defaults to 10', async () =
   expect(r.body.dailyKcal).toEqual({ target: 2200, tolerancePct: 10 });
   expect(r.body.freeEvenings).toBeNull();
 });
+
+test('PATCH /api/goals merges the given goals onto the stored set', async () => {
+  const c = await createTestClient();
+  await c.put('/api/goals', { startupMinutes: 600, workoutsTotal: 4, dailyProteinG: 120 });
+  const r = await c.patch('/api/goals', { workoutsTotal: 3, freeEvenings: 2 });
+  expect(r.status).toBe(200);
+  expect(r.body).toMatchObject({ startupMinutes: 600, workoutsTotal: 3, freeEvenings: 2, dailyProteinG: 120 });
+  const bad = await c.patch('/api/goals', { freeEvenings: 9 });
+  expect(bad.status).toBe(400);
+  expect((await c.get('/api/goals')).body.freeEvenings).toBe(2);
+});

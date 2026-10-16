@@ -2,6 +2,7 @@ import {
   WORKOUT_TYPES,
   type WorkoutType,
   PROJECT_KIND_CATEGORY,
+  type Project,
   blockMinutes,
   eveningWindowUtc,
   weekDates,
@@ -67,6 +68,21 @@ export function freePastEvenings(dates: string[], weekBlocks: Block[], prefs: Pr
   return free;
 }
 
+/** The planner goal for a project with `minutes` still to place. */
+export function projectGoal(p: Project, minutes: number): Extract<PlannerGoal, { kind: 'project' }> {
+  return {
+    kind: 'project',
+    projectId: p.id,
+    title: p.title,
+    category: PROJECT_KIND_CATEGORY[p.kind],
+    minutes,
+    windows: p.windows,
+    block: { min: p.blockMin, max: p.blockMax },
+    priority: p.priority,
+    ...(p.kind === 'study' && p.courseId ? { courseId: p.courseId } : {}),
+  };
+}
+
 export function buildPlannerInput(ctx: Ctx, weekStart: string): PlannerInput {
   const tz = getTimezone(ctx);
   const prefs = getPreferences(ctx);
@@ -117,17 +133,7 @@ export function buildPlannerInput(ctx: Ctx, weekStart: string): PlannerInput {
   for (const p of projectsForWeek(ctx, weekStart)) {
     const minutes = Math.max(0, p.weeklyMinutes - usedMinutes(weekBlocks.filter((b) => b.projectId === p.id)));
     if (minutes <= 0) continue;
-    goals.push({
-      kind: 'project',
-      projectId: p.id,
-      title: p.title,
-      category: PROJECT_KIND_CATEGORY[p.kind],
-      minutes,
-      windows: p.windows,
-      block: { min: p.blockMin, max: p.blockMax },
-      priority: p.priority,
-      ...(p.kind === 'study' && p.courseId ? { courseId: p.courseId } : {}),
-    });
+    goals.push(projectGoal(p, minutes));
   }
 
   if (goalSet.startupMinutes !== null) {

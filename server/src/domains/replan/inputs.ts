@@ -7,7 +7,8 @@ import type { MovableBlock, ReplanInput } from '../../planner/replan.js';
 import type { Pads, PlannerBlockRef, PlannerGoal } from '../../planner/types.js';
 import { listBlocks } from '../blocks/service.js';
 import { getGoals } from '../goals/service.js';
-import { freePastEvenings } from '../plans/inputs.js';
+import { freePastEvenings, projectGoal } from '../plans/inputs.js';
+import { projectsForWeek } from '../projects/service.js';
 import { padsLookup } from '../plans/pads.js';
 import { getPreferences } from '../preferences/service.js';
 import { getTimezone } from '../settings/service.js';
@@ -103,6 +104,7 @@ export function buildReplanInput(
     goals,
     startupTasks: listOpenTasks(ctx).map((t) => ({ id: t.id, title: t.title })),
     movable: movable.map(toMovable),
+    projects: projectsForWeek(ctx, weekStart).map((p) => projectGoal(p, 0)),
     trigger: { start: trigger.start.getTime(), end: trigger.end.getTime(), title: trigger.title },
   };
   return { input, weekStart, basis };

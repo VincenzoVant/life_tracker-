@@ -155,11 +155,11 @@ test('saving the schedule patches only the workout preference keys', async () =>
   expect(await screen.findByText('Workout schedule saved')).toBeInTheDocument();
 });
 
-test('changing how often saves the whole goal set with only the workout goals changed', async () => {
+test('changing how often PATCHes only the workout goals', async () => {
   const { calls } = mockApi({
     ...handlers(),
     'PATCH /api/preferences': (b) => ({ ...DEFAULT_PREFERENCES, ...b }),
-    'PUT /api/goals': (b) => b,
+    'PATCH /api/goals': (b) => ({ ...goalSet, ...b }),
   });
   renderWithProviders(<WorkoutsPage />);
   const sport = await screen.findByLabelText('Sport workouts per week');
@@ -167,9 +167,9 @@ test('changing how often saves the whole goal set with only the workout goals ch
   await userEvent.type(sport, '1');
   await userEvent.click(screen.getByLabelText('No goal for Gym workouts per week'));
   await userEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
-  await vi.waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true));
-  expect(calls.find((c) => c.method === 'PUT' && c.path === '/api/goals')!.body).toEqual({
-    ...goalSet,
+  await vi.waitFor(() => expect(calls.some((c) => c.method === 'PATCH' && c.path === '/api/goals')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH' && c.path === '/api/goals')!.body).toEqual({
+    workoutsTotal: goalSet.workoutsTotal,
     workoutsByType: { gym: null, cardio: 1, sport: 1 },
   });
 });

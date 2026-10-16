@@ -13,3 +13,10 @@ export const useSaveGoals = () =>
     'goals',
     'progress',
   ]);
+
+/** Saves only the given goals; the server merges them onto the stored set. */
+export const usePatchGoals = () =>
+  useInvalidatingMutation(
+    (input: Partial<GoalSet>) => apiFetch<GoalSet>('/api/goals', { method: 'PATCH', body: input }),
+    ['goals', 'progress'],
+  );

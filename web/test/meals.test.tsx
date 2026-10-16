@@ -92,8 +92,8 @@ test('menu tab renders the weekly menu', async () => {
   expect(screen.getByRole('button', { name: 'Repeat last week' })).toBeInTheDocument();
 });
 
-test('nutrition goals PUT keeps the other goals', async () => {
-  const { calls } = mockApi(base({ 'PUT /api/goals': (b: any) => b }));
+test('nutrition goals PATCH sends only calories and protein', async () => {
+  const { calls } = mockApi(base({ 'PATCH /api/goals': (b: any) => ({ ...goals, ...b }) }));
   renderWithProviders(<MealsPage />);
   await userEvent.click(await screen.findByRole('tab', { name: 'Nutrition goals' }));
   const kcal = await screen.findByLabelText('Daily calories');
@@ -101,9 +101,8 @@ test('nutrition goals PUT keeps the other goals', async () => {
   await userEvent.type(kcal, '2200');
   await userEvent.click(screen.getByLabelText('No goal for Daily protein (g)'));
   await userEvent.click(screen.getByRole('button', { name: 'Save nutrition goals' }));
-  await waitFor(() => expect(calls.find((c) => c.method === 'PUT')).toBeTruthy());
-  expect(calls.find((c) => c.method === 'PUT')!.body).toEqual({
-    ...goals,
+  await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')).toBeTruthy());
+  expect(calls.find((c) => c.method === 'PATCH')!.body).toEqual({
     dailyKcal: { target: 2200, tolerancePct: 10 },
     dailyProteinG: null,
   });

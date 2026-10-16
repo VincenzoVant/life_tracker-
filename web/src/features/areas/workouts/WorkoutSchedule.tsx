@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { WORKOUT_TYPES, type Preferences, type WorkoutType } from '@life-tracker/shared';
 import { ApiError } from '../../../api/client';
-import { useGoals, useSaveGoals, type GoalSet } from '../../../api/hooks/goals';
+import { useGoals, usePatchGoals, type GoalSet } from '../../../api/hooks/goals';
 import { usePatchPreferences, usePreferences } from '../../../api/hooks/preferences';
 import { Field } from '../../../components/Field';
 import { useToast } from '../../../components/Toast';
@@ -87,7 +87,7 @@ function ScheduleForm({ initial, goals }: { initial: Preferences; goals: GoalSet
   // Raw text of numeric inputs, so a cleared input stays empty instead of becoming 0.
   const [raw, setRaw] = useState<Record<string, string>>({});
   const savePrefs = usePatchPreferences();
-  const saveGoals = useSaveGoals();
+  const saveGoals = usePatchGoals();
   const toast = useToast();
   const patch = (x: Partial<WorkoutPrefs>) => setP((cur) => ({ ...cur, ...x }));
   const setGoal = (x: Partial<GoalState>) => {
@@ -118,14 +118,13 @@ function ScheduleForm({ initial, goals }: { initial: Preferences; goals: GoalSet
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setErrors({});
-    const merged: GoalSet = {
-      ...goals,
+    const changed: Partial<GoalSet> = {
       workoutsTotal: num(g.total),
       workoutsByType: { gym: num(g.byType.gym), cardio: num(g.byType.cardio), sport: num(g.byType.sport) },
     };
     const [prefsResult, goalsResult] = await Promise.allSettled([
       savePrefs.mutateAsync(p),
-      goalsDirty ? saveGoals.mutateAsync(merged) : Promise.resolve(goals),
+      goalsDirty ? saveGoals.mutateAsync(changed) : Promise.resolve(goals),
     ]);
     const failed = [prefsResult, goalsResult].flatMap((r) => (r.status === 'rejected' ? [r.reason as unknown] : []));
     if (goalsResult.status === 'fulfilled') setGoalsDirty(false);

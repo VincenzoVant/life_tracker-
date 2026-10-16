@@ -3,6 +3,7 @@ import { placeStartup, placeStudy } from './chunked.js';
 import { reserveEvenings } from './evenings.js';
 import { ceilTo15, MINUTE_MS, overlaps, padIntervals, STEP_MS, subtractIntervals } from './intervals.js';
 import { placeMealPrep, placeMeals } from './meals.js';
+import { placeProjects } from './projects.js';
 import { createTimeline } from './timeline.js';
 import type {
   Interval, PlannerBlockRef, PlannerGoal, PlannerInput, ProposedBlock, Shortfall,
@@ -23,6 +24,8 @@ export interface MovableBlock extends Interval {
 /** `existing` holds the frozen blocks; `goals` may only carry a `free_evenings` goal. */
 export interface ReplanInput extends PlannerInput {
   movable: MovableBlock[];
+  /** The week's projects (minutes unused), so displaced project blocks are re-placed with their own sizes and windows. */
+  projects?: Extract<PlannerGoal, { kind: 'project' }>[];
   trigger: Interval & { title: string };
 }
 
@@ -56,6 +59,7 @@ function asRef(b: MovableBlock, prefs: PlannerInput['prefs'], at: Interval = b):
     courseId: b.courseId ?? null,
     workoutType: b.workoutType ?? null,
     mealSlot: b.mealSlot ?? null,
+    ...(b.projectId ? { projectId: b.projectId } : {}),
   };
 }
 
@@ -103,6 +107,8 @@ export function replan(input: ReplanInput): ReplanOutput {
   const changes: PlanChangeCore[] = [];
   const kept: PlannerBlockRef[] = [];
   const pool: MovableBlock[] = [];
+  const projects = new Map((input.projects ?? []).map((p) => [p.projectId, p]));
+  const projectOf = (b: MovableBlock) => (b.projectId ? projects.get(b.projectId) : undefined);
 
   // A workout also conflicts when the trigger lands inside its own buffer.
   const reach = (b: MovableBlock): Interval => {
@@ -118,7 +124,9 @@ export function replan(input: ReplanInput): ReplanOutput {
       continue;
     }
     if (!UNSHORTENABLE.has(b.category)) {
-      const min = b.category === 'study' ? prefs.studyBlock.min : b.category === 'startup' ? prefs.startupBlock.min : 15;
+      const min =
+        projectOf(b)?.block.min ??
+        (b.category === 'study' ? prefs.studyBlock.min : b.category === 'startup' ? prefs.startupBlock.min : 15);
       const part = shortenedPart(b, pad, min);
       if (part) {
         kept.push(asRef(b, prefs, part));
@@ -163,8 +171,17 @@ export function replan(input: ReplanInput): ReplanOutput {
     pair([w], r.blocks, changes);
   }
 
+  // Projects: re-placed with their own block sizes and windows; relax may use reserved evenings.
+  for (const [projectId, bs] of groupBy(pool.filter((b) => projectOf(b)), (b) => b.projectId!)) {
+    const goal = { ...projects.get(projectId)!, minutes: bs.reduce((n, b) => n + minutesOf(b), 0) };
+    const r = placeProjects(t, { ...work, goals: [goal] }, evenings.reservedIntervals);
+    shortfalls.push(...r.shortfalls);
+    pair(bs, r.blocks, changes);
+  }
+  const others = pool.filter((b) => !projectOf(b));
+
   // Study: one goal per course; blocks pair per course in start order.
-  const study = pool.filter((b) => b.category === 'study');
+  const study = others.filter((b) => b.category === 'study');
   if (study.length > 0) {
     const byCourse = groupBy(study, (b) => b.courseId ?? NO_COURSE);
     const goals: PlannerGoal[] = [...byCourse].map(([courseId, bs]) => ({
@@ -184,7 +201,7 @@ export function replan(input: ReplanInput): ReplanOutput {
   }
 
   // Startup: placed per task (or taskless) in turn, so each block keeps its task.
-  const startup = pool.filter((b) => b.category === 'startup');
+  const startup = others.filter((b) => b.category === 'startup');
   for (const [key, bs] of groupBy(startup, (b) => b.startupTaskId ?? NO_TASK)) {
     const first = bs[0]!;
     const task =
@@ -198,7 +215,7 @@ export function replan(input: ReplanInput): ReplanOutput {
   }
 
   // Categories without a placer (rest, social, ...) can only be kept, shortened or dropped.
-  for (const b of pool.filter((x) => !['meal', 'meal_prep', 'workout', 'study', 'startup'].includes(x.category))) {
+  for (const b of others.filter((x) => !['meal', 'meal_prep', 'workout', 'study', 'startup'].includes(x.category))) {
     changes.push({ type: 'removed', blockId: b.id, from: span(b) });
   }
 

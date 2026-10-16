@@ -55,3 +55,9 @@ export function saveGoals(ctx: Ctx, input: GoalSet): GoalSet {
   });
   return getGoals(ctx);
 }
+
+/** Merges the given top-level goals onto the stored set, so pages only send the goals they own. */
+export function patchGoals(ctx: Ctx, input: unknown): GoalSet {
+  const patch = input !== null && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  return saveGoals(ctx, { ...getGoals(ctx), ...patch } as GoalSet);
+}

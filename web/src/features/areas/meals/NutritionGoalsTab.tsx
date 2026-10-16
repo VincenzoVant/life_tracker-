@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../../../api/client';
-import { useGoals, useSaveGoals, type GoalSet } from '../../../api/hooks/goals';
+import { useGoals, usePatchGoals, type GoalSet } from '../../../api/hooks/goals';
 import { Field } from '../../../components/Field';
 import { useToast } from '../../../components/Toast';
 
@@ -36,16 +36,14 @@ function NutritionGoalsForm({ goals }: { goals: GoalSet }) {
   const [tolerance, setTolerance] = useState(() => String(goals.dailyKcal?.tolerancePct ?? 10));
   const [protein, setProtein] = useState(() => entry(goals.dailyProteinG));
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const save = useSaveGoals();
+  const save = usePatchGoals();
   const toast = useToast();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setErrors({});
     const target = num(kcal);
-    // PUT replaces the whole goal set, so keep every other goal as it is.
-    const body: GoalSet = {
-      ...goals,
+    const body: Partial<GoalSet> = {
       dailyKcal: target === null ? null : { target, tolerancePct: tolerance.trim() === '' ? 10 : Number(tolerance) },
       dailyProteinG: num(protein),
     };

@@ -141,9 +141,9 @@ test('edits a project (fun has no course) and deletes one after confirming', asy
   await waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === '/api/projects/p2')).toBe(true));
 });
 
-test('startup hours and free evenings save the whole goal set with only those changed', async () => {
+test('startup hours and free evenings PATCH only those two goals', async () => {
   const user = userEvent.setup();
-  const { calls } = mockApi({ ...base(), 'PUT /api/goals': (b) => b });
+  const { calls } = mockApi({ ...base(), 'PATCH /api/goals': (b) => ({ ...goals, ...b }) });
   renderWithProviders(<ThisWeekPage />);
   const startup = await screen.findByLabelText('Startup hours per week');
   expect(startup).toHaveValue(5);
@@ -152,7 +152,7 @@ test('startup hours and free evenings save the whole goal set with only those ch
   await user.clear(screen.getByLabelText('Free evenings per week'));
   await user.click(screen.getByRole('button', { name: 'Save goals' }));
   await waitFor(() =>
-    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ ...goals, startupMinutes: 450, freeEvenings: null }),
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ startupMinutes: 450, freeEvenings: null }),
   );
 });
 

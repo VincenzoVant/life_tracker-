@@ -3,7 +3,7 @@ import { GoalSet, TrendsQuery, WeekProgressQuery } from '@life-tracker/shared';
 import type { Ctx } from '../../ctx.js';
 import { parse } from '../../lib/validate.js';
 import { getPreferences } from '../preferences/service.js';
-import { getGoals, saveGoals } from './service.js';
+import { getGoals, patchGoals, saveGoals } from './service.js';
 import { getWeekProgress } from './progress.js';
 import { getStreaks } from './streaks.js';
 import { getTrends } from './trends.js';
@@ -12,6 +12,7 @@ export function goalRoutes(ctx: Ctx): Hono {
   const app = new Hono();
   app.get('/', (c) => c.json(getGoals(ctx)));
   app.put('/', async (c) => c.json(saveGoals(ctx, parse(GoalSet, await c.req.json().catch(() => undefined)))));
+  app.patch('/', async (c) => c.json(patchGoals(ctx, await c.req.json().catch(() => undefined))));
   return app;
 }
 
